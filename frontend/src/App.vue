@@ -121,7 +121,7 @@ const CONFIG_TOAST_DURATION_MS = 3800
 let configToastTimer = null
 
 const appMeta = reactive({
-  version: '0.0.1'
+  version: '1.0.0'
 })
 const AI_REPORT_SUPPORT_EMAIL = ''
 const AI_REPORT_SUBJECT = '[Norka] Report'

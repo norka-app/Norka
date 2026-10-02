@@ -4,7 +4,7 @@
   "outputfilename": "norka",
   "info": {
     "productName": "Norka",
-    "productVersion": "0.0.1"
+    "productVersion": "1.0.0"
   },
   "frontend:install": "pnpm install",
   "frontend:build": "pnpm run build",
