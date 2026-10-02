@@ -1,0 +1,108 @@
+# ==========================================
+# Заметки к уже опубликованным выпускам
+# ==========================================
+
+# Это имя видно на вкладке Actions.
+name: Release notes
+
+# Право править текст выпуска. Новые выпуски эта задача не создаёт.
+permissions:
+  contents: write
+
+# `on` — когда запускать задачу ниже.
+on:
+  # Отправка в main, и только если изменился файл заметок.
+  # Правка README или остального кода эту задачу не включает.
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/releases/v*.md"
+
+  # Ручной запуск: кнопка Run workflow на странице Actions.
+  # Тогда смотрим все файлы заметок, а не только последний коммит.
+  workflow_dispatch:
+
+
+jobs:
+  # Одна лёгкая задача: git и gh, без сборки приложения.
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      # Вся история нужна, чтобы сравнить коммит до отправки и после
+      # и увидеть, какие файлы заметок изменились.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Идём от файлов, не от списка выпусков.
+      # Файл есть, а выпуска ещё нет — пропускаем: текст подставит сборка по тегу.
+      # Выпуск без своего файла здесь не встречается, его текст не меняется.
+      - name: Update existing release notes
+        shell: bash
+        env:
+          # gh берёт токен из GH_TOKEN. Это GITHUB_TOKEN запуска:
+          # права заданы выше, contents: write.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Список путей, по одному на строку, кладём в массив files.
+          files=()
+          collect() {
+            files=()
+            if [ -n "$1" ]; then
+              local line
+              while IFS= read -r line; do
+                [ -n "$line" ] || continue
+                files+=("$line")
+              done <<< "$1"
+            fi
+          }
+
+          if [ ! -d docs/releases ]; then
+            echo "Папки docs/releases нет. Обновлять нечего."
+            exit 0
+          fi
+
+          # Ручной запуск или самая первая отправка в ветку: берём каждый файл.
+          # Иначе — только файлы, которые изменились между BEFORE и этим коммитом.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ -z "${BEFORE}" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            collect "$(find docs/releases -maxdepth 1 -type f -name 'v*.md' | sort)"
+          else
+            collect "$(git diff --name-only "$BEFORE" "$SHA" -- 'docs/releases/v*.md')"
+          fi
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Файлов заметок для обновления нет."
+            exit 0
+          fi
+
+          for file in "${files[@]}"; do
+            if [[ ! "$file" =~ ^docs/releases/v[^/]+\.md$ ]]; then
+              echo "Пропускаем ${file}: это не файл заметок к тегу."
+              continue
+            fi
+            # Файл удалили — выпуска без файла не трогаем.
+            if [ ! -f "$file" ]; then
+              echo "Файла ${file} уже нет. Выпуск без файла не трогаем."
+              continue
+            fi
+
+            tag="$(basename "$file" .md)"
+            err="$(mktemp)"
+            if gh release view "$tag" --json tagName >/dev/null 2>"$err"; then
+              gh release edit "$tag" --notes-file "$file"
+              echo "Обновлены заметки выпуска ${tag}."
+            elif grep -q 'release not found' "$err"; then
+              echo "Выпуска ${tag} ещё нет. Текст подставит сборка по тегу."
+            else
+              cat "$err" >&2
+              exit 1
+            fi
+            rm -f "$err"
+          done
