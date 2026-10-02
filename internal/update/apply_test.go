@@ -77,13 +77,6 @@ func TestParseMountPoint(t *testing.T) {
 }
 
 func TestRelaunchScripts(t *testing.T) {
-	script := windowsRelaunchScript(4321, `C:\Program Files\norka.exe`)
-	if !strings.Contains(script, "set PID=4321") || !strings.Contains(script, `set "EXE=C:\Program Files\norka.exe"`) {
-		t.Fatalf("windows script = %s", script)
-	}
-	if !strings.Contains(script, `tasklist /FI "PID eq %PID%"`) {
-		t.Fatalf("windows script lost the wait loop: %s", script)
-	}
 	sh := darwinRelaunchScript(99, "/Applications/Norka App.app")
 	if !strings.Contains(sh, "PID=99") || !strings.Contains(sh, "'/Applications/Norka App.app'") {
 		t.Fatalf("darwin script = %s", sh)

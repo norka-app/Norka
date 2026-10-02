@@ -39,10 +39,6 @@ func findAppBundle(root string) (string, error) {
 	return "", fmt.Errorf("app bundle not found")
 }
 
-func windowsRelaunchScript(pid int, exe string) string {
-	return fmt.Sprintf("@echo off\r\nset PID=%d\r\nset \"EXE=%s\"\r\n:wait\r\ntasklist /FI \"PID eq %%PID%%\" 2>nul | find \"%%PID%%\" >nul\r\nif %%errorlevel%%==0 (\r\n  ping -n 2 127.0.0.1 >nul\r\n  goto wait\r\n)\r\nstart \"\" \"%%EXE%%\"\r\ndel \"%%~f0\"\r\n", pid, exe)
-}
-
 func darwinRelaunchScript(pid int, app string) string {
 	return fmt.Sprintf("#!/bin/sh\nPID=%d\nAPP=%s\nwhile kill -0 \"$PID\" 2>/dev/null; do\n  sleep 0.4\ndone\nxattr -dr com.apple.quarantine \"$APP\" 2>/dev/null || true\nopen \"$APP\"\nrm -f \"$0\"\n", pid, shellSingleQuote(app))
 }

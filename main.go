@@ -15,6 +15,7 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"norka/internal/notify"
 	"norka/internal/traytext"
+	"norka/internal/update"
 )
 
 //go:embed all:frontend/dist
@@ -30,6 +31,15 @@ var trayIconMacOS []byte
 var trayIconFallback []byte
 
 func main() {
+	// До единичного экземпляра и до Wails: дождаться завершения предыдущей копии
+	// и снять внутренний флаг, чтобы он не попал в интерфейс. Заодно убрать
+	// случайно оставшиеся norka-relaunch-*.cmd из обновления 1.2.0.
+	if pid, args, found := update.ConsumeAfterUpdateWait(os.Args); found {
+		os.Args = args
+		update.WaitForPIDExit(pid)
+	}
+	update.CleanupStaleRelaunchScripts()
+
 	// Create an instance of the app structure
 	app := NewApp()
 	localeTag := app.ResolvedUILocale()

@@ -1,5 +1,5 @@
-// Package autorestart spawns a delayed second instance of the current binary.
-// Used after config relocation so SingleInstanceLock is released before the new process starts.
+// Package autorestart spawns a second instance of the current binary.
+// Used after config relocation so SingleInstanceLock is released before the new UI starts.
 package autorestart
 
 import (

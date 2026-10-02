@@ -182,7 +182,7 @@ func pingCheck(ctx context.Context, host string) model.AIDebugCheck {
 	}
 	pingCtx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(pingCtx, path, args...)
+	cmd := commandContext(pingCtx, path, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return model.AIDebugCheck{Name: "ping", Status: "error", Detail: trimText(fmt.Sprintf("ping failed: %v | %s", err, string(output)), 240)}
@@ -316,7 +316,7 @@ func resolveExecutable(candidate string) (string, error) {
 func detectSSHVersion(path string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, path, "-V")
+	cmd := commandContext(ctx, path, "-V")
 	output, err := cmd.CombinedOutput()
 	if err != nil && len(output) == 0 {
 		return "unknown"
@@ -430,7 +430,7 @@ func runSSHDebug(ctx context.Context, sshPath, cfgPath string, chain []model.Jum
 	defer cancel()
 	alias := fmt.Sprintf("norka-hop-%d", len(chain))
 	args := []string{"-F", cfgPath, "-vvv", "-T", alias, "exit"}
-	cmd := exec.CommandContext(debugCtx, sshPath, args...)
+	cmd := commandContext(debugCtx, sshPath, args...)
 	cmd.Stdin = strings.NewReader("")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
