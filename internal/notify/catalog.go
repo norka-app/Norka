@@ -31,6 +31,8 @@ type Catalog struct {
 	ConnectedOne          string `json:"connectedOne"`
 	ConnectedSingular     string `json:"connectedSingular"`
 	ConnectedPlural       string `json:"connectedPlural"`
+	WakeResume            string `json:"wakeResume"`
+	WakeNetwork           string `json:"wakeNetwork"`
 }
 
 var (
@@ -72,6 +74,8 @@ func fallbackRussian() Catalog {
 		ConnectedOne:          "Туннель «%s» подключён",
 		ConnectedSingular:     "%d %s подключён",
 		ConnectedPlural:       "%d %s подключены",
+		WakeResume:            "Переподключение после выхода из сна",
+		WakeNetwork:           "Переподключение после смены сети",
 	}
 }
 

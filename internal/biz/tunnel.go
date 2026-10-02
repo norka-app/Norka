@@ -635,7 +635,7 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 				slog.Warn("tunnel runtime disconnected, reconnecting", "tunnel_id", id, "err", evt.Err)
 				reconnecting = true
 				lastDisconnectErr = errReason(evt.Err)
-				if b.events != nil {
+				if b.events != nil && !evt.Quiet {
 					b.events.Dropped(id, name)
 				}
 				_, _ = b.updateStatus(id, statusReconnecting, lastDisconnectErr)
@@ -643,7 +643,7 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 				slog.Info("tunnel runtime reconnected", "tunnel_id", id)
 				reconnecting = false
 				lastDisconnectErr = ""
-				if b.events != nil {
+				if b.events != nil && !evt.Quiet {
 					b.events.Reconnected(id, name)
 				}
 				_, _ = b.updateStatus(id, "running", "")

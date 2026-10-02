@@ -83,7 +83,7 @@ Norka creates and keeps SSH tunnels from a window, without typing a command ever
 - 🪟 **Two window modes.** Advanced is the full interface. Simple is a compact window for one tunnel: status, address, uptime, copy address, and open in the browser. The simple window can stay above other windows. Switch from the title bar, the tray, or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>.
 - 🔌 **Port conflicts.** If another tunnel already holds the local port, Norka marks it “port busy” and offers “Connect instead” — it stops the other tunnel and starts the one you picked.
 - 🧷 **Tray.** The icon color follows the overall status. Each tunnel has a submenu: connect or disconnect, copy the address, open in the browser. At the bottom: “Disconnect all”, “Retry failed”, and a jump to simple or advanced mode.
-- 🔁 **Reconnect.** After a drop, an exponential pause from 0.5 s up to 1 minute, for up to 15 minutes. The list shows “Reconnecting”.
+- 🔁 **Reconnect.** After a drop, an exponential pause from 0.5 s up to 1 minute, for up to 15 minutes. The list shows “Reconnecting”. After sleep or a network change (Wi-Fi, VPN), live tunnels are probed at once: a dead session comes back without waiting for keepalive, and time spent asleep does not count toward the 15 minutes. Turn it off under **Settings → Features**.
 - 📈 **Traffic and latency.** Speed and a chart in the sidebar, SSH latency on each running tunnel.
 - 📥 **Import.** Tunnels from an `ssh` command (`-L`, `-R`, `-D`). Jump hosts from an SSH config file, including `ProxyJump`.
 
@@ -99,11 +99,11 @@ A command you used to type in a terminal can be pasted as a whole. **Import** on
 
 ## Features in Settings
 
-**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, and the SSH command. Each row is a name and a one-line description, in the light and dark themes and in both languages.
+**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, and reconnect after sleep. Each row is a name and a one-line description, in the light and dark themes and in both languages.
 
 The choices live in the `[features]` table of `config.toml`. A missing key uses the default, so an older file keeps working. An explicit `false` is stored and kept. Turning a feature off hides it immediately and stops the work behind it: the hotkey, the tray item, the background check.
 
-Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Quick search, updates, traffic, mascot animations, and the SSH command are on. The language setting and OS-keychain passwords are not flags.
+Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Quick search, updates, traffic, mascot animations, the SSH command, and reconnect after sleep are on. The language setting and OS-keychain passwords are not flags.
 
 A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md).
 

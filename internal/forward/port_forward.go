@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"norka/internal/model"
+	"norka/internal/netwatch"
+	"norka/internal/wake"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -32,7 +34,7 @@ var ErrUnsupportedMode = errors.New("only local, remote and dynamic modes are su
 const (
 	initReconnectWait = 500 * time.Millisecond
 	maxReconnectWait  = 1 * time.Minute
-	reconnectTimeout  = 15 * time.Minute
+	reconnectTimeout  = wake.GiveUpWindow
 )
 
 var (
@@ -52,6 +54,9 @@ const (
 type RuntimeEvent struct {
 	Type RuntimeEventType
 	Err  error
+	// Quiet suppresses the per-tunnel notification. A wake reconnect posts one
+	// summary instead of one notice per tunnel.
+	Quiet bool
 }
 
 type LocalForward struct {
@@ -68,6 +73,9 @@ type LocalForward struct {
 	done        chan struct{}
 	events      chan RuntimeEvent
 	keepStop    chan struct{}
+	nudgeCh     chan struct{}
+	immediate   atomic.Bool
+	quietCycle  atomic.Bool
 	lastLatency time.Duration
 	bytesUp     atomic.Uint64
 	bytesDown   atomic.Uint64
@@ -113,6 +121,7 @@ func (f *LocalForward) Start() error {
 	f.done = make(chan struct{})
 	f.events = make(chan RuntimeEvent, 8)
 	f.keepStop = make(chan struct{})
+	f.nudgeCh = make(chan struct{}, 1)
 	f.mu.Unlock()
 
 	slog.Info(
@@ -414,8 +423,9 @@ func (f *LocalForward) monitorClientLifecycle(client *ssh.Client) {
 
 		slog.Warn("tunnel connection lost", "tunnel_id", f.tunnel.ID, "name", f.tunnel.Name, "err", disconnectErr)
 		f.emitEvent(RuntimeEvent{
-			Type: RuntimeEventDisconnected,
-			Err:  disconnectErr,
+			Type:  RuntimeEventDisconnected,
+			Err:   disconnectErr,
+			Quiet: f.quietCycle.Load(),
 		})
 		f.setClient(nil, nil)
 
@@ -430,7 +440,8 @@ func (f *LocalForward) monitorClientLifecycle(client *ssh.Client) {
 			return
 		}
 		f.emitEvent(RuntimeEvent{
-			Type: RuntimeEventReconnected,
+			Type:  RuntimeEventReconnected,
+			Quiet: f.quietCycle.Swap(false),
 		})
 		slog.Info("tunnel reconnected", "tunnel_id", f.tunnel.ID, "name", f.tunnel.Name)
 		f.setClient(reconnectedClient, reconnectClose)
@@ -511,19 +522,45 @@ func (f *LocalForward) reconnectWithBackoff() (*ssh.Client, func(), error) {
 		return nil, nil, nil
 	}
 
-	deadline := time.Now().Add(reconnectTimeout)
+	budget := reconnectTimeout
 	wait := initReconnectWait
+	if f.consumeImmediate() {
+		f.drainNudge()
+		wait = 0
+		budget = reconnectTimeout
+	}
 	var lastErr error
 	attempt := 0
 
 	for {
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
+		if f.consumeImmediate() {
+			f.drainNudge()
+			wait = 0
+			budget = reconnectTimeout
+		}
+		if budget <= 0 {
 			break
 		}
 
-		if !waitOrStop(minDuration(wait, remaining), stop) {
+		scheduled := minDuration(wait, budget)
+		started := time.Now()
+		switch f.waitOrWake(scheduled, stop) {
+		case waitStopped:
 			return nil, nil, nil
+		case waitWoke:
+			f.immediate.Store(false)
+			f.drainNudge()
+			wait = 0
+			budget = reconnectTimeout
+		default:
+			elapsed := time.Since(started)
+			budget = wake.ChargeAwake(budget, reconnectTimeout, elapsed, scheduled, netwatch.JumpGap)
+			if elapsed > scheduled+netwatch.JumpGap {
+				wait = 0
+			}
+			if budget <= 0 {
+				break
+			}
 		}
 		attempt++
 		slog.Info("tunnel reconnect attempt", "tunnel_id", f.tunnel.ID, "name", f.tunnel.Name, "attempt", attempt, "wait", wait.String())
@@ -542,6 +579,14 @@ func (f *LocalForward) reconnectWithBackoff() (*ssh.Client, func(), error) {
 				f.replaceListener(ln)
 			}
 			slog.Info("tunnel reconnect succeeded", "tunnel_id", f.tunnel.ID, "name", f.tunnel.Name, "attempt", attempt)
+			if f.immediate.Load() {
+				// The network changed again while this dial was in flight.
+				closeChain()
+				f.drainNudge()
+				wait = 0
+				budget = reconnectTimeout
+				continue
+			}
 			return client, closeChain, nil
 		}
 
@@ -565,21 +610,6 @@ func nextReconnectWait(current time.Duration) time.Duration {
 		return maxReconnectWait
 	}
 	return next
-}
-
-func waitOrStop(wait time.Duration, stop <-chan struct{}) bool {
-	if wait <= 0 {
-		return true
-	}
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
-
-	select {
-	case <-stop:
-		return false
-	case <-timer.C:
-		return true
-	}
 }
 
 func minDuration(a, b time.Duration) time.Duration {

@@ -19,7 +19,9 @@
     "connectFailedPlural": "Не удалось подключить %d %s",
     "connectedOne": "Туннель «%s» подключён",
     "connectedSingular": "%d %s подключён",
-    "connectedPlural": "%d %s подключены"
+    "connectedPlural": "%d %s подключены",
+    "wakeResume": "Переподключение после выхода из сна",
+    "wakeNetwork": "Переподключение после смены сети"
   },
   "en": {
     "locale": "en",
@@ -41,6 +43,8 @@
     "connectFailedPlural": "Failed to connect %d %s",
     "connectedOne": "Tunnel \"%s\" connected",
     "connectedSingular": "%d %s connected",
-    "connectedPlural": "%d %s connected"
+    "connectedPlural": "%d %s connected",
+    "wakeResume": "Reconnecting after waking from sleep",
+    "wakeNetwork": "Reconnecting after a network change"
   }
 }

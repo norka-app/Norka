@@ -76,6 +76,9 @@ type App struct {
 	quickSearchHotkey      quickSearchHotkey
 	quickSearchOpen        atomic.Bool
 	quickSearchRestoreHide atomic.Bool
+
+	wakeMu     sync.Mutex
+	wakeCancel context.CancelFunc
 }
 
 // SecretsStatus tells Settings whether jumper passwords live in the OS keychain.
@@ -301,6 +304,9 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.ensureReady(); err == nil {
 		a.initNotifier()
 		a.syncAutoRunWithConfig()
+		if cfg, err := a.storage.Load(); err == nil {
+			a.syncWakeWatch(cfg.Features.Enabled(features.WakeReconnect))
+		}
 		if id := notify.ParseFocusArg(os.Args); id > 0 {
 			a.FocusTunnel(id)
 		}

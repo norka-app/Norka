@@ -67,6 +67,29 @@ func (s *Service) Connected(id int, name string) {
 	s.emit(Event{Kind: KindConnected, TunnelID: id, TunnelName: name})
 }
 
+// PostWake sends one summary after a sleep or network change.
+// Per-tunnel drop and reconnect notices for that cycle are suppressed by the caller.
+// Nothing is posted when notifications are off or neither of those kinds is enabled.
+func (s *Service) PostWake(resume bool) {
+	if s == nil || s.poster == nil {
+		return
+	}
+	if !s.allows(KindDropped) && !s.allows(KindReconnected) {
+		return
+	}
+	cat := s.catalog()
+	body := cat.WakeNetwork
+	if resume {
+		body = cat.WakeResume
+	}
+	if body == "" {
+		return
+	}
+	if err := s.poster.Post(Notice{Title: cat.Title, Body: body}); err != nil {
+		slog.Warn("wake notification failed", "error", err)
+	}
+}
+
 func (s *Service) emit(ev Event) {
 	if s == nil || !s.allows(ev.Kind) {
 		return
