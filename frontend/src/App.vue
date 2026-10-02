@@ -42,7 +42,10 @@ import {
   ApplyUpdate,
   SkipUpdateVersion,
   CancelUpdate,
-  FormatTunnelSSHCommand
+  FormatTunnelSSHCommand,
+  GetAutomationPrompt,
+  ConfirmAutomation,
+  DismissAutomationPrompt
 } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
@@ -93,6 +96,7 @@ const quickSearchOn = useFeature('quick_search')
 const trafficOn = useFeature('traffic_monitor')
 const autoUpdateOn = useFeature('auto_update')
 const sshCommandOn = useFeature('ssh_command')
+const automationOn = useFeature('automation')
 
 const pages = computed(() => {
   const all = [
@@ -319,7 +323,8 @@ function subscribeTrayEvents() {
       const key = entry && entry.key
       if (!key) return
       logEvent(entry.level || 'info', t(key))
-    })
+    }),
+    EventsOn('automation:prompt', (payload) => showAutomationPrompt(payload))
   ]
 }
 
@@ -405,6 +410,7 @@ const actionDialog = reactive({
   secondaryLabel: '',
   secondaryButtonClass: 'btn-outline-primary',
   onSecondary: null,
+  onCancel: null,
   rememberLabel: '',
   remember: false
 })
@@ -1643,6 +1649,77 @@ function openSSHCommandFromTunnel() {
   openImportTunnel()
 }
 
+function norkaConnectURL(name) {
+  return `norka://connect/${encodeURIComponent(String(name ?? ''))}`
+}
+
+async function copyTunnelLink(tunnel) {
+  const copied = await writeTextToClipboard(norkaConnectURL(tunnel?.name))
+  setConfigMessage(copied ? t('app.tunnels.actions.linkCopied') : t('app.tunnels.actions.linkCopyFailed'))
+}
+
+let lastAutomationKey = ''
+let queuedAutomation = null
+
+function automationMessage(payload) {
+  const name = payload?.name || ''
+  const list = Array.isArray(payload?.names) ? payload.names.join(', ') : ''
+  switch (payload?.code) {
+    case 'disabled':
+      return t('app.automation.disabled')
+    case 'invalid':
+      return t('app.automation.invalid')
+    case 'not_found':
+      return t('app.automation.notFound', { name })
+    case 'ambiguous':
+      return t('app.automation.ambiguous', { name, list })
+    case 'failed':
+      return payload?.detail || t('app.automation.failed', { name })
+    default:
+      return payload?.detail || ''
+  }
+}
+
+function showAutomationPrompt(payload) {
+  if (!payload?.kind) return
+  if (!languageReady.value) {
+    queuedAutomation = payload
+    return
+  }
+  const key = `${payload.kind}:${payload.code}:${payload.action}:${payload.tunnelId}:${payload.name}`
+  if (actionDialog.visible && key === lastAutomationKey) return
+  lastAutomationKey = key
+  if (payload.kind === 'notice') {
+    const message = automationMessage(payload)
+    if (!message) return
+    openActionDialog({
+      mode: 'alert',
+      message,
+      onConfirm: () => DismissAutomationPrompt().catch(() => {}),
+      onCancel: () => DismissAutomationPrompt().catch(() => {})
+    })
+    return
+  }
+  if (payload.kind !== 'confirm') return
+  const connect = payload.action !== 'disconnect'
+  openActionDialog({
+    mode: 'confirm',
+    message: t(connect ? 'app.automation.confirmConnect' : 'app.automation.confirmDisconnect', { name: payload.name }),
+    confirmLabel: t(connect ? 'app.automation.connect' : 'app.automation.disconnect'),
+    confirmButtonClass: connect ? 'btn-primary' : 'btn-danger',
+    rememberLabel: t('app.automation.dontAsk'),
+    onConfirm: async (remember) => {
+      try {
+        await ConfirmAutomation(payload.tunnelId, payload.action, !!remember)
+        await loadStateFromBackend()
+      } catch (err) {
+        setConfigMessage(errorMessage(err, t('app.automation.failed', { name: payload.name })))
+      }
+    },
+    onCancel: () => DismissAutomationPrompt().catch(() => {})
+  })
+}
+
 async function copyTunnelSSHCommand(tunnel) {
   try {
     const command = await FormatTunnelSSHCommand(tunnel.id)
@@ -1967,7 +2044,8 @@ function openActionDialog({
   secondaryLabel = '',
   secondaryButtonClass = 'btn-outline-primary',
   onSecondary = null,
-  rememberLabel = ''
+  rememberLabel = '',
+  onCancel = null
 }) {
   actionDialog.mode = mode
   actionDialog.message = message
@@ -1977,24 +2055,29 @@ function openActionDialog({
   actionDialog.secondaryLabel = secondaryLabel
   actionDialog.secondaryButtonClass = secondaryButtonClass
   actionDialog.onSecondary = onSecondary
+  actionDialog.onCancel = onCancel
   actionDialog.rememberLabel = rememberLabel
   actionDialog.remember = false
   actionDialog.visible = true
 }
 
 function closeActionDialog() {
+  const cancel = actionDialog.onCancel
   actionDialog.visible = false
   actionDialog.confirmLabel = ''
   actionDialog.onConfirm = null
   actionDialog.secondaryLabel = ''
   actionDialog.onSecondary = null
+  actionDialog.onCancel = null
   actionDialog.rememberLabel = ''
   actionDialog.remember = false
+  if (typeof cancel === 'function') cancel()
 }
 
 async function confirmActionDialog() {
   const handler = actionDialog.onConfirm
   const remember = actionDialog.remember
+  actionDialog.onCancel = null
   closeActionDialog()
   if (typeof handler === 'function') {
     await handler(remember)
@@ -2421,6 +2504,16 @@ onMounted(async () => {
   await loadStateFromBackend()
   await loadFeatures()
   syncFeatureEffects()
+  try {
+    showAutomationPrompt(await GetAutomationPrompt())
+  } catch (_) {
+    /* ссылки нет, либо привязки ещё не собраны */
+  }
+  if (queuedAutomation) {
+    const payload = queuedAutomation
+    queuedAutomation = null
+    showAutomationPrompt(payload)
+  }
   stateSyncTimer = window.setInterval(syncStateSilently, STATE_SYNC_INTERVAL_MS)
   window.addEventListener('keydown', onWindowKeydown, true)
   window.addEventListener('keyup', onWindowKeyup, true)
@@ -2711,10 +2804,12 @@ watch(
           :ai-debug-enabled="AI_DEBUG_ENABLED"
           :get-tunnel-jumper-label="getTunnelJumperLabel"
           :ssh-command-enabled="sshCommandOn"
+          :automation-enabled="automationOn"
           @update-search-query="tunnelSearchQuery = $event"
           @toggle-tunnel="toggleTunnel"
           @copy-tunnel="copyTunnel"
           @copy-ssh-command="copyTunnelSSHCommand"
+          @copy-link="copyTunnelLink"
           @edit-tunnel="editTunnel"
           @delete-tunnel="deleteTunnel"
           @ai-debug="openSavedTunnelAIDebug"

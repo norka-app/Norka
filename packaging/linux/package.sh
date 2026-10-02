@@ -44,7 +44,7 @@ APPDIR="$STAGE/AppDir"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications"
 cp "$BIN" "$APPDIR/usr/bin/norka"
 chmod 755 "$APPDIR/usr/bin/norka"
-sed 's|^Exec=.*|Exec=norka|' "$ROOT/packaging/linux/norka.desktop" > "$APPDIR/norka.desktop"
+sed 's|^Exec=.*|Exec=norka %u|' "$ROOT/packaging/linux/norka.desktop" > "$APPDIR/norka.desktop"
 cp "$APPDIR/norka.desktop" "$APPDIR/usr/share/applications/norka.desktop"
 install_icons "$APPDIR/usr/share/icons"
 convert "$ROOT/build/appicon.png" -resize 256x256 "$APPDIR/norka.png"
@@ -96,8 +96,10 @@ DEBROOT="$STAGE/deb"
 mkdir -p "$DEBROOT/DEBIAN" "$DEBROOT/usr/bin" "$DEBROOT/usr/share/applications"
 cp "$BIN" "$DEBROOT/usr/bin/norka"
 chmod 755 "$DEBROOT/usr/bin/norka"
-sed 's|^Exec=.*|Exec=/usr/bin/norka|' "$ROOT/packaging/linux/norka.desktop" \
+sed 's|^Exec=.*|Exec=/usr/bin/norka %u|' "$ROOT/packaging/linux/norka.desktop" \
   > "$DEBROOT/usr/share/applications/norka.desktop"
+cp "$ROOT/packaging/linux/debian/postinst" "$DEBROOT/DEBIAN/postinst"
+chmod 755 "$DEBROOT/DEBIAN/postinst"
 install_icons "$DEBROOT/usr/share/icons"
 sed "s/@VERSION@/${VERSION}/" "$ROOT/packaging/linux/debian/control.in" > "$DEBROOT/DEBIAN/control"
 DEB="$OUT/norka_${VERSION}_amd64.deb"
@@ -108,7 +110,7 @@ TARROOT="$STAGE/tar/norka"
 mkdir -p "$TARROOT"
 cp "$BIN" "$TARROOT/norka"
 chmod 755 "$TARROOT/norka"
-sed 's|^Exec=.*|Exec=norka|' "$ROOT/packaging/linux/norka.desktop" > "$TARROOT/norka.desktop"
+sed 's|^Exec=.*|Exec=norka %u|' "$ROOT/packaging/linux/norka.desktop" > "$TARROOT/norka.desktop"
 convert "$ROOT/build/appicon.png" -resize 256x256 "$TARROOT/norka.png"
 cat > "$TARROOT/README.txt" <<EOF
 Norka ${VERSION} для Linux (x86_64).
@@ -122,7 +124,8 @@ Norka ${VERSION} для Linux (x86_64).
 иконки может не быть: окно при этом работает.
 
 Файл norka.desktop можно положить в ~/.local/share/applications/,
-поправив Exec на полный путь к бинарнику.
+поправив Exec на полный путь к бинарнику. В нём указан обработчик
+ссылок norka:// (MimeType=x-scheme-handler/norka).
 Автозапуск из настроек приложения пишет ~/.config/autostart/norka.desktop.
 EOF
 TARBALL="$OUT/norka_${VERSION}_linux_amd64.tar.gz"

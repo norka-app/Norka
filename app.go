@@ -15,6 +15,7 @@ import (
 
 	"github.com/energye/systray"
 	"norka/internal/aidebug"
+	"norka/internal/automation"
 	"norka/internal/autostart"
 	"norka/internal/biz"
 	"norka/internal/conf"
@@ -79,6 +80,12 @@ type App struct {
 
 	wakeMu     sync.Mutex
 	wakeCancel context.CancelFunc
+
+	startHidden      bool
+	ipcMu            sync.Mutex
+	ipcCancel        context.CancelFunc
+	automationMu     sync.Mutex
+	automationPrompt AutomationPrompt
 }
 
 // SecretsStatus tells Settings whether jumper passwords live in the OS keychain.
@@ -299,7 +306,12 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	slog.Info("app startup")
 	update.CleanupBackup()
-	a.windowVisible.Store(true)
+	if a.startHidden {
+		a.windowVisible.Store(false)
+		wailsruntime.EventsEmit(ctx, eventWindowVisibility, false)
+	} else {
+		a.windowVisible.Store(true)
+	}
 	a.bindQuickSearchHotkey()
 	if err := a.ensureReady(); err == nil {
 		a.initNotifier()
@@ -307,7 +319,10 @@ func (a *App) startup(ctx context.Context) {
 		if cfg, err := a.storage.Load(); err == nil {
 			a.syncWakeWatch(cfg.Features.Enabled(features.WakeReconnect))
 		}
-		if id := notify.ParseFocusArg(os.Args); id > 0 {
+		a.syncAutomation()
+		if link := automation.LinkFromArgs(os.Args); link != "" {
+			a.HandleDeepLink(link)
+		} else if id := notify.ParseFocusArg(os.Args); id > 0 {
 			a.FocusTunnel(id)
 		}
 		go func() {
@@ -468,6 +483,7 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	slog.Info("app shutdown")
+	a.stopAutomationIPC()
 	a.unbindQuickSearchHotkey()
 	if a.tunnel != nil {
 		a.tunnel.Shutdown()

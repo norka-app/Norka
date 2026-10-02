@@ -20,6 +20,7 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, cfg, features.Mascot, true)
 	assertFeature(t, cfg, features.SSHCommand, true)
 	assertFeature(t, cfg, features.WakeReconnect, true)
+	assertFeature(t, cfg, features.Automation, false)
 	if _, ok := cfg.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay missing on a fresh config")
 	}
@@ -39,6 +40,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, loaded, features.Mascot, true)
 	assertFeature(t, loaded, features.SSHCommand, true)
 	assertFeature(t, loaded, features.WakeReconnect, true)
+	assertFeature(t, loaded, features.Automation, false)
+	if _, ok := loaded.Features.Explicit(features.Automation); ok {
+		t.Fatal("automation key must stay absent so the default stays off")
+	}
 	if _, ok := loaded.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay absent so the default can change later")
 	}
@@ -105,6 +110,7 @@ traffic_monitor = false
 mascot = false
 ssh_command = false
 wake_reconnect = false
+automation = false
 `)
 	cfg, err := ParseConfigTOML(raw)
 	if err != nil {
@@ -142,7 +148,7 @@ wake_reconnect = false
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false"} {
+	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false"} {
 		if !strings.Contains(text, key) {
 			t.Fatalf("saved config missing %q:\n%s", key, text)
 		}
@@ -192,6 +198,7 @@ status = "running"
 	assertFeature(t, cfg, features.Mascot, true)
 	assertFeature(t, cfg, features.SSHCommand, true)
 	assertFeature(t, cfg, features.WakeReconnect, true)
+	assertFeature(t, cfg, features.Automation, false)
 	if cfg.QuickSearchHotkey != "ctrl+shift+k" {
 		t.Fatalf("hotkey lost: %q", cfg.QuickSearchHotkey)
 	}

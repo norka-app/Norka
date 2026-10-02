@@ -43,6 +43,10 @@ const props = defineProps({
   sshCommandEnabled: {
     type: Boolean,
     default: false
+  },
+  automationEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -57,7 +61,8 @@ const emit = defineEmits([
   'rename-group',
   'delete-group',
   'move-tunnel-to-group',
-  'copy-ssh-command'
+  'copy-ssh-command',
+  'copy-link'
 ])
 const { t } = useI18n()
 
@@ -527,6 +532,9 @@ function tunnelMenuOptions(tunnel) {
   if (props.sshCommandEnabled) {
     options.push({ label: t('app.tunnels.actions.copySSH'), key: 'copy-ssh' })
   }
+  if (props.automationEnabled) {
+    options.push({ label: t('app.tunnels.actions.copyLink'), key: 'copy-link' })
+  }
   const moves = showGroupedView.value ? getMoveGroupOptions(tunnel) : []
   if (moves.length > 0) {
     options.push({ type: 'divider', key: 'move-divider' })
@@ -557,6 +565,10 @@ function onTunnelMenu(key, tunnel) {
   }
   if (key === 'copy-ssh') {
     emit('copy-ssh-command', tunnel)
+    return
+  }
+  if (key === 'copy-link') {
+    emit('copy-link', tunnel)
     return
   }
   if (key === 'delete') {

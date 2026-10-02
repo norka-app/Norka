@@ -105,6 +105,9 @@
                 "copySSH": "Copy as SSH command",
                 "sshCopied": "SSH command copied",
                 "sshCopyFailed": "Could not copy the SSH command",
+                "copyLink": "Copy norka:// link",
+                "linkCopied": "norka:// link copied",
+                "linkCopyFailed": "Could not copy the norka:// link",
                 "copyError": "Copy error",
                 "copied": "Copied",
                 "expandError": "Show full error",
@@ -140,6 +143,18 @@
                 "nameDuplicate": "A group with this name already exists.",
                 "hideEmptyUngrouped": "Hide “Ungrouped” when empty"
             }
+        },
+        "automation": {
+            "disabled": "Automation is off. Turn it on in Settings → Features.",
+            "invalid": "This norka:// link was not recognised.",
+            "notFound": "Tunnel “{name}” was not found.",
+            "ambiguous": "“{name}” matches more than one tunnel: {list}.",
+            "confirmConnect": "Connect tunnel “{name}” from an norka:// link? A web page must not open a tunnel without your consent.",
+            "confirmDisconnect": "Disconnect tunnel “{name}” from an norka:// link?",
+            "connect": "Connect",
+            "disconnect": "Disconnect",
+            "dontAsk": "Don’t ask again for this tunnel",
+            "failed": "The command failed for “{name}”."
         },
         "confirmations": {
             "deleteTunnel": "Delete tunnel “{name}”?",
@@ -586,6 +601,8 @@
         "sshCommand": "SSH command",
         "sshCommandDesc": "Paste an ssh command to create a tunnel, and copy a tunnel back out as a command.",
         "wakeReconnect": "Reconnect after sleep",
-        "wakeReconnectDesc": "After wake or a network change, probe SSH immediately and restore tunnels without waiting for keepalive."
+        "wakeReconnectDesc": "After wake or a network change, probe SSH immediately and restore tunnels without waiting for keepalive.",
+        "automation": "Automation",
+        "automationDesc": "Terminal commands and norka:// links. Off by default: this is a local control surface for tunnels."
     }
 }

@@ -93,6 +93,10 @@ type Config struct {
 	QuickSearchHotkey  string `toml:"quick_search_hotkey,omitempty"`
 	// Features is the optional-capability registry. Missing keys use defaults.
 	Features features.Flags `toml:"features,omitempty"`
+	// AutomationTrusted lists tunnel ids that a norka:// link may connect or
+	// disconnect without asking again. Turning the automation flag off does
+	// not clear the list. Unknown ids are dropped on the next save.
+	AutomationTrusted []int `toml:"automation_trusted,omitempty"`
 }
 
 // NotificationSettings controls opt-in OS notifications.
@@ -169,6 +173,7 @@ func (c *Config) Clone() *Config {
 		Language:              c.Language,
 		QuickSearchHotkey:     c.QuickSearchHotkey,
 		Features:              c.Features.Clone(),
+		AutomationTrusted:     append([]int(nil), c.AutomationTrusted...),
 	}
 	if c.QuickSearchEnabled != nil {
 		enabled := *c.QuickSearchEnabled
@@ -224,6 +229,7 @@ func (c *Config) Normalize() {
 		}
 	}
 	c.Profiles = normalizeProfiles(c.Profiles, knownTunnels)
+	c.AutomationTrusted = pruneAutomationTrust(c.AutomationTrusted, knownTunnels)
 	if c.ActiveProfileID > 0 && profileIndex(c.Profiles, c.ActiveProfileID) < 0 {
 		c.ActiveProfileID = 0
 	}
@@ -289,6 +295,54 @@ func profileIndex(profiles []model.Profile, id int) int {
 		}
 	}
 	return -1
+}
+
+// AutomationAllows reports whether a norka:// link may change this tunnel
+// without asking. The choice is per tunnel, not per action.
+func (c *Config) AutomationAllows(id int) bool {
+	if c == nil || id <= 0 {
+		return false
+	}
+	for _, item := range c.AutomationTrusted {
+		if item == id {
+			return true
+		}
+	}
+	return false
+}
+
+// TrustAutomationTunnel remembers that this tunnel may be changed from a
+// norka:// link without asking again.
+func (c *Config) TrustAutomationTunnel(id int) {
+	if c == nil || id <= 0 || c.AutomationAllows(id) {
+		return
+	}
+	c.AutomationTrusted = append(c.AutomationTrusted, id)
+}
+
+func pruneAutomationTrust(ids []int, known map[int]struct{}) []int {
+	if len(ids) == 0 {
+		return nil
+	}
+	kept := make([]int, 0, len(ids))
+	seen := make(map[int]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := known[id]; !ok {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		kept = append(kept, id)
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	return kept
 }
 
 func normalizeJumperIDs(ids []int) []int {

@@ -11,6 +11,7 @@ const DEFAULTS = {
   mascot: true,
   ssh_command: true,
   wake_reconnect: true,
+  automation: false,
 }
 
 const COPY = {
@@ -22,6 +23,7 @@ const COPY = {
   mascot: ['features.mascot', 'features.mascotDesc'],
   ssh_command: ['features.sshCommand', 'features.sshCommandDesc'],
   wake_reconnect: ['features.wakeReconnect', 'features.wakeReconnectDesc'],
+  automation: ['features.automation', 'features.automationDesc'],
 }
 
 function fallbackItems() {
