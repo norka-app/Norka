@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NDropdown, NTag } from 'naive-ui'
 
@@ -19,6 +19,10 @@ const props = defineProps({
   searchQuery: {
     type: String,
     default: ''
+  },
+  focusTunnelId: {
+    type: Number,
+    default: 0
   },
   modeOptions: {
     type: Array,
@@ -143,6 +147,32 @@ const visibleEntries = computed(() => {
 watch(() => props.searchQuery, (newValue) => {
   localSearchQuery.value = newValue
 })
+
+watch(() => props.focusTunnelId, (id) => {
+  const tunnelId = Number(id)
+  if (!tunnelId) return
+  const tunnel = props.tunnels.find((item) => Number(item.id) === tunnelId)
+  if (tunnel && showGroupedView.value) {
+    const groupId = resolveTunnelGroupId(tunnel)
+    const key = groupId > 0 ? String(groupId) : UNGROUPED_SECTION_KEY
+    if (collapsedSectionKeys.value.has(key)) {
+      const next = new Set(collapsedSectionKeys.value)
+      next.delete(key)
+      collapsedSectionKeys.value = next
+    }
+  }
+  void nextTick(() => {
+    document.querySelector(`[data-tunnel-id="${tunnelId}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  })
+})
+
+function rowProps(row) {
+  return { 'data-tunnel-id': String(row.id) }
+}
+
+function rowClassName(row) {
+  return Number(row.id) === Number(props.focusTunnelId) ? 'tunnel-row-focus' : ''
+}
 
 watch(localSearchQuery, (newValue) => {
   emit('update-search-query', newValue)
@@ -679,6 +709,8 @@ const tableMinWidth = computed(() => tunnelColumns.value
       :bordered="false"
       :scroll-x="tableMinWidth"
       :row-key="(row) => row.id"
+      :row-props="rowProps"
+      :row-class-name="rowClassName"
       :expanded-row-keys="expandedRowKeys"
       @update:expanded-row-keys="onExpandedRows"
     />
@@ -712,6 +744,8 @@ const tableMinWidth = computed(() => tunnelColumns.value
           :bordered="false"
           :scroll-x="tableMinWidth"
           :row-key="(row) => row.id"
+          :row-props="rowProps"
+          :row-class-name="rowClassName"
           :expanded-row-keys="expandedRowKeys"
           @update:expanded-row-keys="onExpandedRows"
         />
@@ -756,5 +790,9 @@ const tableMinWidth = computed(() => tunnelColumns.value
 
 .tunnel-card-toolbar :deep(.n-input) {
   width: 240px;
+}
+
+:deep(.tunnel-row-focus td) {
+  background: color-mix(in srgb, var(--lt-brand) 18%, transparent);
 }
 </style>

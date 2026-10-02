@@ -12,8 +12,9 @@ const defaultConfigPath = "config.toml"
 
 const appConfigDirName = ".norka"
 
-// PrivateDirPerm and PrivateFilePerm keep SSH passwords in the local config
-// unreadable to other users on the machine.
+// PrivateDirPerm and PrivateFilePerm keep the local config unreadable to other
+// users. Jumper passwords belong in the OS keychain; these modes still protect
+// the file when the keychain is unavailable.
 const (
 	PrivateDirPerm  os.FileMode = 0o700
 	PrivateFilePerm os.FileMode = 0o600
@@ -69,12 +70,41 @@ func homeConfigDir(homeDir string) string {
 
 // Config is persisted in TOML storage.
 type Config struct {
-	Version               int                 `toml:"version"`
-	Jumpers               []model.Jumper      `toml:"jumpers"`
-	Groups                []model.TunnelGroup `toml:"groups"`
-	Tunnels               []model.Tunnel      `toml:"tunnels"`
-	AutoRun               bool                `toml:"auto_run"`
-	TrafficMonitorEnabled bool                `toml:"traffic_monitor_enabled"`
+	Version               int                  `toml:"version"`
+	Jumpers               []model.Jumper       `toml:"jumpers"`
+	Groups                []model.TunnelGroup  `toml:"groups"`
+	Tunnels               []model.Tunnel       `toml:"tunnels"`
+	AutoRun               bool                 `toml:"auto_run"`
+	TrafficMonitorEnabled bool                 `toml:"traffic_monitor_enabled"`
+	Notifications         NotificationSettings `toml:"notifications"`
+	// NotificationsSet is true after defaults have been applied, so an explicit
+	// all-off choice is not replaced by defaults on the next load.
+	NotificationsSet bool `toml:"notifications_set"`
+}
+
+// NotificationSettings controls opt-in OS notifications.
+// The master switch defaults to off. When it is turned on, drop, reconnect,
+// give-up and connect-failed are on; a successful connect stays off.
+type NotificationSettings struct {
+	Enabled       bool `json:"enabled" toml:"enabled"`
+	Dropped       bool `json:"dropped" toml:"dropped"`
+	Reconnected   bool `json:"reconnected" toml:"reconnected"`
+	GaveUp        bool `json:"gaveUp" toml:"gave_up"`
+	ConnectFailed bool `json:"connectFailed" toml:"connect_failed"`
+	Connected     bool `json:"connected" toml:"connected"`
+}
+
+// DefaultNotificationSettings is the opt-in baseline: nothing is shown until
+// the master switch is enabled, and a plain "connected" toast stays off.
+func DefaultNotificationSettings() NotificationSettings {
+	return NotificationSettings{
+		Enabled:       false,
+		Dropped:       true,
+		Reconnected:   true,
+		GaveUp:        true,
+		ConnectFailed: true,
+		Connected:     false,
+	}
 }
 
 // GetHomeConfigPath returns the absolute path for the home config file
@@ -102,6 +132,8 @@ func DefaultConfig() *Config {
 		Tunnels:               []model.Tunnel{},
 		AutoRun:               false,
 		TrafficMonitorEnabled: true,
+		Notifications:         DefaultNotificationSettings(),
+		NotificationsSet:      true,
 	}
 }
 
@@ -115,6 +147,8 @@ func (c *Config) Clone() *Config {
 		Version:               c.Version,
 		AutoRun:               c.AutoRun,
 		TrafficMonitorEnabled: c.TrafficMonitorEnabled,
+		Notifications:         c.Notifications,
+		NotificationsSet:      c.NotificationsSet,
 	}
 	out.Jumpers = append(out.Jumpers, c.Jumpers...)
 	out.Groups = append(out.Groups, c.Groups...)
@@ -137,6 +171,10 @@ func (c *Config) Normalize() {
 		c.Tunnels = []model.Tunnel{}
 	}
 	// AutoRun defaults to false; no need to set if already present
+	if !c.NotificationsSet {
+		c.Notifications = DefaultNotificationSettings()
+		c.NotificationsSet = true
+	}
 	for i := range c.Tunnels {
 		c.Tunnels[i].JumperIDs = normalizeJumperIDs(c.Tunnels[i].JumperIDs)
 	}

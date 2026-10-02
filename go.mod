@@ -3,17 +3,20 @@ module norka
 go 1.25.0
 
 require (
+	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
 	github.com/BurntSushi/toml v1.6.0
 	github.com/emersion/go-autostart v0.0.0-20250403115856-34830d6457d2
 	github.com/energye/systray v1.0.3
 	github.com/wailsapp/wails/v2 v2.16.0
+	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sys v0.46.0
 )
 
 require (
-	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
+	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
+	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

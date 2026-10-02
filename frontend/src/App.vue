@@ -239,6 +239,19 @@ async function setWindowMode(mode) {
 // события из меню трея (tray_menu.go): туннель переключён / открыть окно в нужном режиме
 let offRuntimeEvents = []
 
+const focusTunnelId = ref(0)
+
+function focusTunnelFromNotification(id) {
+  const tunnelId = Number(id) || 0
+  tunnelSearchQuery.value = ''
+  activePage.value = 'tunnels'
+  focusTunnelId.value = 0
+  void nextTick(() => {
+    focusTunnelId.value = tunnelId
+  })
+  if (windowMode.value === 'simple') void setWindowMode('advanced')
+}
+
 function subscribeTrayEvents() {
   if (typeof window === 'undefined' || !window.runtime) return
   offRuntimeEvents = [
@@ -246,7 +259,8 @@ function subscribeTrayEvents() {
     EventsOn('window:mode', (mode) => {
       if (mode === 'simple' && dialogOpen.value) return
       void setWindowMode(mode)
-    })
+    }),
+    EventsOn('notification:focus', (id) => focusTunnelFromNotification(id))
   ]
 }
 
@@ -456,7 +470,8 @@ const filteredTunnels = computed(() => {
   })
 })
 
-const jumperNeedsPassword = computed(() => authNeedsPassword(jumperForm.authType))
+const jumperKeepsStoredSecret = computed(() => !!jumperForm.hasSecret || Number(jumperForm.secretSourceId) > 0)
+const jumperNeedsPassword = computed(() => authNeedsPassword(jumperForm.authType) && !jumperKeepsStoredSecret.value)
 const jumperShowsPassword = computed(() => authShowsPassword(jumperForm.authType))
 const jumperNeedsKeyFile = computed(() => authNeedsKeyFile(jumperForm.authType))
 const inlineJumperNeedsPassword = computed(() => authNeedsPassword(inlineJumperForm.authType))
@@ -465,6 +480,7 @@ const inlineJumperNeedsKeyFile = computed(() => authNeedsKeyFile(inlineJumperFor
 
 function defaultJumperForm() {
   return {
+    id: 0,
     name: '',
     host: '',
     port: 22,
@@ -473,6 +489,8 @@ function defaultJumperForm() {
     keyPath: '',
     agentSocketPath: '',
     password: '',
+    hasSecret: false,
+    secretSourceId: 0,
     bypassHostVerification: false,
     keepAliveIntervalMs: 5000,
     timeoutMs: 5000,
@@ -964,6 +982,8 @@ function buildJumperPayload(form) {
     keyPath: form.keyPath.trim(),
     agentSocketPath: form.agentSocketPath.trim(),
     password: form.password,
+    id: Number(form.id) || 0,
+    secretSourceId: Number(form.secretSourceId) || 0,
     bypassHostVerification: !!form.bypassHostVerification,
     keepAliveIntervalMs: Number(form.keepAliveIntervalMs),
     timeoutMs: Number(form.timeoutMs),
@@ -975,7 +995,7 @@ function buildJumperPayload(form) {
   return payload
 }
 
-function validateJumperPayload(payload) {
+function validateJumperPayload(payload, opts = {}) {
   if (!payload.name) return 'Name is required.'
   if (nameUnits(payload.name) > JUMPER_LIMITS.name) return 'Name must be <= 20 chars or <= 10 Chinese chars.'
   if (!payload.host) return 'Host is required.'
@@ -994,7 +1014,7 @@ function validateJumperPayload(payload) {
   if (authNeedsKeyFile(payload.authType) && !payload.keyPath) {
     return 'SSH Key mode requires selecting a key file.'
   }
-  if (authNeedsPassword(payload.authType) && !payload.password) {
+  if (authNeedsPassword(payload.authType) && !payload.password && !opts.keepSecret) {
     return 'Current auth method requires a password.'
   }
   if (!Number.isInteger(payload.keepAliveIntervalMs) || payload.keepAliveIntervalMs > JUMPER_LIMITS.keepAliveIntervalMax) {
@@ -1087,7 +1107,12 @@ function closeImportJumper() {
 
 function editJumper(jumper) {
   editingJumperId.value = jumper.id
-  Object.assign(jumperForm, defaultJumperForm(), jumper)
+  Object.assign(jumperForm, defaultJumperForm(), jumper, {
+    password: '',
+    hasSecret: !!jumper.hasSecret,
+    secretSourceId: 0,
+    id: jumper.id
+  })
   showJumperBasic.value = true
   showJumperAdvanced.value = false
   resetJumperValidation()
@@ -1098,6 +1123,9 @@ function editJumper(jumper) {
 
 function fillJumperFormFromJumper(jumper, nameOverride = null) {
   Object.assign(jumperForm, {
+    id: 0,
+    hasSecret: false,
+    secretSourceId: 0,
     name: nameOverride ?? jumper.name,
     host: jumper.host,
     port: jumper.port,
@@ -1105,7 +1133,7 @@ function fillJumperFormFromJumper(jumper, nameOverride = null) {
     authType: jumper.authType,
     keyPath: jumper.keyPath || '',
     agentSocketPath: jumper.agentSocketPath || '',
-    password: jumper.password || '',
+    password: '',
     bypassHostVerification: !!jumper.bypassHostVerification,
     keepAliveIntervalMs: jumper.keepAliveIntervalMs,
     timeoutMs: jumper.timeoutMs,
@@ -1116,6 +1144,8 @@ function fillJumperFormFromJumper(jumper, nameOverride = null) {
 function copyJumper(jumper) {
   editingJumperId.value = null
   fillJumperFormFromJumper(jumper, `copy-${jumper.name}`)
+  jumperForm.hasSecret = !!jumper.hasSecret
+  jumperForm.secretSourceId = jumper.hasSecret ? jumper.id : 0
   showJumperBasic.value = true
   showJumperAdvanced.value = false
   resetJumperValidation()
@@ -1127,7 +1157,7 @@ function copyJumper(jumper) {
 async function saveJumper() {
   resetJumperValidation()
   const payload = buildJumperPayload(jumperForm)
-  const error = validateJumperPayload(payload)
+  const error = validateJumperPayload(payload, { keepSecret: jumperKeepsStoredSecret.value })
   if (error) {
     jumperValidationError.value = error
     return
@@ -2405,6 +2435,7 @@ watch(
 
         <TunnelsPage
           v-if="activePage === 'tunnels'"
+          :focus-tunnel-id="focusTunnelId"
           :tunnels="filteredTunnels"
           :groups="tunnelGroups"
           :hide-empty-ungrouped="hideEmptyUngrouped"

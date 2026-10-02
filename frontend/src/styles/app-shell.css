@@ -1222,6 +1222,20 @@
   color: var(--lt-muted);
 }
 
+.config-warning {
+  color: var(--lt-warning-ink);
+}
+
+.config-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.config-secret-alert {
+  margin-top: 8px;
+}
+
 .info-list {
   display: grid;
   gap: 0.55rem;
