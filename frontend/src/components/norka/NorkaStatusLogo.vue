@@ -42,7 +42,7 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  // пасхалка «нокаут»: 7 кликов за 2 секунды
+  // пасхалка «нокаут»: клики за 2 секунды
   easterEgg: {
     type: Boolean,
     default: false
