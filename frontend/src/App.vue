@@ -29,7 +29,8 @@ import {
   UpdateJumper,
   UpdateTunnel,
   CloseMainWindow,
-  HasCustomTitleBar
+  HasCustomTitleBar,
+  ShiftDown
 } from '../wailsjs/go/main/App'
 import { EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
@@ -2096,17 +2097,81 @@ function dismissTopDialog() {
   }
 }
 
-function onWindowKeydown(event) {
-  // Ctrl+Shift+M — простой/расширенный режим; code, а не key, чтобы работало и в русской раскладке
-  if (event.ctrlKey && event.shiftKey && !event.altKey && event.code === 'KeyM' && !dialogOpen.value) {
+// WebView2 на Windows не ставит event.shiftKey у Ctrl+Shift+буква (Escape при этом приходит
+// как обычно) и может отдать пустой event.code в русской раскладке. Shift держим сами
+// и сверяем с GetAsyncKeyState, буква M — и по code, и по символу (M / ь).
+let shiftDown = false
+let modeShortcutFromKeyDown = false
+let modeShortcutLock = false
+
+function isShiftKey(event) {
+  return event.key === 'Shift' || event.code === 'ShiftLeft' || event.code === 'ShiftRight'
+}
+
+function isModeKey(event) {
+  if (event.code === 'KeyM') return true
+  const key = event.key
+  return key === 'M' || key === 'm' || key === 'ь' || key === 'Ь'
+}
+
+function isModeChord(event) {
+  return event.ctrlKey && !event.altKey && !event.metaKey && isModeKey(event)
+}
+
+async function shiftIsHeld(event) {
+  if (event.shiftKey || event.getModifierState?.('Shift') || shiftDown) return true
+  try {
+    return (await ShiftDown()) === true
+  } catch (_) {
+    return false
+  }
+}
+
+async function toggleWindowModeFromShortcut(event) {
+  if (dialogOpen.value || modeShortcutLock) return
+  modeShortcutLock = true
+  try {
+    if (!(await shiftIsHeld(event))) return
     event.preventDefault()
-    void setWindowMode(windowMode.value === 'simple' ? 'advanced' : 'simple')
+    await setWindowMode(windowMode.value === 'simple' ? 'advanced' : 'simple')
+  } finally {
+    modeShortcutLock = false
+  }
+}
+
+function onWindowKeydown(event) {
+  if (isShiftKey(event)) {
+    shiftDown = true
+    return
+  }
+  if (isModeChord(event)) {
+    if (event.repeat) return
+    modeShortcutFromKeyDown = true
+    void toggleWindowModeFromShortcut(event)
     return
   }
   if (event.key !== 'Escape' || !dialogOpen.value) return
   if (event.target instanceof HTMLSelectElement) return
   event.preventDefault()
   dismissTopDialog()
+}
+
+function onWindowKeyup(event) {
+  if (isShiftKey(event)) {
+    shiftDown = false
+    return
+  }
+  if (!isModeChord(event)) return
+  if (modeShortcutFromKeyDown) {
+    modeShortcutFromKeyDown = false
+    return
+  }
+  void toggleWindowModeFromShortcut(event)
+}
+
+function onWindowBlur() {
+  shiftDown = false
+  modeShortcutFromKeyDown = false
 }
 
 // диалоги не помещаются в компактное окно (подтверждение смены порта простой режим
@@ -2158,7 +2223,9 @@ onMounted(async () => {
   }
   stateSyncTimer = window.setInterval(syncStateSilently, STATE_SYNC_INTERVAL_MS)
   startTrafficSync()
-  window.addEventListener('keydown', onWindowKeydown)
+  window.addEventListener('keydown', onWindowKeydown, true)
+  window.addEventListener('keyup', onWindowKeyup, true)
+  window.addEventListener('blur', onWindowBlur)
   subscribeTrayEvents()
 })
 
@@ -2172,7 +2239,9 @@ onBeforeUnmount(() => {
     window.clearTimeout(configToastTimer)
     configToastTimer = null
   }
-  window.removeEventListener('keydown', onWindowKeydown)
+  window.removeEventListener('keydown', onWindowKeydown, true)
+  window.removeEventListener('keyup', onWindowKeyup, true)
+  window.removeEventListener('blur', onWindowBlur)
   offRuntimeEvents.forEach((off) => off?.())
 })
 

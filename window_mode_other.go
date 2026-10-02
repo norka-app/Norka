@@ -9,3 +9,5 @@ func nativeWindowBounds() (windowRect, bool) { return windowRect{}, false }
 func nativeSetWindowBounds(windowRect) bool { return false }
 
 func nativeWorkArea(windowRect) (windowRect, bool) { return windowRect{}, false }
+
+func nativeShiftDown() bool { return false }

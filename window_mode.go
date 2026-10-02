@@ -33,6 +33,13 @@ type windowModeState struct {
 	hasSimple   bool
 }
 
+// ShiftDown сообщает, зажата ли клавиша Shift.
+// В WebView2 на Windows у Ctrl+Shift+буква в keydown не выставлен event.shiftKey,
+// поэтому Ctrl+Shift+M сверяется с реальным состоянием клавиатуры.
+func (a *App) ShiftDown() bool {
+	return nativeShiftDown()
+}
+
 // SaveAdvancedWindow запоминает геометрию окна перед переходом в простой режим.
 func (a *App) SaveAdvancedWindow() {
 	if a.ctx == nil {

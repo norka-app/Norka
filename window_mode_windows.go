@@ -31,6 +31,7 @@ var (
 	procSetWindowPos             = user32.NewProc("SetWindowPos")
 	procMonitorFromRect          = user32.NewProc("MonitorFromRect")
 	procGetMonitorInfoW          = user32.NewProc("GetMonitorInfoW")
+	procGetAsyncKeyState         = user32.NewProc("GetAsyncKeyState")
 
 	mainWindowMu   sync.Mutex
 	mainWindowHWND uintptr
@@ -60,6 +61,22 @@ type monitorInfo struct {
 	RcMonitor rect32
 	RcWork    rect32
 	DwFlags   uint32
+}
+
+// asyncKeyDown — клавиша зажата сейчас (старший бит GetAsyncKeyState).
+func asyncKeyDown(vk uintptr) bool {
+	state, _, _ := procGetAsyncKeyState.Call(vk)
+	return state&0x8000 != 0
+}
+
+// nativeShiftDown — VK_SHIFT, левый или правый Shift.
+func nativeShiftDown() bool {
+	const (
+		vkShift  = 0x10
+		vkLShift = 0xA0
+		vkRShift = 0xA1
+	)
+	return asyncKeyDown(vkShift) || asyncKeyDown(vkLShift) || asyncKeyDown(vkRShift)
 }
 
 func toWindowRect(r rect32) windowRect {
