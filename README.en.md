@@ -91,7 +91,19 @@ Norka creates and keeps SSH tunnels from a window, without typing a command ever
 - 🌐 **Language.** In Settings: Auto (the system language — Russian for ru, English otherwise), Русский, or English. The window and the tray menu switch immediately.
 - 🔔 **Notifications.** Off by default. When on, Norka can report a drop, a reconnect, giving up, and a failed connect. A successful connect stays off.
 - 🔑 **Passwords.** Jump host passwords and key passphrases go to the OS keychain. `config.toml` keeps a reference. Export can include passwords only if you turn that on.
-- ⚙️ **Settings.** Start at login, export and import `config.toml`, and choose a configuration folder.
+- ⚙️ **Settings.** Start at login, export and import `config.toml`, and choose a configuration folder. **Features** turns optional capabilities on and off.
+
+---
+
+## Features in Settings
+
+**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, and the mascot’s idle animations. Each row is a name and a one-line description, in the light and dark themes and in both languages.
+
+The choices live in the `[features]` table of `config.toml`. A missing key uses the default, so an older file keeps working. An explicit `false` is stored and kept. Turning a feature off hides it immediately and stops the work behind it: the hotkey, the tray item, the background check.
+
+Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Quick search, updates, traffic, and mascot animations are on. The language setting and OS-keychain passwords are not flags.
+
+A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md).
 
 ---
 
@@ -261,6 +273,12 @@ auto_run = false
 traffic_monitor_enabled = true
 language = "auto"          # auto | ru | en
 
+# Optional capabilities. A missing key uses the default.
+# profiles defaults to off; an explicit false is kept.
+# [features]
+# profiles = false
+# quick_search = true
+
 [[jumpers]]
 id = 1
 name = "my-server"
@@ -303,6 +321,7 @@ status = "stopped"
 ├── window_*.go              # window modes, custom title bar on Windows
 ├── internal/
 │   ├── biz/                 # tunnels, jump hosts, groups, port conflicts
+│   ├── features/            # feature-flag registry: id, default, translation key
 │   ├── forward/             # SSH connections and port forwarding
 │   ├── conf/                # reading and writing config.toml
 │   ├── sshconfig/           # import from SSH config

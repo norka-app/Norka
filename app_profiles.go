@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 
 	"norka/internal/biz"
+	"norka/internal/features"
 	"norka/internal/model"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -84,6 +86,9 @@ func (a *App) ActivateProfile(id int) (model.ProfileActivationResult, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.ProfileActivationResult{}, err
 	}
+	if !a.featureOn(features.Profiles) {
+		return model.ProfileActivationResult{}, fmt.Errorf("profiles are disabled")
+	}
 	result, err := a.profile.Activate(id, func(tunnelID int) error {
 		_, stopErr := a.tunnel.Stop(tunnelID)
 		return stopErr
@@ -118,7 +123,7 @@ func (a *App) trayActivateProfile(id int) {
 }
 
 func (a *App) trayShowProfiles(showWindow func()) {
-	if a.ctx == nil {
+	if a.ctx == nil || !a.featureOn(features.Profiles) {
 		return
 	}
 	showWindow()

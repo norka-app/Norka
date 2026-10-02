@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"norka/internal/features"
 	"norka/internal/model"
 )
 
@@ -90,6 +91,8 @@ type Config struct {
 	Language           string `toml:"language,omitempty"`
 	QuickSearchEnabled *bool  `toml:"quick_search_enabled,omitempty"`
 	QuickSearchHotkey  string `toml:"quick_search_hotkey,omitempty"`
+	// Features is the optional-capability registry. Missing keys use defaults.
+	Features features.Flags `toml:"features,omitempty"`
 }
 
 // NotificationSettings controls opt-in OS notifications.
@@ -165,6 +168,7 @@ func (c *Config) Clone() *Config {
 		NotificationsSet:      c.NotificationsSet,
 		Language:              c.Language,
 		QuickSearchHotkey:     c.QuickSearchHotkey,
+		Features:              c.Features.Clone(),
 	}
 	if c.QuickSearchEnabled != nil {
 		enabled := *c.QuickSearchEnabled
@@ -180,14 +184,13 @@ func (c *Config) Clone() *Config {
 	return out
 }
 
-// QuickSearchOn reports whether the global palette hotkey should be registered.
-// A missing key (nil) means enabled, so configs written before the feature load
-// with the hotkey on.
+// QuickSearchOn reports whether quick search is on. A missing [features] key
+// uses the registry default (on), including configs written before the flag.
 func (c *Config) QuickSearchOn() bool {
-	if c == nil || c.QuickSearchEnabled == nil {
-		return true
+	if c == nil {
+		return features.Default(features.QuickSearch)
 	}
-	return *c.QuickSearchEnabled
+	return c.Features.Enabled(features.QuickSearch)
 }
 
 // Normalize ensures stable defaults before save.
@@ -223,6 +226,28 @@ func (c *Config) Normalize() {
 	c.Profiles = normalizeProfiles(c.Profiles, knownTunnels)
 	if c.ActiveProfileID > 0 && profileIndex(c.Profiles, c.ActiveProfileID) < 0 {
 		c.ActiveProfileID = 0
+	}
+	c.Features.MigrateLegacy(features.Legacy{
+		QuickSearch:        c.QuickSearchEnabled,
+		NotificationsOn:    c.Notifications.Enabled,
+		TrafficExplicitOff: !c.TrafficMonitorEnabled,
+	})
+	c.applyFeatureMirrors()
+}
+
+// applyFeatureMirrors keeps the older on/off fields aligned with the registry
+// so a reader of the legacy key sees the same choice as Settings.
+func (c *Config) applyFeatureMirrors() {
+	if c.Features.TrafficMonitor != nil {
+		c.TrafficMonitorEnabled = *c.Features.TrafficMonitor
+	}
+	if c.Features.QuickSearch != nil {
+		enabled := *c.Features.QuickSearch
+		c.QuickSearchEnabled = &enabled
+	}
+	if c.Features.Notifications != nil {
+		c.Notifications.Enabled = *c.Features.Notifications
+		c.NotificationsSet = true
 	}
 }
 

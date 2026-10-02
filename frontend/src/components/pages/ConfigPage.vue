@@ -1,13 +1,13 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   GetAutoRunEnabled,
+  GetFeatures,
   GetQuickSearchSettings,
-  GetTrafficMonitorEnabled,
   SetAutoRunEnabled,
+  SetFeature,
   SetQuickSearchSettings,
-  SetTrafficMonitorEnabled,
   ExportConfigWithDialog,
   SelectImportFile,
   ImportConfig,
@@ -23,6 +23,7 @@ import {
   GetSecretsStatus,
   CheckForUpdateNow
 } from '../../../wailsjs/go/main/App'
+import { applyFeatureViews, featureEnabled, featureState, setFeatureEnabled, useFeature } from '../../features/feature-store'
 
 const props = defineProps({
   theme: {
@@ -52,7 +53,6 @@ const emit = defineEmits([
   'set-config-message',
   'reload-state',
   'confirm-action',
-  'traffic-monitor-change',
   'window-mode-change',
   'simple-on-top-change',
   'update-offer',
@@ -60,8 +60,10 @@ const emit = defineEmits([
 ])
 
 const { t } = useI18n()
+const notificationsOn = useFeature('notifications')
+const quickSearchOn = useFeature('quick_search')
+const autoUpdateOn = useFeature('auto_update')
 const autoRunEnabled = ref(false)
-const trafficMonitorEnabled = ref(true)
 const configBusy = ref('')
 const configLocationInfo = ref(null)
 const includePasswords = ref(false)
@@ -87,9 +89,9 @@ onMounted(async () => {
     autoRunEnabled.value = false
   }
   try {
-    trafficMonitorEnabled.value = await GetTrafficMonitorEnabled()
+    applyFeatureViews(await GetFeatures())
   } catch (_) {
-    trafficMonitorEnabled.value = true
+    /* каталог уже показан */
   }
   await loadConfigLocation()
   await loadNotificationSettings()
@@ -117,9 +119,10 @@ async function loadSecretsStatus() {
 
 async function saveNotifications(next) {
   const previous = { ...notifications.value }
-  notifications.value = next
+  const payload = { ...next, enabled: featureEnabled('notifications') }
+  notifications.value = payload
   try {
-    await SetNotificationSettings(next)
+    await SetNotificationSettings(payload)
   } catch (err) {
     notifications.value = previous
     emit('set-config-message', String(err))
@@ -169,9 +172,13 @@ async function loadQuickSearch() {
 }
 
 async function saveQuickSearch(patch) {
-  const current = quickSearch.value || { enabled: true, hotkey: '' }
+  const current = quickSearch.value || { enabled: featureEnabled('quick_search'), hotkey: '' }
   try {
-    quickSearch.value = await SetQuickSearchSettings({ ...current, ...patch })
+    quickSearch.value = await SetQuickSearchSettings({
+      ...current,
+      ...patch,
+      enabled: featureEnabled('quick_search'),
+    })
   } catch (err) {
     emit('set-config-message', String(err))
     await loadQuickSearch()
@@ -347,15 +354,24 @@ async function onAutoRunChange(checked) {
   }
 }
 
-async function onTrafficMonitorChange(checked) {
+async function onFeatureToggle(id, checked) {
+  const previous = featureEnabled(id)
+  setFeatureEnabled(id, !!checked)
   try {
-    await SetTrafficMonitorEnabled(!!checked)
-    trafficMonitorEnabled.value = !!checked
-    emit('traffic-monitor-change', !!checked)
-  } catch (_) {
-    trafficMonitorEnabled.value = !checked
+    applyFeatureViews(await SetFeature(id, !!checked))
+  } catch (err) {
+    setFeatureEnabled(id, previous)
+    emit('set-config-message', String(err))
   }
 }
+
+watch(quickSearchOn, () => {
+  void loadQuickSearch()
+})
+
+watch(notificationsOn, (on) => {
+  notifications.value = { ...notifications.value, enabled: !!on }
+})
 
 async function doExport(withPasswords) {
   configBusy.value = 'export'
@@ -445,6 +461,30 @@ async function onOpenConfigDir() {
 
 <template>
   <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
+    <n-gi span="2">
+      <n-card size="small" :title="t('features.title')">
+        <n-space vertical :size="16">
+          <n-space
+            v-for="item in featureState.items"
+            :key="item.id"
+            class="settings-row feature-row"
+            justify="space-between"
+            align="center"
+            :wrap="false"
+          >
+            <div class="settings-label">
+              <div class="config-name">{{ t(item.titleKey) }}</div>
+              <div class="config-desc">{{ t(item.descriptionKey) }}</div>
+            </div>
+            <n-switch
+              :value="item.enabled"
+              :aria-label="t(item.titleKey)"
+              @update:value="(checked) => onFeatureToggle(item.id, checked)"
+            />
+          </n-space>
+        </n-space>
+      </n-card>
+    </n-gi>
     <n-gi span="2 l:1">
       <n-card size="small" :title="t('config.general')">
         <n-space vertical :size="16">
@@ -497,24 +537,17 @@ async function onOpenConfigDir() {
           </n-space>
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
             <div class="settings-label">
-              <div class="config-name">{{ t('config.trafficMonitor') }}</div>
-              <div class="config-desc">{{ t('config.trafficMonitorDesc') }}</div>
-            </div>
-            <n-switch :value="trafficMonitorEnabled" @update:value="onTrafficMonitorChange" />
-          </n-space>
-          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
-            <div class="settings-label">
               <div class="config-name">{{ t('config.quickSearch') }}</div>
               <div class="config-desc">{{ t('config.quickSearchDesc') }}</div>
-              <div class="config-desc" :class="{ 'config-desc--warn': quickSearch?.errorCode && quickSearch?.enabled }" role="status">
+              <div class="config-desc" :class="{ 'config-desc--warn': quickSearch?.errorCode && quickSearchOn }" role="status">
                 {{ quickSearchStatus }}
               </div>
             </div>
             <n-space align="center">
-              <n-switch :value="!!quickSearch?.enabled" @update:value="(value) => saveQuickSearch({ enabled: value, hotkey: quickSearch?.hotkey || '' })" />
               <n-button
                 ref="hotkeyButtonRef"
                 size="small"
+                :disabled="!quickSearchOn"
                 :data-hotkey-capture="capturingHotkey ? '1' : undefined"
                 :type="capturingHotkey ? 'primary' : 'default'"
                 @click="beginHotkeyCapture"
@@ -522,7 +555,7 @@ async function onOpenConfigDir() {
               >
                 {{ capturingHotkey ? t('config.quickSearchPress') : (quickSearchLabel || t('config.quickSearchCapture')) }}
               </n-button>
-              <n-button size="small" quaternary @click="saveQuickSearch({ enabled: true, hotkey: '' })">{{ t('config.quickSearchReset') }}</n-button>
+              <n-button size="small" quaternary :disabled="!quickSearchOn" @click="saveQuickSearch({ hotkey: '' })">{{ t('config.quickSearchReset') }}</n-button>
             </n-space>
           </n-space>
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
@@ -583,45 +616,38 @@ async function onOpenConfigDir() {
             <div class="config-desc">{{ t('config.notificationsDesc') }}</div>
             <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
               <div class="settings-label">
-                <div class="config-name">{{ t('config.notificationsMaster') }}</div>
-                <div class="config-desc">{{ t('config.notificationsMasterDesc') }}</div>
-              </div>
-              <n-switch :value="notifications.enabled" @update:value="(checked) => onNotificationToggle('enabled', checked)" />
-            </n-space>
-            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
-              <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyDropped') }}</div>
                 <div class="config-desc">{{ t('config.notifyDroppedDesc') }}</div>
               </div>
-              <n-switch :value="notifications.dropped" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('dropped', checked)" />
+              <n-switch :value="notifications.dropped" :disabled="!notificationsOn" @update:value="(checked) => onNotificationToggle('dropped', checked)" />
             </n-space>
             <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
               <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyReconnected') }}</div>
                 <div class="config-desc">{{ t('config.notifyReconnectedDesc') }}</div>
               </div>
-              <n-switch :value="notifications.reconnected" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('reconnected', checked)" />
+              <n-switch :value="notifications.reconnected" :disabled="!notificationsOn" @update:value="(checked) => onNotificationToggle('reconnected', checked)" />
             </n-space>
             <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
               <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyGaveUp') }}</div>
                 <div class="config-desc">{{ t('config.notifyGaveUpDesc') }}</div>
               </div>
-              <n-switch :value="notifications.gaveUp" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('gaveUp', checked)" />
+              <n-switch :value="notifications.gaveUp" :disabled="!notificationsOn" @update:value="(checked) => onNotificationToggle('gaveUp', checked)" />
             </n-space>
             <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
               <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyConnectFailed') }}</div>
                 <div class="config-desc">{{ t('config.notifyConnectFailedDesc') }}</div>
               </div>
-              <n-switch :value="notifications.connectFailed" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('connectFailed', checked)" />
+              <n-switch :value="notifications.connectFailed" :disabled="!notificationsOn" @update:value="(checked) => onNotificationToggle('connectFailed', checked)" />
             </n-space>
             <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
               <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyConnected') }}</div>
                 <div class="config-desc">{{ t('config.notifyConnectedDesc') }}</div>
               </div>
-              <n-switch :value="notifications.connected" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('connected', checked)" />
+              <n-switch :value="notifications.connected" :disabled="!notificationsOn" @update:value="(checked) => onNotificationToggle('connected', checked)" />
             </n-space>
           </n-space>
         </n-card>
@@ -633,7 +659,7 @@ async function onOpenConfigDir() {
               <div class="config-name">{{ t('config.checkUpdates') }}</div>
               <div class="config-desc">{{ updateStatus || t('config.checkUpdatesDesc') }}</div>
             </div>
-            <n-button size="small" :loading="updateChecking" @click="onCheckUpdates">
+            <n-button size="small" :disabled="!autoUpdateOn" :loading="updateChecking" @click="onCheckUpdates">
               {{ t('config.checkUpdatesBtn') }}
             </n-button>
           </n-space>
@@ -645,4 +671,18 @@ async function onOpenConfigDir() {
 
 <style scoped>
 .config-desc--warn { color: var(--lt-warning-ink, #92400e); }
+
+.feature-row {
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.feature-row .settings-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.feature-row :deep(.n-switch) {
+  flex-shrink: 0;
+}
 </style>

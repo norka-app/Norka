@@ -2,6 +2,7 @@
 import { computed, h, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
+import { useFeature } from '../../features/feature-store'
 
 const SPARKLINE_WIDTH = 200
 const SPARKLINE_HEIGHT = 28
@@ -60,6 +61,7 @@ const props = defineProps({
 const emit = defineEmits(['switch-page', 'toggle-collapse'])
 
 const { t } = useI18n()
+const mascotOn = useFeature('mascot')
 const norkaStatusLabel = computed(() => t(`app.sidebar.norkaStatus.${props.tunnelStatus || 'stopped'}`))
 
 const menuOptions = computed(() => props.pages.map((page) => ({
@@ -214,8 +216,8 @@ const downloadSpark = computed(() => buildSparklinePath(
           size="100%"
           :title="$t('app.title')"
           :status-label="norkaStatusLabel"
-          idle
-          easter-egg
+          :idle="mascotOn"
+          :easter-egg="mascotOn"
         />
       </div>
     </div>

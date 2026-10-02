@@ -489,7 +489,7 @@
         "quickSearchPress": "Press keys…",
         "quickSearchReset": "Default",
         "quickSearchDefault": "Default: {hotkey}",
-        "quickSearchDisabled": "The global shortcut is off. Ctrl+K still works inside the window.",
+        "quickSearchDisabled": "Quick search is off in Features. The palette and the global shortcut stay idle.",
         "quickSearchRegistered": "Registered: {hotkey}",
         "quickSearchFailed": "Could not register the shortcut. {detail}",
         "quickSearchInvalid": "That shortcut does not work: it needs a modifier and a key.",
@@ -534,5 +534,20 @@
         "exportSuccess": "Configuration exported.",
         "importSuccess": "Configuration imported. Autostart tunnels were restarted.",
         "importConfirm": "The current configuration will be overwritten. Active tunnels will stop and restart. Continue?"
+    },
+    "features": {
+        "title": "Features",
+        "profiles": "Profiles",
+        "profilesDesc": "Page, sidebar item, header chip, simple-mode switcher, and tray submenu. Turning this off keeps saved profiles and leaves running tunnels alone.",
+        "quickSearch": "Quick search",
+        "quickSearchDesc": "The Ctrl+K palette and the global shortcut.",
+        "notifications": "Notifications",
+        "notificationsDesc": "System notifications for a drop, a reconnect, and connection errors.",
+        "autoUpdate": "Updates",
+        "autoUpdateDesc": "Check for a new version at startup and install it in one click.",
+        "trafficMonitor": "Traffic monitor",
+        "trafficMonitorDesc": "Speed and a traffic chart in the sidebar.",
+        "mascot": "Mascot animations",
+        "mascotDesc": "Idle motion and the seven-click secret."
     }
 }
