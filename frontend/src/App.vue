@@ -124,7 +124,7 @@ const CONFIG_TOAST_DURATION_MS = 3800
 let configToastTimer = null
 
 const appMeta = reactive({
-  version: '1.0.1'
+  version: '1.0.2'
 })
 const updateOffer = ref(null)
 const AI_REPORT_SUPPORT_EMAIL = ''
