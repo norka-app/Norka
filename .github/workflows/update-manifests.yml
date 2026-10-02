@@ -1,0 +1,102 @@
+# ==========================================
+# Хеши образцов winget, Scoop и Homebrew
+# ==========================================
+
+# После публикации выпуска переписывает версию и хеши в packaging/
+# по файлу SHA256SUMS и открывает pull request.
+# Теги и страницы Release эта задача не создаёт и не меняет.
+name: Update manifests
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Версия выпуска, например 1.2.1
+        required: true
+        type: string
+
+jobs:
+  update:
+    # Предварительный тег с дефисом в образцы стабильных манифестов не пишем.
+    # Ручной запуск эту проверку не проходит: версию задают явно.
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.release.tag_name, '-')
+    runs-on: ubuntu-latest
+    steps:
+      # Workflow для события release читается с основной ветки,
+      # а checkout по умолчанию может встать на коммит тега.
+      # Правим образцы на верхушке основной ветки: скрипт и манифесты берутся оттуда.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Обновить манифесты из SHA256SUMS
+        id: manifests
+        env:
+          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+        run: |
+          set -eu
+          chmod +x scripts/update-manifests.sh
+          scripts/update-manifests.sh "$VERSION"
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Манифесты уже совпадают с выпуском."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Открыть pull request
+        if: steps.manifests.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          set -eu
+          version="${VERSION#v}"
+          tag="v${version}"
+          branch="packaging/manifests-${tag}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add \
+            packaging/winget \
+            packaging/scoop/norka.json \
+            packaging/homebrew/norka.rb
+          git commit -m "Обновить манифесты для ${tag}"
+          git push -u origin "$branch"
+
+          existing="$(gh pr list --head "$branch" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            echo "Pull request #${existing} для ${branch} уже открыт."
+            exit 0
+          fi
+
+          err="$(mktemp)"
+          if ! gh pr create \
+            --base "$BASE" \
+            --head "$branch" \
+            --title "Манифесты ${tag}" \
+            --body "$(cat <<EOF
+          Версия и хеши в образцах winget, Scoop и Homebrew взяты из \`SHA256SUMS\` выпуска ${tag}.
+
+          Теги и выпуски этот workflow не создаёт и не меняет.
+          EOF
+          )" >"$err" 2>&1; then
+            cat "$err" >&2
+            if grep -q 'not permitted to create or approve pull requests' "$err"; then
+              echo "Actions не может открывать pull request: в настройках репозитория выключено разрешение." >&2
+              echo "Ветка ${branch} уже отправлена. Правку файлов повторяет scripts/update-manifests.sh ${version}." >&2
+            fi
+            rm -f "$err"
+            exit 1
+          fi
+          cat "$err"
+          rm -f "$err"

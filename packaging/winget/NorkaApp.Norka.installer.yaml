@@ -8,6 +8,6 @@ ReleaseDate: 2026-10-02
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/norka-app/Norka/releases/download/v1.2.1/norka.exe
-    InstallerSha256: 13f64380f40fb7ffbaa5135d2fad9e19297255bda03d45848c09b12c96645c6c
+    InstallerSha256: 84B722F42D398C54F78A9F9BDD18E7DA39EBC4FFABAD92F9995E4A379EBF809E
 ManifestType: installer
 ManifestVersion: 1.9.0

@@ -7,12 +7,37 @@
 - Windows: `norka.exe` (переносной файл, не установщик)
 - macOS: `norka.dmg` (ad-hoc, без нотаризации)
 
+## Каждый релиз: хеши в этом репозитории
+
+Выпуск `v*` кладёт рядом с файлами `SHA256SUMS`: строка — хеш, два пробела, имя файла. Образцам манифестов нужны две строки:
+
+- `norka.exe` — winget (`InstallerSha256`, заглавные буквы) и Scoop (`hash`, строчные)
+- `norka.dmg` — Homebrew (`sha256`, строчные)
+
+Сейчас в `packaging/` версия `1.2.1`. Хеши взяты из `SHA256SUMS` выпуска [v1.2.1](https://github.com/norka-app/Norka/releases/tag/v1.2.1).
+
+После публикации выпуска (не черновика) workflow `.github/workflows/update-manifests.yml` делает шаг сам:
+
+1. Скачивает `SHA256SUMS` этого тега.
+2. Переписывает версию, дату, ссылки на тег и хеши в `packaging/winget/`, `packaging/scoop/norka.json` и `packaging/homebrew/norka.rb`. В Scoop строка `v$version` внутри `autoupdate` не трогается: там нет конкретного номера.
+3. Коммитит это в ветку `packaging/manifests-v<версия>` и открывает pull request токеном `GITHUB_TOKEN`.
+
+Теги и страницы Release workflow не создаёт и не меняет. Предварительный тег с дефисом (`v1.2.0-beta.1`) пропускается: в образцы стабильных манифестов он не пишется. Ручной запуск workflow (кнопка Run workflow) принимает версию явно и эту проверку не делает.
+
+Если в настройках репозитория выключено «Allow GitHub Actions to create and approve pull requests», Actions не откроет PR. По умолчанию эта галка выключена, и токен запуска её сам не включает. Тогда файлы обновляет скрипт, а pull request открывает человек или облачный агент:
+
+```bash
+scripts/update-manifests.sh 1.2.1
+```
+
+Версию можно передать с `v` или без. Скрипт только меняет файлы в рабочей копии: не пушит, не ставит теги и не редактирует выпуски. Дальше обычный коммит и PR.
+
 ## Один раз: winget
 
 Идентификатор пакета: `NorkaApp.Norka`. Файлы для первой заявки: `packaging/winget/`.
 
 1. Поставьте [wingetcreate](https://github.com/microsoft/winget-create) или проверяйте YAML по схемам из комментария в начале каждого файла.
-2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Сейчас в файлах стоит версия `1.2.1` и ссылки на тег `v1.2.1`. SHA256 пока от `norka.exe` выпуска 1.0.2: файла 1.2.1 ещё нет. Когда выпуск появится, замените хеш (`sha256sum norka.exe` или поле digest в API GitHub).
+2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Сейчас это версия `1.2.1` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.2.1`. `InstallerSha256` записан заглавными буквами. На следующем выпуске те же поля перепишет workflow хешей или `scripts/update-manifests.sh`.
 3. Скопируйте четыре файла в свой форк [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) по пути:
 
    `manifests/n/NorkaApp/Norka/<версия>/`
@@ -34,7 +59,7 @@
 ## Каждый релиз: winget
 
 1. Тег `v*` собирает `norka.exe` и создаёт GitHub Release.
-2. Если `WINGET_TOKEN` задан, пакет `NorkaApp.Norka` уже есть в `winget-pkgs` и в теге нет дефиса, шаг обновляет манифест и открывает PR. Тег вроде `v1.2.0-beta.1` — предварительный выпуск, в WinGet он не отправляется. Локальные файлы в `packaging/winget/` CI не переписывает: это образец первой заявки. Имеет смысл обновить в них версию и хеш, когда меняете образец, на автопубликацию это не влияет.
+2. Если `WINGET_TOKEN` задан, пакет `NorkaApp.Norka` уже есть в `winget-pkgs` и в теге нет дефиса, шаг обновляет манифест и открывает PR в `winget-pkgs`. Тег вроде `v1.2.0-beta.1` — предварительный выпуск, в WinGet он не отправляется. Сборка релиза локальные файлы `packaging/winget/` не переписывает. Их обновляет workflow хешей после публикации выпуска; на автопубликацию в `winget-pkgs` это не влияет.
 3. PR в `winget-pkgs` мержит модератор Microsoft, не этот репозиторий.
 
 ## Один раз: Scoop
@@ -77,7 +102,7 @@ jobs:
 
 ## Каждый релиз: Scoop
 
-Новый тег `v*` выкладывает `norka.exe`. Манифест в bucket подхватывает его через `checkver` / `autoupdate`, когда отработает workflow bucket или ручной `checkver -u`. Пока это не сделано, в bucket остаётся прошлая версия.
+Новый тег `v*` выкладывает `norka.exe`. Образец `packaging/scoop/norka.json` в этом репозитории обновляет workflow хешей. Манифест в bucket подхватывает выпуск отдельно, через `checkver` / `autoupdate`, когда отработает workflow bucket или ручной `checkver -u`. Пока это не сделано, в bucket остаётся прошлая версия.
 
 ## Один раз: Homebrew
 
@@ -85,13 +110,7 @@ jobs:
 
 1. Создайте публичный репозиторий `norka-app/homebrew-tap`.
 2. Положите туда `Casks/norka.rb` — копия `packaging/homebrew/norka.rb`.
-3. Перед первым `brew audit` сверьте `version` и `sha256` с `norka.dmg` релиза:
-
-   ```bash
-   shasum -a 256 norka.dmg
-   ```
-
-   Сейчас в cask стоит версия `1.2.1`. SHA256 пока от dmg выпуска 1.0.2: когда появится `norka.dmg` версии 1.2.1, замените хеш.
+3. Перед первым `brew audit` сверьте `version` и `sha256` с `norka.dmg` релиза (`shasum -a 256 norka.dmg` или строка `norka.dmg` в `SHA256SUMS`). Сейчас в cask версия `1.2.1` и SHA256 `norka.dmg` из `SHA256SUMS` выпуска v1.2.1. Дальше образец в этом репозитории обновляет тот же workflow, что и остальные манифесты.
 4. В cask есть `caveats`: сборка ad-hoc, без нотаризации, macOS ставит карантин. Снять его: `xattr -dr com.apple.quarantine /Applications/norka.app`.
 5. `zap trash: "~/.norka"` — каталог конфига на macOS.
 
@@ -139,10 +158,11 @@ jobs:
 
 ## Каждый релиз: Homebrew
 
-Тег `v*` публикует `norka.dmg`. Cask в tap сам не меняется, пока не обновите `version` и `sha256` (workflow выше или правка `Casks/norka.rb`). `livecheck` в cask смотрит последний релиз GitHub, поэтому `brew livecheck` покажет новую версию ещё до правки файла.
+Тег `v*` публикует `norka.dmg`. Образец `packaging/homebrew/norka.rb` обновляет workflow хешей. Cask в tap сам не меняется, пока не обновите `version` и `sha256` там (workflow tap выше или правка `Casks/norka.rb`). `livecheck` в cask смотрит последний релиз GitHub, поэтому `brew livecheck` покажет новую версию ещё до правки файла в tap.
 
 ## Что не делается из этого репозитория
 
 - Нет PR в `microsoft/winget-pkgs`, пока не задан `WINGET_TOKEN` и пока первая версия не принята.
 - Репозитории `norka-app/scoop-bucket` и `norka-app/homebrew-tap` не создаются.
 - macOS не подписывается Developer ID и не нотаризуется.
+- Workflow хешей и `scripts/update-manifests.sh` не создают теги и не меняют выпуски. Они правят только образцы манифестов в этом репозитории.

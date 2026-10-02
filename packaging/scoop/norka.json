@@ -6,7 +6,7 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/norka-app/Norka/releases/download/v1.2.1/norka.exe",
-            "hash": "13f64380f40fb7ffbaa5135d2fad9e19297255bda03d45848c09b12c96645c6c",
+            "hash": "84b722f42d398c54f78a9f9bdd18e7da39ebc4ffabad92f9995e4a379ebf809e",
             "bin": "norka.exe"
         }
     },
