@@ -72,4 +72,5 @@ func (a *App) applyFeatureSideEffects(cfg *conf.Config) {
 	a.applyQuickSearchHotkey(cfg.Features.Enabled(features.QuickSearch), cfg.QuickSearchHotkey)
 	a.loadNotifySettings()
 	a.invalidateTrayMenu()
+	a.syncWakeWatch(cfg.Features.Enabled(features.WakeReconnect))
 }

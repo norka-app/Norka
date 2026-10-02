@@ -10,6 +10,7 @@ const DEFAULTS = {
   traffic_monitor: true,
   mascot: true,
   ssh_command: true,
+  wake_reconnect: true,
 }
 
 const COPY = {
@@ -20,6 +21,7 @@ const COPY = {
   traffic_monitor: ['features.trafficMonitor', 'features.trafficMonitorDesc'],
   mascot: ['features.mascot', 'features.mascotDesc'],
   ssh_command: ['features.sshCommand', 'features.sshCommandDesc'],
+  wake_reconnect: ['features.wakeReconnect', 'features.wakeReconnectDesc'],
 }
 
 function fallbackItems() {

@@ -160,7 +160,9 @@
                 "level": "Level",
                 "message": "Message"
             },
-            "noLogs": "No entries for this level"
+            "noLogs": "No entries for this level",
+            "wakeResume": "Reconnecting after waking from sleep",
+            "wakeNetwork": "Reconnecting after a network change"
         },
         "modals": {
             "jumper": {
@@ -582,6 +584,8 @@
         "mascot": "Mascot animations",
         "mascotDesc": "Idle motion and a hidden Easter egg.",
         "sshCommand": "SSH command",
-        "sshCommandDesc": "Paste an ssh command to create a tunnel, and copy a tunnel back out as a command."
+        "sshCommandDesc": "Paste an ssh command to create a tunnel, and copy a tunnel back out as a command.",
+        "wakeReconnect": "Reconnect after sleep",
+        "wakeReconnectDesc": "After wake or a network change, probe SSH immediately and restore tunnels without waiting for keepalive."
     }
 }

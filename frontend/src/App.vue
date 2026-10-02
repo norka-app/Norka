@@ -314,7 +314,12 @@ function subscribeTrayEvents() {
       quickSearchOpen.value = open
       quickSearchRestoreHide.value = open && !!payload.restoreHide
     }),
-    EventsOn('features:changed', (views) => applyFeatureViews(views))
+    EventsOn('features:changed', (views) => applyFeatureViews(views)),
+    EventsOn('journal:entry', (entry) => {
+      const key = entry && entry.key
+      if (!key) return
+      logEvent(entry.level || 'info', t(key))
+    })
   ]
 }
 
