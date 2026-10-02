@@ -9,6 +9,7 @@ const DEFAULTS = {
   auto_update: true,
   traffic_monitor: true,
   mascot: true,
+  ssh_command: true,
 }
 
 const COPY = {
@@ -18,6 +19,7 @@ const COPY = {
   auto_update: ['features.autoUpdate', 'features.autoUpdateDesc'],
   traffic_monitor: ['features.trafficMonitor', 'features.trafficMonitorDesc'],
   mascot: ['features.mascot', 'features.mascotDesc'],
+  ssh_command: ['features.sshCommand', 'features.sshCommandDesc'],
 }
 
 function fallbackItems() {

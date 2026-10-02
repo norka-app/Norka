@@ -86,6 +86,8 @@ Norka creates and keeps SSH tunnels from a window, without typing a command ever
 - 🔁 **Reconnect.** After a drop, an exponential pause from 0.5 s up to 1 minute, for up to 15 minutes. The list shows “Reconnecting”.
 - 📈 **Traffic and latency.** Speed and a chart in the sidebar, SSH latency on each running tunnel.
 - 📥 **Import.** Tunnels from an `ssh` command (`-L`, `-R`, `-D`). Jump hosts from an SSH config file, including `ProxyJump`.
+
+A command you used to type in a terminal can be pasted as a whole. **Import** on the tunnels page and the new-tunnel dialog both offer **From an SSH command**: one or more `ssh` lines, with Windows cmd quoting and POSIX quoting. It understands `-L`, `-R`, `-D` (each forward becomes its own tunnel), `-p`, `-l` and `user@host`, `-i`, a `-J` chain, `ServerAliveInterval` and `ConnectTimeout`. Unknown flags are listed as warnings. Before anything is saved you see the tunnels and jump hosts that will be created; a jump host is reused when user, host and port already match. An alias from `~/.ssh/config` is filled in by the same parser as the config import. Passwords and other secrets from the command line are never stored. Each tunnel’s `⋯` menu has **Copy as SSH command**, which puts an equivalent `ssh -N …` on the clipboard (with `-p`, `-i` and `-J` when they matter). A password cannot be expressed, so it is left out. Both entries disappear when **SSH command** is turned off under **Settings → Features**.
 - 🧾 **Log** of operations, filtered by level.
 - 🎨 **Appearance.** Light and dark theme. A custom title bar with no system frame on Windows (native frame on macOS and Linux).
 - 🌐 **Language.** In Settings: Auto (the system language — Russian for ru, English otherwise), Русский, or English. The window and the tray menu switch immediately.
@@ -97,11 +99,11 @@ Norka creates and keeps SSH tunnels from a window, without typing a command ever
 
 ## Features in Settings
 
-**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, and the mascot’s idle animations. Each row is a name and a one-line description, in the light and dark themes and in both languages.
+**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, and the SSH command. Each row is a name and a one-line description, in the light and dark themes and in both languages.
 
 The choices live in the `[features]` table of `config.toml`. A missing key uses the default, so an older file keeps working. An explicit `false` is stored and kept. Turning a feature off hides it immediately and stops the work behind it: the hotkey, the tray item, the background check.
 
-Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Quick search, updates, traffic, and mascot animations are on. The language setting and OS-keychain passwords are not flags.
+Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Quick search, updates, traffic, mascot animations, and the SSH command are on. The language setting and OS-keychain passwords are not flags.
 
 A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md).
 

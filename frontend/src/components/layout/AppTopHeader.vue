@@ -1,4 +1,7 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 defineProps({
   currentPage: {
     type: Object,
@@ -12,9 +15,22 @@ defineProps({
     type: Object,
     default: null,
   },
+  sshCommandEnabled: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper', 'open-profiles'])
+const emit = defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper', 'open-profiles'])
+const { t } = useI18n()
+
+const importMenuOptions = computed(() => [
+  { label: t('app.header.fromSSHCommand'), key: 'ssh' },
+])
+
+function onImportMenu(key) {
+  if (key === 'ssh') emit('import-tunnel')
+}
 </script>
 
 <template>
@@ -47,12 +63,19 @@ defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper', 'open
         </n-button>
       </div>
       <div v-if="activePage === 'tunnels'" class="header-actions-group">
-        <n-button secondary @click="$emit('import-tunnel')">
-          <template #icon>
-            <i class="bi bi-file-earmark-plus" />
-          </template>
-          {{ $t('app.header.importTunnel') }}
-        </n-button>
+        <n-dropdown
+          v-if="sshCommandEnabled"
+          trigger="click"
+          :options="importMenuOptions"
+          @select="onImportMenu"
+        >
+          <n-button secondary>
+            <template #icon>
+              <i class="bi bi-file-earmark-plus" />
+            </template>
+            {{ $t('app.header.importTunnel') }}
+          </n-button>
+        </n-dropdown>
         <n-button type="primary" @click="$emit('new-tunnel')">
           {{ $t('app.header.newTunnel') }}
         </n-button>
