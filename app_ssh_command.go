@@ -27,7 +27,7 @@ func (a *App) PreviewSSHCommands(text string) (model.SSHCommandPreview, error) {
 	if err != nil {
 		return model.SSHCommandPreview{}, err
 	}
-	return sshcmd.Preview(text, sshAliasResolver(), jumpers, tunnels), nil
+	return sshcmd.Preview(text, sshAliasResolver(), jumpers, tunnels)
 }
 
 // FormatTunnelSSHCommand copies one tunnel as an ssh -N command.
