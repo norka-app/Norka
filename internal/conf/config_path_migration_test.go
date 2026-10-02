@@ -30,37 +30,6 @@ func TestResolveConfigPath_BuildModeUsesHomeConfig(t *testing.T) {
 	}
 }
 
-func TestResolveConfigPath_RenamesLegacySSHurikDir(t *testing.T) {
-	home := t.TempDir()
-	setFakeHome(t, home)
-	t.Setenv("devserver", "")
-
-	legacy := filepath.Join(home, ".sshurik")
-	if err := os.MkdirAll(legacy, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	content := []byte("version = 1\n")
-	if err := os.WriteFile(filepath.Join(legacy, defaultConfigPath), content, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	path := ResolveConfigPath()
-	want := filepath.Join(home, ".norka", defaultConfigPath)
-	if canonicalPath(path) != canonicalPath(want) {
-		t.Fatalf("ResolveConfigPath() = %q, want %q", path, want)
-	}
-	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
-		t.Fatalf("legacy config dir should be renamed, stat err = %v", err)
-	}
-	got, err := os.ReadFile(want)
-	if err != nil {
-		t.Fatalf("read migrated config failed: %v", err)
-	}
-	if string(got) != string(content) {
-		t.Fatalf("migrated config = %q, want %q", got, content)
-	}
-}
-
 func TestMigrateFromLocalConfigIfNeeded_MigratesAndBacksUp(t *testing.T) {
 	home := t.TempDir()
 	setFakeHome(t, home)

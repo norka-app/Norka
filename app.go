@@ -83,16 +83,9 @@ func NewApp() *App {
 	}
 }
 
-func envOrLegacy(key, legacyKey string) string {
-	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-		return raw
-	}
-	return strings.TrimSpace(os.Getenv(legacyKey))
-}
-
 func detectLogLevel() slog.Level {
 	// Explicit override takes highest priority.
-	if raw := envOrLegacy("NORKA_LOG_LEVEL", "SSHURIK_LOG_LEVEL"); raw != "" {
+	if raw := strings.TrimSpace(os.Getenv("NORKA_LOG_LEVEL")); raw != "" {
 		return parseLogLevel(raw)
 	}
 	// `wails dev` injects `devserver`; use debug logging for dev runtime.

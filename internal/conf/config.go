@@ -12,9 +12,6 @@ const defaultConfigPath = "config.toml"
 
 const appConfigDirName = ".norka"
 
-// Older installs kept the config directory under a previous product name.
-var legacyConfigDirNames = []string{".sshurik", ".loris-tunnel"}
-
 // PrivateDirPerm and PrivateFilePerm keep SSH passwords in the local config
 // unreadable to other users on the machine.
 const (
@@ -61,29 +58,13 @@ func getDefaultConfigDir() string {
 	return "."
 }
 
-// homeConfigDir is ~/.norka. An existing ~/.sshurik or ~/.loris-tunnel directory
-// is renamed once so older local configs stay on this computer.
+// homeConfigDir is ~/.norka.
 func homeConfigDir(homeDir string) string {
 	homeDir = strings.TrimSpace(homeDir)
 	if homeDir == "" {
 		return ""
 	}
-	next := filepath.Join(homeDir, appConfigDirName)
-	if st, err := os.Stat(next); err == nil && st.IsDir() {
-		return next
-	}
-	for _, name := range legacyConfigDirNames {
-		legacy := filepath.Join(homeDir, name)
-		st, err := os.Stat(legacy)
-		if err != nil || !st.IsDir() {
-			continue
-		}
-		if err := os.Rename(legacy, next); err == nil {
-			return next
-		}
-		return legacy
-	}
-	return next
+	return filepath.Join(homeDir, appConfigDirName)
 }
 
 // Config is persisted in TOML storage.

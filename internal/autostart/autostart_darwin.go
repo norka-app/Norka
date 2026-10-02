@@ -22,43 +22,14 @@ func newApp() *autostart.App {
 	}
 }
 
-func legacyApp() *autostart.App {
-	return &autostart.App{
-		Name:        legacyAppName,
-		DisplayName: "SSHurik",
-		Exec:        []string{"sshurik"},
-	}
-}
-
-func migrateLegacyAutostart() {
-	legacy := legacyApp()
-	if !legacy.IsEnabled() {
-		return
-	}
-	current := newApp()
-	if !current.IsEnabled() {
-		_ = current.Enable()
-	}
-	_ = legacy.Disable()
-}
-
 func IsEnabled() (bool, error) {
-	migrateLegacyAutostart()
 	return newApp().IsEnabled(), nil
 }
 
 func Enable() error {
-	migrateLegacyAutostart()
 	return newApp().Enable()
 }
 
 func Disable() error {
-	if err := newApp().Disable(); err != nil {
-		return err
-	}
-	legacy := legacyApp()
-	if !legacy.IsEnabled() {
-		return nil
-	}
-	return legacy.Disable()
+	return newApp().Disable()
 }

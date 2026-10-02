@@ -215,6 +215,7 @@ const downloadSpark = computed(() => buildSparklinePath(
           :title="$t('app.title')"
           :status-label="norkaStatusLabel"
           idle
+          easter-egg
         />
       </div>
     </div>

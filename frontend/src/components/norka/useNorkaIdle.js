@@ -17,7 +17,7 @@ import {
 
 const INPUT_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel']
 
-function useReducedMotion() {
+export function useReducedMotion() {
   const reduced = ref(false)
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return reduced
   const media = window.matchMedia('(prefers-reduced-motion: reduce)')

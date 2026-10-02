@@ -142,7 +142,6 @@ func TestGetSSHAgentSigners_NoSock(t *testing.T) {
 	}
 	resetSSHAgent()
 	t.Setenv("NORKA_SSH_AUTH_SOCK", "")
-	t.Setenv("SSHURIK_SSH_AUTH_SOCK", "")
 	t.Setenv("SSH_AUTH_SOCK", "")
 	setTestHome(t, t.TempDir())
 

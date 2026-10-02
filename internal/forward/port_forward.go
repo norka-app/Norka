@@ -1333,13 +1333,6 @@ func getSSHAgent(preferredSocketPath string) (agent.ExtendedAgent, string, error
 	return nil, "", fmt.Errorf("ssh agent has no usable identities; tried: %s", strings.Join(failures, "; "))
 }
 
-func envOrLegacy(key, legacyKey string) string {
-	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-		return raw
-	}
-	return strings.TrimSpace(os.Getenv(legacyKey))
-}
-
 func agentSocketCandidates(preferredSocketPath string) []string {
 	seen := map[string]struct{}{}
 	var candidates []string
@@ -1356,7 +1349,7 @@ func agentSocketCandidates(preferredSocketPath string) []string {
 	}
 
 	add(preferredSocketPath)
-	add(envOrLegacy("NORKA_SSH_AUTH_SOCK", "SSHURIK_SSH_AUTH_SOCK"))
+	add(os.Getenv("NORKA_SSH_AUTH_SOCK"))
 	add(os.Getenv("SSH_AUTH_SOCK"))
 
 	for _, s := range defaultAgentSocketCandidates() {

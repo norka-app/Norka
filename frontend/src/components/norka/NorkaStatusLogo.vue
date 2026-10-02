@@ -1,10 +1,12 @@
 <script setup>
 // Логотип Norka со статусом туннелей: статичная SVG-иконка (NorkaIcon) +
 // однократное подмигивание (Lottie) при переходе сводного статуса в 'connected'
-// и, если включено idle, поведение в простое (useNorkaIdle).
+// и, если включено idle, поведение в простое (useNorkaIdle). С easterEgg клики по логотипу
+// копят пасхалку «нокаут» (useNorkaKnockout) — других действий по клику нет.
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import NorkaIcon from './NorkaIcon.vue'
 import { useNorkaIdle } from './useNorkaIdle'
+import { useNorkaKnockout } from './useNorkaKnockout'
 
 const props = defineProps({
   // connected | connecting | error | partial | stopped; null — состояние ещё не загружено
@@ -37,6 +39,11 @@ const props = defineProps({
   },
   // моргание, взгляды и засыпание в простое — для крупных экземпляров иконки
   idle: {
+    type: Boolean,
+    default: false
+  },
+  // пасхалка «нокаут»: 7 кликов за 2 секунды
+  easterEgg: {
     type: Boolean,
     default: false
   }
@@ -100,8 +107,15 @@ async function playWink() {
   }
 }
 
+const { knockout, leaving: knockoutLeaving, still: knockoutStill, press } = useNorkaKnockout(() => props.easterEgg)
+
+// нокаут прерывает подмигивание
+watch(knockout, (name) => {
+  if (name) stopWink()
+})
+
 watch(() => props.status, (next, prev) => {
-  if (next === 'connected' && prev && prev !== 'connected') {
+  if (next === 'connected' && prev && prev !== 'connected' && !knockout.value) {
     void playWink()
   } else if (next !== 'connected') {
     stopWink()
@@ -112,16 +126,17 @@ watch(() => [props.variant, props.theme], stopWink)
 
 onBeforeUnmount(stopWink)
 
-// пока играет подмигивание, статичная иконка скрыта — поведение в простое ждёт
-useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value)
+// пока играет подмигивание или нокаут, поведение в простое ждёт
+useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value && !knockout.value)
 </script>
 
 <template>
   <span
     ref="root"
     class="norka-status-logo"
-    :class="[`norka-status-logo--${theme}`, { 'is-winking': winking }]"
+    :class="[`norka-status-logo--${theme}`, { 'is-winking': winking, 'norka-status-logo--egg': easterEgg }]"
     :style="{ width: boxSize, height: boxSize }"
+    @click="press"
   >
     <NorkaIcon
       class="norka-status-logo__icon"
@@ -132,6 +147,9 @@ useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value)
       :title="title"
       :status-label="statusLabel"
       :idle="idle"
+      :knockout="knockout"
+      :knockout-leaving="knockoutLeaving"
+      :knockout-still="knockoutStill"
     />
     <span ref="winkHost" class="norka-status-logo__wink" aria-hidden="true" />
   </span>
@@ -153,6 +171,23 @@ useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value)
 
 .norka-status-logo__icon {
   display: block;
+}
+
+/* клики копят пасхалку: курсор обычный, лёгкое нажатие */
+.norka-status-logo--egg {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.12s ease;
+}
+
+.norka-status-logo--egg:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .norka-status-logo--egg { transition: none; }
+  .norka-status-logo--egg:active { transform: none; }
 }
 
 .norka-status-logo__wink {

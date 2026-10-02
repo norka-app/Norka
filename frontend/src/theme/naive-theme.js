@@ -18,6 +18,7 @@ export function naiveThemeFor(mode) {
 }
 
 export function naiveThemeOverrides(mode) {
+  // те же цвета, что --lt-brand / --lt-brand-hover / --lt-brand-pressed в style.css
   if (mode === 'dark') {
     return {
       common: commonOverrides('#7dd3fc', '#bae6fd', '#38bdf8'),

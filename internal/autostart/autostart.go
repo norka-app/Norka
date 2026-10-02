@@ -1,6 +1,3 @@
 package autostart
 
-const (
-	appName       = "norka"
-	legacyAppName = "sshurik"
-)
+const appName = "norka"

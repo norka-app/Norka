@@ -17,6 +17,10 @@
   --lt-input-focus-ring: transparent;
   --lt-focus: #1d4ed8;
   --lt-brand: #1d4ed8;
+  /* акцент: наведение, нажатие и текст на залитом акцентом (как primary в naive-theme.js) */
+  --lt-brand-hover: #1e40af;
+  --lt-brand-pressed: #1e3a8a;
+  --lt-on-brand: #ffffff;
   --lt-table-head: #52525b;
   --lt-table-head-border: #e4e4e7;
   --lt-table-row-border: #f4f4f5;
@@ -93,6 +97,9 @@
   --lt-input-focus-ring: transparent;
   --lt-focus: #93c5fd;
   --lt-brand: #7dd3fc;
+  --lt-brand-hover: #bae6fd;
+  --lt-brand-pressed: #38bdf8;
+  --lt-on-brand: #000000;
   --lt-table-head: #c6c6d0;
   --lt-table-head-border: #45454f;
   --lt-table-row-border: #3a3a44;

@@ -109,13 +109,13 @@ const primary = computed(() => {
   switch (rawStatus.value) {
     case 'running':
     case 'reconnecting':
-      return { label: t('app.simple.actions.disconnect'), icon: 'bi-power', variant: 'outline', hint: t('app.simple.iconHint.disconnect') }
+      return { label: t('app.simple.actions.disconnect'), icon: 'bi-power', variant: 'outline' }
     case 'busy':
-      return { label: t('app.simple.actions.cancel'), icon: 'bi-x-lg', variant: 'outline', hint: t('app.simple.iconHint.cancel') }
+      return { label: t('app.simple.actions.cancel'), icon: 'bi-x-lg', variant: 'outline' }
     case 'error':
-      return { label: t('app.simple.actions.retry'), icon: 'bi-arrow-clockwise', variant: 'primary', hint: t('app.simple.iconHint.retry') }
+      return { label: t('app.simple.actions.retry'), icon: 'bi-arrow-clockwise', variant: 'primary' }
     default:
-      return { label: t('app.simple.actions.connect'), icon: 'bi-power', variant: 'primary', hint: t('app.simple.iconHint.connect') }
+      return { label: t('app.simple.actions.connect'), icon: 'bi-power', variant: 'primary' }
   }
 })
 
@@ -163,7 +163,6 @@ function onWindowKeydown(event) {
   cancelPortSwitch()
 }
 
-const iconHint = computed(() => (props.tunnel ? `${statusLabel.value}. ${primary.value.hint}` : t('app.simple.noTunnelsHint')))
 
 // ── Список туннелей ─────────────────────────────────────────────────────────
 // Свой listbox вместо нативного <select>: системный список WebView2 вылезал за края
@@ -368,24 +367,19 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="simple" :class="`simple--${theme === 'dark' ? 'dark' : 'light'}`">
-    <button
-      type="button"
-      class="simple-icon"
-      :disabled="!tunnel"
-      :title="iconHint"
-      :aria-label="iconHint"
-      @click="toggle"
-    >
+    <!-- Норка только показывает статус; клики копят пасхалку «нокаут», подключение — кнопкой справа -->
+    <div class="simple-icon">
       <NorkaStatusLogo
         :key="tunnel ? tunnel.id : 'none'"
         :status="tunnel ? state : 'stopped'"
-        theme="dark"
+        :theme="theme === 'dark' ? 'dark' : 'light'"
         :size="117"
         :title="$t('app.title')"
         :status-label="statusLabel"
         idle
+        easter-egg
       />
-    </button>
+    </div>
 
     <div class="simple-col">
       <button
@@ -531,7 +525,7 @@ onBeforeUnmount(() => {
 .simple--light {
   --s-bg: #ffffff; --s-text: #1f2329; --s-muted: #646b76; --s-faint: #9aa1ac;
   --s-ctrl: #ffffff; --s-ctrl-b: #d9dce1; --s-ctrl-bb: #c4c8cf; --s-ctrl-h: #f3f4f6;
-  --s-accent: #2563eb; --s-accent-h: #1d4ed8;
+  --s-accent: #2563eb; --s-accent-h: #1d4ed8; --s-on-accent: #fff;
   --s-green: #15803d; --s-green-dot: #22c55e; --s-amber: #b45309; --s-amber-dot: #f5a524;
   --s-red: #c81e1e; --s-red-dot: #ef4444; --s-grey-dot: #b4bac3; --s-icon-ring: transparent;
   --s-panel-shadow: rgba(15, 23, 42, 0.16);
@@ -539,7 +533,8 @@ onBeforeUnmount(() => {
 .simple--dark {
   --s-bg: #202227; --s-text: #e8eaed; --s-muted: #a3a9b3; --s-faint: #6e7580;
   --s-ctrl: #2b2e35; --s-ctrl-b: #3a3e47; --s-ctrl-bb: #454a54; --s-ctrl-h: #33363e;
-  --s-accent: #3b82f6; --s-accent-h: #2563eb;
+  /* в тёмной теме — общий акцент приложения (как «Создать туннель», переключатели, меню) */
+  --s-accent: var(--lt-brand, #7dd3fc); --s-accent-h: var(--lt-brand-hover, #bae6fd); --s-on-accent: var(--lt-on-brand, #000);
   --s-green: #4ade80; --s-green-dot: #3ddc84; --s-amber: #fbbf24; --s-amber-dot: #f5c542;
   --s-red: #f87171; --s-red-dot: #ff5a5f; --s-grey-dot: #6b7280; --s-icon-ring: rgba(255, 255, 255, 0.07);
   --s-panel-shadow: rgba(0, 0, 0, 0.5);
@@ -564,22 +559,10 @@ onBeforeUnmount(() => {
   top: 16px;
   width: 117px;
   height: 117px;
-  padding: 0;
-  border: 0;
   border-radius: 26px;
-  background: transparent;
   line-height: 0;
-  cursor: pointer;
   box-shadow: 0 0 0 1px var(--s-icon-ring);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
-.simple-icon:hover:not(:disabled),
-.simple-icon:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-accent) 35%, transparent);
-}
-.simple-icon:active:not(:disabled) { transform: scale(0.98); }
-.simple-icon:disabled { cursor: default; }
 
 .simple-col {
   position: absolute;
@@ -725,7 +708,7 @@ onBeforeUnmount(() => {
 }
 .simple-btn .bi { font-size: 14px; }
 .simple-btn--secondary { flex: none; padding: 0 16px; }
-.simple-btn--primary { background: var(--s-accent); border-color: var(--s-accent-h); color: #fff; }
+.simple-btn--primary { background: var(--s-accent); border-color: var(--s-accent-h); color: var(--s-on-accent); }
 .simple-btn--primary:hover:not(:disabled) { background: var(--s-accent-h); }
 .simple-btn--outline:hover:not(:disabled),
 .simple-ibtn:hover:not(:disabled) { background: var(--s-ctrl-h); }
@@ -840,6 +823,5 @@ onBeforeUnmount(() => {
   .simple-pop-enter-active,
   .simple-pop-leave-active { transition: none; }
   .simple-spin { animation: none; border-right-color: currentColor; opacity: 0.7; }
-  .simple-icon { transition: none; }
 }
 </style>

@@ -117,12 +117,20 @@ jobs:
           # «нотаризации нет, но локальная проверка подписи пройдена» — реже появляется ошибка «повреждено».
           codesign --force --deep --sign - "norka.app"
           
-          # 4. Запустить create-dmg
+          # 4. Фон для Retina: склеить 1x и @2x в один TIFF (tiffutil есть в любой macOS).
+          # Если склейка не удалась, остаётся обычный PNG.
+          BG="../../dmg-bg.png"
+          if tiffutil -cathidpicheck ../../dmg-bg.png ../../dmg-bg@2x.png -out dmg-bg.tiff; then
+            BG="dmg-bg.tiff"
+          fi
+
+          # 5. Запустить create-dmg
+          # Высота окна 428 = фон 400 + заголовок окна Finder (~28), чтобы фон был виден целиком.
           create-dmg \
             --volname "norka" \
-            --background "../../dmg-bg.png" \
+            --background "$BG" \
             --window-pos 200 120 \
-            --window-size 600 400 \
+            --window-size 600 428 \
             --icon-size 100 \
             --icon "norka.app" 110 200 \
             --hide-extension "norka.app" \
