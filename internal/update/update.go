@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	releaseURL = "https://api.github.com/repos/ojenya/Norka/releases/latest"
-	repoPrefix = "/ojenya/Norka/"
+	releaseURL = "https://api.github.com/repos/norka-app/Norka/releases/latest"
+	repoPrefix = "/norka-app/Norka/"
 )
 
 // Offer is the result of comparing the running app with the latest GitHub release.

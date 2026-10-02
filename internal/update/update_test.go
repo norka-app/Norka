@@ -10,11 +10,11 @@ import (
 func TestCheck_OffersNewerWindowsExe(t *testing.T) {
 	srv := releaseServer(t, `{
 		"tag_name": "v1.2.0",
-		"html_url": "https://github.com/ojenya/Norka/releases/tag/v1.2.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.2.0",
 		"assets": [
-			{"name": "notes.txt", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v1.2.0/notes.txt"},
-			{"name": "norka.dmg", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v1.2.0/norka.dmg"},
-			{"name": "norka.exe", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v1.2.0/norka.exe"}
+			{"name": "notes.txt", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/notes.txt"},
+			{"name": "norka.dmg", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka.dmg"},
+			{"name": "norka.exe", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka.exe"}
 		]
 	}`)
 	defer srv.Close()
@@ -29,7 +29,7 @@ func TestCheck_OffersNewerWindowsExe(t *testing.T) {
 	if offer.Latest != "1.2.0" || offer.Current != "1.0.0" {
 		t.Fatalf("versions = %s -> %s", offer.Current, offer.Latest)
 	}
-	if offer.URL != "https://github.com/ojenya/Norka/releases/download/v1.2.0/norka.exe" {
+	if offer.URL != "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka.exe" {
 		t.Fatalf("url = %s", offer.URL)
 	}
 }
@@ -37,10 +37,10 @@ func TestCheck_OffersNewerWindowsExe(t *testing.T) {
 func TestCheck_OffersNewerMacDMG(t *testing.T) {
 	srv := releaseServer(t, `{
 		"tag_name": "v1.2.0",
-		"html_url": "https://github.com/ojenya/Norka/releases/tag/v1.2.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.2.0",
 		"assets": [
-			{"name": "extra.exe", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v1.2.0/extra.exe"},
-			{"name": "Norka.dmg", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v1.2.0/Norka.dmg"}
+			{"name": "extra.exe", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/extra.exe"},
+			{"name": "Norka.dmg", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/Norka.dmg"}
 		]
 	}`)
 	defer srv.Close()
@@ -52,7 +52,7 @@ func TestCheck_OffersNewerMacDMG(t *testing.T) {
 	if !offer.Available {
 		t.Fatalf("available = false, offer = %+v", offer)
 	}
-	if offer.URL != "https://github.com/ojenya/Norka/releases/download/v1.2.0/Norka.dmg" {
+	if offer.URL != "https://github.com/norka-app/Norka/releases/download/v1.2.0/Norka.dmg" {
 		t.Fatalf("url = %s", offer.URL)
 	}
 }
@@ -60,9 +60,9 @@ func TestCheck_OffersNewerMacDMG(t *testing.T) {
 func TestCheck_SameVersionIsNotAnUpdate(t *testing.T) {
 	srv := releaseServer(t, `{
 		"tag_name": "v1.0.0",
-		"html_url": "https://github.com/ojenya/Norka/releases/tag/v1.0.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.0.0",
 		"assets": [
-			{"name": "norka.exe", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v1.0.0/norka.exe"}
+			{"name": "norka.exe", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.0.0/norka.exe"}
 		]
 	}`)
 	defer srv.Close()
@@ -79,9 +79,9 @@ func TestCheck_SameVersionIsNotAnUpdate(t *testing.T) {
 func TestCheck_OlderReleaseIsNotAnUpdate(t *testing.T) {
 	srv := releaseServer(t, `{
 		"tag_name": "v0.9.0",
-		"html_url": "https://github.com/ojenya/Norka/releases/tag/v0.9.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v0.9.0",
 		"assets": [
-			{"name": "norka.exe", "browser_download_url": "https://github.com/ojenya/Norka/releases/download/v0.9.0/norka.exe"}
+			{"name": "norka.exe", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v0.9.0/norka.exe"}
 		]
 	}`)
 	defer srv.Close()
@@ -117,7 +117,7 @@ func TestCheck_RejectsForeignDownloadURL(t *testing.T) {
 func TestCheck_FallsBackToReleasePage(t *testing.T) {
 	srv := releaseServer(t, `{
 		"tag_name": "v1.3.0",
-		"html_url": "https://github.com/ojenya/Norka/releases/tag/v1.3.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.3.0",
 		"assets": []
 	}`)
 	defer srv.Close()
@@ -129,7 +129,7 @@ func TestCheck_FallsBackToReleasePage(t *testing.T) {
 	if !offer.Available {
 		t.Fatalf("release page should be offered, got %+v", offer)
 	}
-	if offer.URL != "https://github.com/ojenya/Norka/releases/tag/v1.3.0" {
+	if offer.URL != "https://github.com/norka-app/Norka/releases/tag/v1.3.0" {
 		t.Fatalf("url = %s", offer.URL)
 	}
 }
