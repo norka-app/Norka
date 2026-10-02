@@ -85,6 +85,7 @@ Norka creates and keeps SSH tunnels from a window, without typing a command ever
 - 🧷 **Tray.** The icon color follows the overall status. Each tunnel has a submenu: connect or disconnect, copy the address, open in the browser. At the bottom: “Disconnect all”, “Retry failed”, and a jump to simple or advanced mode.
 - 🔁 **Reconnect.** After a drop, an exponential pause from 0.5 s up to 1 minute, for up to 15 minutes. The list shows “Reconnecting”. After sleep or a network change (Wi-Fi, VPN), live tunnels are probed at once: a dead session comes back without waiting for keepalive, and time spent asleep does not count toward the 15 minutes. Turn it off under **Settings → Features**.
 - 📈 **Traffic and latency.** Speed and a chart in the sidebar, SSH latency on each running tunnel.
+- 📊 **Tunnel statistics.** Connected time, reconnects, the last error, and traffic for each tunnel. The list shows a short uptime, and Overview lists whoever reconnected most today. Turn it off under **Settings → Features**.
 - 📥 **Import.** Tunnels from an `ssh` command (`-L`, `-R`, `-D`). Jump hosts from an SSH config file, including `ProxyJump`.
 
 A command you used to type in a terminal can be pasted as a whole. **Import** on the tunnels page and the new-tunnel dialog both offer **From an SSH command**: one or more `ssh` lines, with Windows cmd quoting and POSIX quoting. It understands `-L`, `-R`, `-D` (each forward becomes its own tunnel), `-p`, `-l` and `user@host`, `-i`, a `-J` chain, `ServerAliveInterval` and `ConnectTimeout`. Unknown flags are listed as warnings. Before anything is saved you see the tunnels and jump hosts that will be created; a jump host is reused when user, host and port already match. An alias from `~/.ssh/config` is filled in by the same parser as the config import. Passwords and other secrets from the command line are never stored. Each tunnel’s `⋯` menu has **Copy as SSH command**, which puts an equivalent `ssh -N …` on the clipboard (with `-p`, `-i` and `-J` when they matter). A password cannot be expressed, so it is left out. Both entries disappear when **SSH command** is turned off under **Settings → Features**.
@@ -99,11 +100,11 @@ A command you used to type in a terminal can be pasted as a whole. **Import** on
 
 ## Features in Settings
 
-**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, reconnect after sleep, and automation. Each row is a name and a one-line description, in the light and dark themes and in both languages.
+**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, reconnect after sleep, automation, and tunnel statistics. Each row is a name and a one-line description, in the light and dark themes and in both languages.
 
 The choices live in the `[features]` table of `config.toml`. A missing key uses the default, so an older file keeps working. An explicit `false` is stored and kept. Turning a feature off hides it immediately and stops the work behind it: the hotkey, the tray item, the background check.
 
-Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Automation is off too: it opens the local commands and `norka://` links. Quick search, updates, traffic, mascot animations, the SSH command, and reconnect after sleep are on. The language setting and OS-keychain passwords are not flags.
+Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Automation is off too: it opens the local commands and `norka://` links. Quick search, updates, traffic, mascot animations, the SSH command, reconnect after sleep, and tunnel statistics are on. The language setting and OS-keychain passwords are not flags.
 
 A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md).
 

@@ -13,6 +13,7 @@ import (
 	"norka/internal/forward"
 	"norka/internal/model"
 	"norka/internal/secrets"
+	"norka/internal/tunnelstats"
 )
 
 var (
@@ -46,6 +47,7 @@ type TunnelBiz struct {
 	mu       sync.Mutex
 	runs     map[int]*forward.LocalForward
 	starting map[int]context.CancelFunc
+	stats    *tunnelstats.Store
 }
 
 func NewTunnelBiz(storage *conf.Storage) *TunnelBiz {
@@ -61,6 +63,41 @@ func (b *TunnelBiz) SetSecrets(vault *secrets.Vault) {
 		return
 	}
 	b.secrets = vault
+}
+
+// SetStats attaches per-tunnel counters. Nil disables them. Saved totals stay
+// in the store the caller already opened; this method does not delete them.
+func (b *TunnelBiz) SetStats(store *tunnelstats.Store) {
+	if b == nil {
+		return
+	}
+	b.stats = store
+	if store != nil {
+		store.SetBeforeFlush(b.observeTraffic)
+	}
+}
+
+// Stats folds the latest byte counters and returns every tracked tunnel.
+func (b *TunnelBiz) Stats() []tunnelstats.View {
+	if b == nil || b.stats == nil {
+		return []tunnelstats.View{}
+	}
+	b.observeTraffic()
+	views := b.stats.Snapshot()
+	if views == nil {
+		return []tunnelstats.View{}
+	}
+	return views
+}
+
+// ResetStats clears one tunnel's counters. A tunnel that is still running
+// starts a new session from zero.
+func (b *TunnelBiz) ResetStats(id int) {
+	if b == nil || b.stats == nil || id <= 0 {
+		return
+	}
+	b.observeTraffic()
+	b.stats.Reset(id)
 }
 
 // SetEvents attaches OS notification fan-out. Nil disables it.
@@ -252,7 +289,13 @@ func (b *TunnelBiz) Delete(id int) error {
 		detachTunnelFromProfiles(cfg, id)
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if b.stats != nil {
+		b.stats.Forget(id)
+	}
+	return nil
 }
 
 func (b *TunnelBiz) RunningCount() int {
@@ -550,6 +593,9 @@ func (b *TunnelBiz) Shutdown() {
 		_ = b.stopRuntime(id)
 		_, _ = b.updateStatus(id, "stopped", "")
 	}
+	if b.stats != nil {
+		_ = b.stats.Close()
+	}
 }
 
 func (b *TunnelBiz) startRuntime(t model.Tunnel, jumpers []model.Jumper) error {
@@ -608,6 +654,9 @@ func (b *TunnelBiz) startRuntime(t model.Tunnel, jumpers []model.Jumper) error {
 		return err
 	}
 	slog.Info("tunnel runtime started", "tunnel_id", t.ID, "name", t.Name)
+	if b.stats != nil {
+		b.stats.Begin(t.ID)
+	}
 
 	go b.watchRuntime(t.ID, run)
 	return nil
@@ -634,6 +683,10 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 			}
 			delete(b.runs, id)
 			b.mu.Unlock()
+			b.captureRun(id, run)
+			if b.stats != nil {
+				b.stats.End(id)
+			}
 
 			if run.Err() != nil {
 				slog.Warn("tunnel runtime exited with error", "tunnel_id", id, "err", run.Err())
@@ -666,6 +719,10 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 				slog.Warn("tunnel runtime disconnected, reconnecting", "tunnel_id", id, "err", evt.Err)
 				reconnecting = true
 				lastDisconnectErr = errReason(evt.Err)
+				b.captureRun(id, run)
+				if b.stats != nil {
+					b.stats.Pause(id)
+				}
 				if b.events != nil && !evt.Quiet {
 					b.events.Dropped(id, name)
 				}
@@ -674,6 +731,10 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 				slog.Info("tunnel runtime reconnected", "tunnel_id", id)
 				reconnecting = false
 				lastDisconnectErr = ""
+				b.captureRun(id, run)
+				if b.stats != nil {
+					b.stats.Reconnect(id)
+				}
 				if b.events != nil && !evt.Quiet {
 					b.events.Reconnected(id, name)
 				}
@@ -693,6 +754,10 @@ func (b *TunnelBiz) stopRuntime(id int) error {
 
 	if !ok {
 		return nil
+	}
+	b.captureRun(id, run)
+	if b.stats != nil {
+		b.stats.End(id)
 	}
 	return run.Stop()
 }
@@ -738,10 +803,45 @@ func (b *TunnelBiz) updateStatus(id int, status, lastError string) (model.Tunnel
 	}
 	if updated.LastError != "" {
 		slog.Info("tunnel status updated", "tunnel_id", updated.ID, "name", updated.Name, "status", updated.Status, "error", updated.LastError)
+		if b.stats != nil {
+			b.stats.NoteError(updated.ID, updated.LastError)
+		}
 	} else {
 		slog.Info("tunnel status updated", "tunnel_id", updated.ID, "name", updated.Name, "status", updated.Status)
 	}
 	return updated, nil
+}
+
+func (b *TunnelBiz) captureRun(id int, run *forward.LocalForward) {
+	if b == nil || b.stats == nil || run == nil || id <= 0 {
+		return
+	}
+	up, down := run.Traffic()
+	b.stats.Observe(id, up, down)
+}
+
+func (b *TunnelBiz) observeTraffic() {
+	if b == nil || b.stats == nil {
+		return
+	}
+	b.mu.Lock()
+	type sample struct {
+		id   int
+		up   uint64
+		down uint64
+	}
+	samples := make([]sample, 0, len(b.runs))
+	for id, run := range b.runs {
+		if run == nil {
+			continue
+		}
+		up, down := run.Traffic()
+		samples = append(samples, sample{id: id, up: up, down: down})
+	}
+	b.mu.Unlock()
+	for _, sample := range samples {
+		b.stats.Observe(sample.id, sample.up, sample.down)
+	}
 }
 
 func errReason(err error) string {

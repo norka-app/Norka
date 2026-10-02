@@ -12,6 +12,7 @@ const DEFAULTS = {
   ssh_command: true,
   wake_reconnect: true,
   automation: false,
+  tunnel_stats: true,
 }
 
 const COPY = {
@@ -24,6 +25,7 @@ const COPY = {
   ssh_command: ['features.sshCommand', 'features.sshCommandDesc'],
   wake_reconnect: ['features.wakeReconnect', 'features.wakeReconnectDesc'],
   automation: ['features.automation', 'features.automationDesc'],
+  tunnel_stats: ['features.tunnelStats', 'features.tunnelStatsDesc'],
 }
 
 function fallbackItems() {
