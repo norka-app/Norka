@@ -140,7 +140,14 @@
                 "hour": "{h} h",
                 "hourMin": "{h} h {m} min",
                 "day": "{d} d",
-                "dayHour": "{d} d {h} h"
+                "dayHour": "{d} d {h} h",
+                "byteUnits": {
+                    "b": "B",
+                    "kb": "KB",
+                    "mb": "MB",
+                    "gb": "GB",
+                    "tb": "TB"
+                }
             },
             "status": {
                 "running": "Running",

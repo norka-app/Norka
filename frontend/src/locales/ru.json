@@ -139,8 +139,15 @@
                 "minSec": "{m} мин {s} сек",
                 "hour": "{h} ч",
                 "hourMin": "{h} ч {m} мин",
-                "day": "{d} д",
-                "dayHour": "{d} д {h} ч"
+                "day": "{d} дн",
+                "dayHour": "{d} дн {h} ч",
+                "byteUnits": {
+                    "b": "Б",
+                    "kb": "КБ",
+                    "mb": "МБ",
+                    "gb": "ГБ",
+                    "tb": "ТБ"
+                }
             },
             "status": {
                 "running": "Работает",

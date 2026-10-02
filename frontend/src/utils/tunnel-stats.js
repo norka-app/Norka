@@ -24,18 +24,30 @@ export function formatDuration(totalSeconds, t) {
   return t('app.tunnels.stats.sec', { n: seconds })
 }
 
-export function formatBytes(value) {
+const BYTE_UNIT_KEYS = [
+  'app.tunnels.stats.byteUnits.b',
+  'app.tunnels.stats.byteUnits.kb',
+  'app.tunnels.stats.byteUnits.mb',
+  'app.tunnels.stats.byteUnits.gb',
+  'app.tunnels.stats.byteUnits.tb',
+]
+
+export function formatBytes(value, t, locale) {
   const amount = Math.max(0, Number(value) || 0)
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let size = amount
   let unit = 0
-  while (size >= 1024 && unit < units.length - 1) {
+  while (size >= 1024 && unit < BYTE_UNIT_KEYS.length - 1) {
     size /= 1024
     unit += 1
   }
-  if (unit === 0) return `${Math.round(size)} ${units[unit]}`
+  const name = t(BYTE_UNIT_KEYS[unit])
+  if (unit === 0) return `${Math.round(size)} ${name}`
   const digits = size >= 100 ? 0 : size >= 10 ? 1 : 2
-  return `${trimTrailingZero(size.toFixed(digits))} ${units[unit]}`
+  const text = new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-GB', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  }).format(size)
+  return `${text} ${name}`
 }
 
 export function formatWhen(unixSeconds, locale) {
@@ -79,6 +91,3 @@ export function reconnectCountLabel(count, t, locale) {
     : t('app.overview.reconnectsMany', { count: n })
 }
 
-function trimTrailingZero(text) {
-  return text.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')
-}

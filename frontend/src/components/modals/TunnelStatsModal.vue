@@ -46,8 +46,8 @@ const sections = computed(() => [
     title: t('app.tunnels.stats.session'),
     rows: [
       row(t('app.tunnels.stats.uptime'), uptime.value),
-      row(t('app.tunnels.stats.sent'), formatBytes(props.stat?.sessionBytesUp)),
-      row(t('app.tunnels.stats.received'), formatBytes(props.stat?.sessionBytesDown)),
+      row(t('app.tunnels.stats.sent'), formatBytes(props.stat?.sessionBytesUp, t, locale.value)),
+      row(t('app.tunnels.stats.received'), formatBytes(props.stat?.sessionBytesDown, t, locale.value)),
     ],
   },
   {
@@ -62,8 +62,8 @@ const sections = computed(() => [
     rows: [
       row(t('app.tunnels.stats.connected'), totalConnected.value),
       row(t('app.tunnels.stats.reconnects'), String(props.stat?.reconnectsTotal || 0)),
-      row(t('app.tunnels.stats.sent'), formatBytes(props.stat?.totalBytesUp)),
-      row(t('app.tunnels.stats.received'), formatBytes(props.stat?.totalBytesDown)),
+      row(t('app.tunnels.stats.sent'), formatBytes(props.stat?.totalBytesUp, t, locale.value)),
+      row(t('app.tunnels.stats.received'), formatBytes(props.stat?.totalBytesDown, t, locale.value)),
     ],
   },
 ])
