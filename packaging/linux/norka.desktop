@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Norka
+GenericName=SSH tunnel manager
+Comment=Менеджер SSH-туннелей
+Exec=norka
+Icon=norka
+Terminal=false
+Categories=Network;
+StartupWMClass=norka
+Keywords=ssh;tunnel;proxy;socks;

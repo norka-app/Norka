@@ -114,6 +114,51 @@ func TestCheck_RejectsForeignDownloadURL(t *testing.T) {
 	}
 }
 
+func TestCheck_PrefersLinuxAppImage(t *testing.T) {
+	srv := releaseServer(t, `{
+		"tag_name": "v1.2.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.2.0",
+		"assets": [
+			{"name": "norka.exe", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka.exe"},
+			{"name": "norka_1.2.0_amd64.deb", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka_1.2.0_amd64.deb"},
+			{"name": "other-x86_64.AppImage", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/other-x86_64.AppImage"},
+			{"name": "norka-x86_64.AppImage", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka-x86_64.AppImage"}
+		]
+	}`)
+	defer srv.Close()
+
+	offer, err := check(context.Background(), "1.0.0", "linux", srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !offer.Available {
+		t.Fatalf("available = false, offer = %+v", offer)
+	}
+	if offer.URL != "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka-x86_64.AppImage" {
+		t.Fatalf("url = %s", offer.URL)
+	}
+}
+
+func TestCheck_LinuxDebWhenNoAppImage(t *testing.T) {
+	srv := releaseServer(t, `{
+		"tag_name": "v1.2.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.2.0",
+		"assets": [
+			{"name": "norka.exe", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka.exe"},
+			{"name": "norka_1.2.0_amd64.deb", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka_1.2.0_amd64.deb"}
+		]
+	}`)
+	defer srv.Close()
+
+	offer, err := check(context.Background(), "1.0.0", "linux", srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if offer.URL != "https://github.com/norka-app/Norka/releases/download/v1.2.0/norka_1.2.0_amd64.deb" {
+		t.Fatalf("url = %s", offer.URL)
+	}
+}
+
 func TestCheck_FallsBackToReleasePage(t *testing.T) {
 	srv := releaseServer(t, `{
 		"tag_name": "v1.3.0",

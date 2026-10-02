@@ -27,6 +27,10 @@ on:
     tags:
       - "v*"       # все теги на v, например v1.0.0, v2.1.3
 
+  # Сборка на pull request, чтобы проверить Linux/Windows/macOS до слияния.
+  # Публикация релиза по-прежнему только на теге v*.
+  pull_request:
+
   # `workflow_dispatch` — ручной запуск.
   # После этой строки на странице GitHub Actions появляется кнопка "Run workflow":
   # сборку можно запустить вручную, не отправляя новый код.
@@ -153,6 +157,17 @@ jobs:
   build-windows:
     # Свежая виртуальная машина Windows
     runs-on: windows-latest
+    # Секреты подписи читаются в env, чтобы шаг можно было пропустить, когда их нет.
+    # Пустое значение — шаг не запускается, в релиз уходит неподписанный norka.exe.
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+      AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+      WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+      WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -189,6 +204,32 @@ jobs:
       - name: Build Windows app
         run: wails build -platform windows/amd64
 
+      # Подпись необязательна. Сначала Azure Artifact Signing, если заданы все шесть секретов.
+      # Иначе PFX через signtool. Иначе файл остаётся неподписанным. Имя — norka.exe.
+      - name: Sign with Azure Artifact Signing
+        id: azure-sign
+        if: env.AZURE_TENANT_ID != '' && env.AZURE_CLIENT_ID != '' && env.AZURE_CLIENT_SECRET != '' && env.AZURE_SIGNING_ENDPOINT != '' && env.AZURE_SIGNING_ACCOUNT != '' && env.AZURE_CERT_PROFILE_NAME != ''
+        uses: azure/trusted-signing-action@v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}/build/bin
+          files-folder-filter: exe
+          files-folder-recurse: false
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Norka
+
+      - name: Sign with PFX certificate
+        if: steps.azure-sign.outcome == 'skipped' && env.WINDOWS_PFX_BASE64 != ''
+        shell: pwsh
+        run: ./packaging/windows/sign-pfx.ps1
+
       # Загрузить файлы .exe в хранилище
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -196,19 +237,86 @@ jobs:
           name: norka-windows
           path: build/bin/*.exe
 
+  # ----------------------------------------
+  # Задача: сборка Linux (AppImage, deb, tar.gz)
+  # ----------------------------------------
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # Ubuntu 24.04 отдаёт WebKitGTK 4.1. Тег webkit2_41 выбирает эту сборку Wails.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config imagemagick curl ca-certificates squashfs-tools
+
+      - name: Cache Wails CLI
+        id: cache-wails
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/wails
+          key: ${{ runner.os }}-wails-cli-v2.16.0
+
+      - name: Install Wails
+        if: steps.cache-wails.outputs.cache-hit != 'true'
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+
+      - name: Build Linux app
+        run: wails build -platform linux/amd64 -tags webkit2_41
+
+      # frontend/dist появляется после сборки Wails: его вшивает go:embed.
+      - name: Test and cross-compile
+        run: |
+          go test -tags webkit2_41 ./...
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o /tmp/norka.exe .
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build ./internal/...
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build ./internal/...
+
+      - name: Package AppImage, deb and tar.gz
+        run: |
+          chmod +x packaging/linux/package.sh
+          packaging/linux/package.sh
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: norka-linux
+          path: |
+            build/bin/norka-x86_64.AppImage
+            build/bin/*.deb
+            build/bin/*.tar.gz
+
 
   # ----------------------------------------
   # Задача 3: автоматическая публикация Release
   # ----------------------------------------
   release:
-    # `needs`: эта задача стартует только после успешного завершения build-macos и build-windows.
-    needs: [build-macos, build-windows]
+    # `needs`: публикация после macOS, Windows и Linux.
+    needs: [build-macos, build-windows, build-linux]
     
     # Публикация лёгкая, хватает самой быстрой и дешёвой машины Ubuntu.
     runs-on: ubuntu-latest
     
     # `if`: публиковать только если запуск вызван тегом на "v" (например v1.0.0).
-    # Обычный push кода заканчивается на двух сборках, этот шаг пропускается.
+    # Обычный push кода заканчивается сборками, этот шаг пропускается.
     if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
@@ -226,6 +334,12 @@ jobs:
           name: norka-windows
           path: artifacts/windows
 
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: norka-linux
+          path: artifacts/linux
+
       # Шаг 3. Официальным действием GitHub создать страницу Release.
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -238,3 +352,26 @@ jobs:
           # Токен даёт действию право создать Release в репозитории.
           # GITHUB_TOKEN GitHub Actions выдаёт сам, отдельно его заводить не нужно.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # WinGet только если владелец уже положил WINGET_TOKEN.
+      # Первую версию пакета NorkaApp.Norka всё равно нужно отправить в winget-pkgs вручную:
+      # действие откажется работать, пока пакета там нет. См. docs/DISTRIBUTION.md.
+      - name: Detect WinGet token
+        id: winget
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -n "$WINGET_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "WINGET_TOKEN is not set; skipping winget-releaser"
+          fi
+
+      - name: Publish to WinGet
+        if: steps.winget.outputs.enabled == 'true'
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: NorkaApp.Norka
+          installers-regex: '^norka\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}

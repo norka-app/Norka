@@ -7,8 +7,8 @@ import (
 )
 
 // Собственная строка заголовка (frontend/src/components/layout/AppTitleBar.vue) — только на Windows:
-// там окно без системной рамки (options.App.Frameless). На macOS остаётся нативный заголовок
-// с кнопками окна, на Linux — без изменений.
+// там окно без системной рамки (options.App.Frameless). На macOS и Linux остаётся нативный
+// заголовок с кнопками оконного менеджера.
 const customTitleBar = runtime.GOOS == "windows"
 
 // событие для фронтенда: окно показано (true) или спрятано в трей (false)
@@ -32,10 +32,11 @@ func (a *App) CloseMainWindow() {
 	wailsruntime.Quit(a.ctx)
 }
 
-// closeHidesToTray: Windows — пока не выбран «Выход» (beforeClose), macOS — HideWindowOnClose.
+// closeHidesToTray: Windows и Linux прячут окно, пока не выбран «Выход» (beforeClose).
+// macOS прячет его через HideWindowOnClose.
 func (a *App) closeHidesToTray() bool {
 	switch runtime.GOOS {
-	case "windows":
+	case "windows", "linux":
 		return !a.allowClose.Load()
 	case "darwin":
 		return true

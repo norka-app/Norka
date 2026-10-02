@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.9.0.schema.json
+PackageIdentifier: NorkaApp.Norka
+PackageVersion: 1.0.2
+PackageLocale: ru-RU
+Publisher: Norka
+PackageName: Norka
+License: MIT
+ShortDescription: Менеджер SSH-туннелей
+Description: |-
+  Norka держит SSH-туннели (local, remote и dynamic SOCKS5) в одном окне.
+  Приложение умеет сворачиваться в трей и само переподключаться.
+ManifestType: locale
+ManifestVersion: 1.9.0

@@ -88,39 +88,47 @@ func check(ctx context.Context, current, goos, endpoint string, client *http.Cli
 }
 
 func pickDownloadURL(goos string, rel githubRelease) string {
-	suffix, exact := assetMatch(goos)
-	if suffix == "" {
+	suffixes, exact := assetMatch(goos)
+	if len(suffixes) == 0 {
 		return urlIfAccepted(rel.HTMLURL)
 	}
 
-	var suffixMatch string
+	// suffixes are in preference order. Linux prefers the AppImage, then a .deb.
+	// The running binary is not replaced: the in-app offer only opens this URL.
+	matches := make([]string, len(suffixes))
 	for _, asset := range rel.Assets {
 		downloadURL := urlIfAccepted(asset.BrowserDownloadURL)
 		if downloadURL == "" {
 			continue
 		}
 		name := strings.ToLower(strings.TrimSpace(asset.Name))
-		if name == exact {
+		if exact != "" && name == exact {
 			return downloadURL
 		}
-		if strings.HasSuffix(name, suffix) && suffixMatch == "" {
-			suffixMatch = downloadURL
+		for i, suffix := range suffixes {
+			if strings.HasSuffix(name, suffix) && matches[i] == "" {
+				matches[i] = downloadURL
+			}
 		}
 	}
-	if suffixMatch != "" {
-		return suffixMatch
+	for _, match := range matches {
+		if match != "" {
+			return match
+		}
 	}
 	return urlIfAccepted(rel.HTMLURL)
 }
 
-func assetMatch(goos string) (suffix, exact string) {
+func assetMatch(goos string) (suffixes []string, exact string) {
 	switch goos {
 	case "windows":
-		return ".exe", "norka.exe"
+		return []string{".exe"}, "norka.exe"
 	case "darwin":
-		return ".dmg", "norka.dmg"
+		return []string{".dmg"}, "norka.dmg"
+	case "linux":
+		return []string{".appimage", ".deb"}, "norka-x86_64.appimage"
 	default:
-		return "", ""
+		return nil, ""
 	}
 }
 

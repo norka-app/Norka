@@ -24,7 +24,7 @@ func TestResolveConfigPath_BuildModeUsesHomeConfig(t *testing.T) {
 	t.Setenv("devserver", "")
 
 	path := ResolveConfigPath()
-	want := filepath.Join(home, ".norka", defaultConfigPath)
+	want := filepath.Join(homeConfigDir(home), defaultConfigPath)
 	if canonicalPath(path) != canonicalPath(want) {
 		t.Fatalf("ResolveConfigPath() = %q, want %q", path, want)
 	}
@@ -166,6 +166,7 @@ func setFakeHome(t *testing.T, home string) {
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HOMEDRIVE", "")
 	t.Setenv("HOMEPATH", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
 }
 
 func canonicalPath(p string) string {
