@@ -50,6 +50,22 @@ func TestFormatRussianPlurals(t *testing.T) {
 	}
 }
 
+func TestFormatEnglish(t *testing.T) {
+	cat := CatalogFor("en")
+	one := Format(cat, Group{Kind: KindDropped, Tunnels: []TunnelRef{{ID: 4, Name: "db"}}})
+	if one.Body != `Tunnel "db" disconnected` || one.TunnelID != 4 {
+		t.Fatalf("one = %+v", one)
+	}
+	three := Format(cat, Group{Kind: KindReconnected, Tunnels: []TunnelRef{{ID: 1}, {ID: 2}, {ID: 3}}})
+	if three.Body != "3 tunnels reconnected" || three.TunnelID != 0 {
+		t.Fatalf("three = %+v", three)
+	}
+	failed := Format(cat, Group{Kind: KindConnectFailed, Tunnels: []TunnelRef{{ID: 2, Name: "web"}}})
+	if failed.Body != `Failed to connect tunnel "web"` {
+		t.Fatalf("failed = %+v", failed)
+	}
+}
+
 func TestServiceDebounceAndMasterSwitch(t *testing.T) {
 	var mu = struct {
 		notices []Notice

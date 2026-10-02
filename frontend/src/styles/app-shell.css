@@ -634,7 +634,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .dialog-body .n-select,
@@ -685,8 +687,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   height: auto;
+}
+
+.top-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 200px;
 }
 
 /* кнопка «Простой режим» — справа в шапке страницы, на месте кнопки из макета в заголовке окна */
@@ -1203,6 +1211,16 @@
 .update-check-dialog-text {
   font-size: 0.82rem;
   color: var(--lt-ink);
+}
+
+.settings-label {
+  flex: 1 1 220px;
+  min-width: min(100%, 220px);
+}
+
+.language-options {
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 
 .config-name {

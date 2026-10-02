@@ -1,7 +1,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { darkTheme, dateRuRU, ruRU } from 'naive-ui'
+import { darkTheme, dateEnUS, dateRuRU, enUS, ruRU } from 'naive-ui'
+import { guessLocale, LOCALE_STORAGE_KEY, LANGUAGE_STORAGE_KEY, readStoredPreference } from './i18n'
 import { naiveThemeOverrides } from './theme/naive-theme'
 import {
   CreateGroup,
@@ -21,7 +22,9 @@ import {
   MoveTunnelToGroup,
   OpenReportEmail,
   ReorderGroups,
-  SaveUILocale,
+  ApplyTrayLocale,
+  GetLanguage,
+  SetLanguage,
   TestJumperConnection as TestJumperConnectionAPI,
   TestTunnelConnection as TestTunnelConnectionAPI,
   ToggleTunnel,
@@ -71,6 +74,11 @@ import { setWindowShown } from './utils/window-visibility'
 import { findPortConflicts } from './utils/port-conflicts'
 
 const { t, locale } = useI18n()
+const hasWails = typeof window !== 'undefined' && !!window.go?.main?.App
+const languageReady = ref(!hasWails)
+const languagePreference = ref(readStoredPreference())
+const naiveLocale = computed(() => (locale.value === 'en' ? enUS : ruRU))
+const naiveDateLocale = computed(() => (locale.value === 'en' ? dateEnUS : dateRuRU))
 
 const pages = computed(() => [
   { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: 'bi-speedometer2' },
@@ -2254,6 +2262,51 @@ watch(dialogOpen, (open) => {
   })
 })
 
+function persistLanguage(preference, localeTag) {
+  languagePreference.value = preference
+  locale.value = localeTag
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(LANGUAGE_STORAGE_KEY, preference)
+  window.localStorage.setItem(LOCALE_STORAGE_KEY, localeTag)
+  if (typeof document !== 'undefined') document.documentElement.lang = localeTag
+}
+
+function applyLanguageSetting(setting) {
+  const preference = setting?.preference === 'ru' || setting?.preference === 'en' ? setting.preference : 'auto'
+  const localeTag = setting?.locale === 'en' || setting?.locale === 'ru' ? setting.locale : guessLocale()
+  persistLanguage(preference, localeTag)
+}
+
+async function syncLanguageFromBackend() {
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    const setting = await GetLanguage()
+    applyLanguageSetting(setting)
+    if (setting?.locale) await ApplyTrayLocale(setting.locale)
+  } catch (_) {
+    /* keep the locale guessed at startup */
+  }
+}
+
+async function onLanguageChange(preference) {
+  const prevPref = languagePreference.value
+  const prevLocale = locale.value
+  if (preference === 'ru' || preference === 'en') persistLanguage(preference, preference)
+  else languagePreference.value = 'auto'
+  try {
+    const setting = await SetLanguage(preference)
+    applyLanguageSetting(setting)
+  } catch (err) {
+    persistLanguage(prevPref, prevLocale)
+    setConfigMessage(String(err))
+  }
+}
+
+async function onConfigReload() {
+  await loadStateFromBackend()
+  await syncLanguageFromBackend()
+}
+
 onMounted(async () => {
   if (!themePinned && typeof window !== 'undefined' && window.matchMedia) {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -2271,12 +2324,9 @@ onMounted(async () => {
     // окно стартует в размере из main.go — запоминаем его для возврата и сжимаем
     await enterSimpleWindow()
   }
+  await syncLanguageFromBackend()
+  languageReady.value = true
   await loadStateFromBackend()
-  try {
-    await SaveUILocale(locale.value)
-  } catch (_) {
-    /* tray locale sync is best-effort */
-  }
   try {
     trafficMonitorEnabled.value = await GetTrafficMonitorEnabled()
   } catch (_) {
@@ -2470,7 +2520,7 @@ watch(
 
 
 <template>
-  <n-config-provider class="app-root" :theme="naiveTheme" :theme-overrides="themeOverrides" :locale="ruRU" :date-locale="dateRuRU">
+  <n-config-provider v-if="languageReady" class="app-root" :theme="naiveTheme" :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
   <n-global-style />
   <n-dialog-provider>
   <n-message-provider>
@@ -2593,7 +2643,9 @@ watch(
           :simple-on-top="simpleOnTop"
           @theme-change="setThemeBySwitch"
           @set-config-message="setConfigMessage"
-          @reload-state="loadStateFromBackend"
+          :language="languagePreference"
+          @reload-state="onConfigReload"
+          @language-change="onLanguageChange"
           @confirm-action="openActionDialog"
           @traffic-monitor-change="onTrafficMonitorChange"
           @window-mode-change="setWindowMode"

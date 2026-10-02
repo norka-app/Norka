@@ -109,6 +109,20 @@ func TestNormalizeLLMConfidenceAcceptsNumbers(t *testing.T) {
 	}
 }
 
+func TestFallbackCopyFollowsLocale(t *testing.T) {
+	enReason, _, _, _, _ := fallbackCopy("en")
+	ruReason, _, _, _, _ := fallbackCopy("ru")
+	if enReason == ruReason || enReason == "" || ruReason == "" {
+		t.Fatalf("en=%q ru=%q", enReason, ruReason)
+	}
+	if !strings.Contains(enReason, "AI analysis") {
+		t.Fatalf("english reason = %q", enReason)
+	}
+	if !strings.Contains(ruReason, "AI-анализ") {
+		t.Fatalf("russian reason = %q", ruReason)
+	}
+}
+
 func TestCallLLMDoesNotContactBackend(t *testing.T) {
 	service := NewService("", "")
 	_, err := service.callLLM(

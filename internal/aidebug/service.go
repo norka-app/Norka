@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"norka/internal/model"
+	"norka/internal/uilocale"
 )
 
 const (
@@ -500,15 +501,29 @@ func publicKeyOfferedButRejected(text string) bool {
 	return hasAuthFailure && hasPublicKeyAuth && !hasLocalKeyReadError
 }
 
+func fallbackCopy(locale string) (reason, summary, first, rulePrefix, matchErr string) {
+	if uilocale.Normalize(locale) == uilocale.PrefEN {
+		return "AI analysis could not be finished.",
+			"Showing local diagnostics. Check the matched rules and the SSH debug details below.",
+			"Check the SSH debug details and see which step failed.",
+			"Check the matched rule: ",
+			"Match the original error to the suggested steps."
+	}
+	return "Пока не удалось завершить AI-анализ.",
+		"Сейчас показывается локальная диагностика. Проверьте совпавшие правила и детали SSH-отладки ниже.",
+		"Сначала проверьте детали SSH-отладки и определите, на каком этапе произошёл сбой.",
+		"Сначала проверьте совпавшее правило: ",
+		"Сопоставьте исходную ошибку с предложенными шагами."
+}
+
 func fallbackResult(locale, rawError string, rules []string, checks []model.AIDebugCheck) model.AIDebugResult {
-	reason := "Пока не удалось завершить AI-анализ."
-	summary := "Сейчас показывается локальная диагностика. Проверьте совпавшие правила и детали SSH-отладки ниже."
-	steps := []string{"Сначала проверьте детали SSH-отладки и определите, на каком этапе произошёл сбой."}
+	reason, summary, first, rulePrefix, matchErr := fallbackCopy(locale)
+	steps := []string{first}
 	if len(rules) > 0 {
-		steps = append(steps, "Сначала проверьте совпавшее правило: "+rules[0])
+		steps = append(steps, rulePrefix+rules[0])
 	}
 	if rawError != "" {
-		steps = append(steps, "Сопоставьте исходную ошибку с предложенными шагами.")
+		steps = append(steps, matchErr)
 	}
 	if len(steps) > 3 {
 		steps = steps[:3]

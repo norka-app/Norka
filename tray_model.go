@@ -7,6 +7,7 @@ import (
 
 	"norka/internal/biz"
 	"norka/internal/model"
+	"norka/internal/traytext"
 )
 
 // Пункты меню трея строятся из живого состояния туннелей (internal/biz → List()).
@@ -89,7 +90,7 @@ func trackTraySince(tunnels []model.Tunnel, since map[int]traySince, now time.Ti
 	}
 }
 
-func buildTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Time) trayModel {
+func buildTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Time, text traytext.Strings) trayModel {
 	var running, busy, failed int
 	// последнее событие: время и было ли среди одновременных событий ошибка
 	var lastAt time.Time
@@ -148,16 +149,16 @@ func buildTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Ti
 
 	switch {
 	case len(tunnels) == 0:
-		m.Header = "Norka · нет туннелей"
+		m.Header = text.HeaderNone
 	default:
-		m.Header = fmt.Sprintf("Norka · %d из %d подключено", running, len(tunnels))
+		m.Header = fmt.Sprintf(text.HeaderCount, running, len(tunnels))
 	}
 	m.Tooltip = m.Header
 	switch {
 	case m.Status == "connecting":
-		m.Tooltip += " · подключение…"
+		m.Tooltip += text.TooltipConnecting
 	case failed > 0:
-		m.Tooltip += fmt.Sprintf(" · ошибок: %d", failed)
+		m.Tooltip += fmt.Sprintf(text.TooltipErrors, failed)
 	}
 
 	for i, t := range tunnels {
@@ -174,23 +175,23 @@ func buildTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Ti
 		}
 		switch t.Status {
 		case "running":
-			item.ToggleLabel = "Отключить"
+			item.ToggleLabel = text.ToggleDisconnect
 			if t.Mode == "local" || t.Mode == "" {
 				item.URL = "http://" + addr
 			}
 		case "reconnecting":
-			item.Title += " — переподключение…"
-			item.ToggleLabel = "Отключить"
+			item.Title += text.StatusReconnecting
+			item.ToggleLabel = text.ToggleDisconnect
 		case "busy":
-			item.Title += " — подключение…"
-			item.ToggleLabel = "Отменить подключение"
+			item.Title += text.StatusConnecting
+			item.ToggleLabel = text.ToggleCancel
 		case "error":
-			item.Title += " — ошибка"
-			item.ToggleLabel = "Повторить"
-			setTraySwitchPort(&item, t, tunnels)
+			item.Title += text.StatusError
+			item.ToggleLabel = text.ToggleRetry
+			setTraySwitchPort(&item, t, tunnels, text)
 		default:
-			item.ToggleLabel = "Подключить"
-			setTraySwitchPort(&item, t, tunnels)
+			item.ToggleLabel = text.ToggleConnect
+			setTraySwitchPort(&item, t, tunnels, text)
 		}
 		m.Items = append(m.Items, item)
 	}
@@ -199,7 +200,7 @@ func buildTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Ti
 
 // setTraySwitchPort меняет «Подключить» / «Повторить» на «Подключить вместо «…»», если локальный
 // порт туннеля держит другой туннель: запуск всё равно не смог бы занять порт.
-func setTraySwitchPort(item *trayTunnelItem, t model.Tunnel, tunnels []model.Tunnel) {
+func setTraySwitchPort(item *trayTunnelItem, t model.Tunnel, tunnels []model.Tunnel, text traytext.Strings) {
 	conflicts := biz.PortConflicts(t, tunnels)
 	if len(conflicts) == 0 {
 		return
@@ -210,11 +211,11 @@ func setTraySwitchPort(item *trayTunnelItem, t model.Tunnel, tunnels []model.Tun
 	}
 	joined := strings.Join(names, "», «")
 	item.SwitchPort = true
-	item.ToggleLabel = fmt.Sprintf("Подключить вместо «%s»", joined)
+	item.ToggleLabel = fmt.Sprintf(text.ToggleInstead, joined)
 	if len(conflicts) == 1 {
-		item.ToggleTooltip = fmt.Sprintf("Порт %d занят: «%s» будет отключён", t.LocalPort, joined)
+		item.ToggleTooltip = fmt.Sprintf(text.PortBusyOne, t.LocalPort, joined)
 	} else {
-		item.ToggleTooltip = fmt.Sprintf("Порт %d занят: «%s» будут отключены", t.LocalPort, joined)
+		item.ToggleTooltip = fmt.Sprintf(text.PortBusyMany, t.LocalPort, joined)
 	}
 }
 

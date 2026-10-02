@@ -10,6 +10,7 @@ import (
 
 	"github.com/energye/systray"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"norka/internal/traytext"
 )
 
 // Иконки трея по агрегированному статусу (connected / connecting / error / stopped).
@@ -41,6 +42,8 @@ type trayMenu struct {
 	more        *systray.MenuItem
 	stopAll     *systray.MenuItem
 	retryAll    *systray.MenuItem
+	simple      *systray.MenuItem
+	advanced    *systray.MenuItem
 	signature   string
 	iconKey     string
 	statusSince map[int]traySince
@@ -55,6 +58,7 @@ func (a *App) buildTrayMenu(showWindow func()) {
 	defer m.mu.Unlock()
 	m.statusSince = map[int]traySince{}
 
+	text := traytext.ForLocale(a.uiLocaleTag())
 	m.header = systray.AddMenuItem("Norka", "")
 	m.header.Disable()
 	systray.AddSeparator()
@@ -62,34 +66,34 @@ func (a *App) buildTrayMenu(showWindow func()) {
 	for i := 0; i < trayMaxTunnelItems; i++ {
 		slot := &traySlot{item: systray.AddMenuItem("", "")}
 		slot.toggle = slot.item.AddSubMenuItem("", "")
-		slot.copyAddr = slot.item.AddSubMenuItem("Скопировать адрес", "")
-		slot.open = slot.item.AddSubMenuItem("Открыть в браузере", "")
+		slot.copyAddr = slot.item.AddSubMenuItem(fmt.Sprintf(text.CopyAddress, "…"), "")
+		slot.open = slot.item.AddSubMenuItem(text.OpenBrowser, "")
 		slot.toggle.Click(func() { a.trayToggle(slot) })
 		slot.copyAddr.Click(func() { a.trayCopyAddress(slot) })
 		slot.open.Click(func() { a.trayOpenBrowser(slot) })
 		slot.item.Hide()
 		m.slots = append(m.slots, slot)
 	}
-	m.more = systray.AddMenuItem("", "Открыть список туннелей")
+	m.more = systray.AddMenuItem("", text.MoreTooltip)
 	m.more.Click(func() { a.trayShowMode(showWindow, "advanced") })
 	m.more.Hide()
 
 	systray.AddSeparator()
-	m.stopAll = systray.AddMenuItem("Отключить все", "Остановить все активные туннели")
+	m.stopAll = systray.AddMenuItem(text.StopAll, text.StopAllTooltip)
 	m.stopAll.Click(func() {
 		go a.trayToggleWhere(func(status string) bool {
 			return status == "running" || status == "busy" || status == "reconnecting"
 		})
 	})
-	m.retryAll = systray.AddMenuItem("Переподключить ошибочные", "Повторить запуск туннелей с ошибкой")
+	m.retryAll = systray.AddMenuItem(text.RetryFailed, text.RetryFailedTooltip)
 	m.retryAll.Click(func() { go a.trayRetryFailed() })
 	m.retryAll.Hide()
 
 	systray.AddSeparator()
-	simple := systray.AddMenuItem("Простой режим", "Компактное окно на один туннель")
-	simple.Click(func() { a.trayShowMode(showWindow, "simple") })
-	advanced := systray.AddMenuItem("Расширенный режим", "Полное окно со списком туннелей")
-	advanced.Click(func() { a.trayShowMode(showWindow, "advanced") })
+	m.simple = systray.AddMenuItem(text.SimpleMode, text.SimpleModeTooltip)
+	m.simple.Click(func() { a.trayShowMode(showWindow, "simple") })
+	m.advanced = systray.AddMenuItem(text.AdvancedMode, text.AdvancedModeTooltip)
+	m.advanced.Click(func() { a.trayShowMode(showWindow, "advanced") })
 
 	a.startTrayRefresh()
 }
@@ -118,6 +122,7 @@ func (a *App) refreshTrayMenu() {
 	if err != nil {
 		return
 	}
+	text := traytext.ForLocale(a.uiLocaleTag())
 	m := &a.trayMenu
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -126,7 +131,8 @@ func (a *App) refreshTrayMenu() {
 	}
 	now := time.Now()
 	trackTraySince(tunnels, m.statusSince, now)
-	state := buildTrayModel(tunnels, m.statusSince, now)
+	state := buildTrayModel(tunnels, m.statusSince, now, text)
+	a.applyTrayStaticLabels(m, text)
 	if key := state.iconKey(); key != m.iconKey {
 		m.iconKey = key
 		setTrayStatusIcon(key)
@@ -155,7 +161,8 @@ func (a *App) refreshTrayMenu() {
 		}
 		slot.toggle.SetTitle(it.ToggleLabel)
 		slot.toggle.SetTooltip(it.ToggleTooltip) // подсказки у пунктов меню показывает только macOS
-		slot.copyAddr.SetTitle("Скопировать адрес (" + it.Address + ")")
+		slot.copyAddr.SetTitle(fmt.Sprintf(text.CopyAddress, it.Address))
+		slot.open.SetTitle(text.OpenBrowser)
 		if it.URL != "" {
 			slot.open.Enable()
 		} else {
@@ -164,7 +171,8 @@ func (a *App) refreshTrayMenu() {
 		slot.item.Show()
 	}
 	if state.Hidden > 0 {
-		m.more.SetTitle(fmt.Sprintf("Ещё туннелей: %d…", state.Hidden))
+		m.more.SetTitle(fmt.Sprintf(text.MoreTunnels, state.Hidden))
+		m.more.SetTooltip(text.MoreTooltip)
 		m.more.Show()
 	} else {
 		m.more.Hide()
@@ -178,6 +186,27 @@ func (a *App) refreshTrayMenu() {
 		m.retryAll.Show()
 	} else {
 		m.retryAll.Hide()
+	}
+}
+
+// applyTrayStaticLabels updates menu items whose titles do not depend on a tunnel.
+// Caller holds trayMenu.mu.
+func (a *App) applyTrayStaticLabels(m *trayMenu, text traytext.Strings) {
+	if m.stopAll != nil {
+		m.stopAll.SetTitle(text.StopAll)
+		m.stopAll.SetTooltip(text.StopAllTooltip)
+	}
+	if m.retryAll != nil {
+		m.retryAll.SetTitle(text.RetryFailed)
+		m.retryAll.SetTooltip(text.RetryFailedTooltip)
+	}
+	if m.simple != nil {
+		m.simple.SetTitle(text.SimpleMode)
+		m.simple.SetTooltip(text.SimpleModeTooltip)
+	}
+	if m.advanced != nil {
+		m.advanced.SetTitle(text.AdvancedMode)
+		m.advanced.SetTooltip(text.AdvancedModeTooltip)
 	}
 }
 

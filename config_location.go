@@ -69,7 +69,7 @@ func (a *App) SelectConfigDirectory() (string, error) {
 		}
 	}
 	dir, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title:            "Select configuration directory",
+		Title:            a.uiText().SelectConfigDir,
 		DefaultDirectory: defaultDir,
 	})
 	if err != nil {
