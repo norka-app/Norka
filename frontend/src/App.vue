@@ -30,9 +30,11 @@ import {
   UpdateTunnel,
   CloseMainWindow,
   HasCustomTitleBar,
-  ShiftDown
+  ShiftDown,
+  GetAppVersion,
+  CheckForUpdate
 } from '../wailsjs/go/main/App'
-import { EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
+import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTitleBar from './components/layout/AppTitleBar.vue'
 import AppTopHeader from './components/layout/AppTopHeader.vue'
@@ -48,6 +50,7 @@ import ImportJumperModal from './components/modals/ImportJumperModal.vue'
 import TunnelModal from './components/modals/TunnelModal.vue'
 import TunnelGroupModal from './components/modals/TunnelGroupModal.vue'
 import ImportTunnelModal from './components/modals/ImportTunnelModal.vue'
+import UpdateOfferModal from './components/modals/UpdateOfferModal.vue'
 import './styles/app-shell.css'
 import { AI_DEBUG_ENABLED } from './config/features'
 import { aggregateNorkaStatus, trackTunnelErrorSince, trackTunnelStatusSince } from './utils/norka-status'
@@ -123,6 +126,7 @@ let configToastTimer = null
 const appMeta = reactive({
   version: '1.0.0'
 })
+const updateOffer = ref(null)
 const AI_REPORT_SUPPORT_EMAIL = ''
 const AI_REPORT_SUBJECT = '[Norka] Report'
 const AI_REPORT_MAX_FIELD_LEN = 800
@@ -2067,6 +2071,7 @@ function deleteJumper(jumper) {
 
 const dialogOpen = computed(() => (
   actionDialog.visible
+  || !!updateOffer.value
   || showImportTunnelModal.value
   || showImportJumperModal.value
   || showTunnelGroupModal.value
@@ -2076,6 +2081,10 @@ const dialogOpen = computed(() => (
 ))
 
 function dismissTopDialog() {
+  if (updateOffer.value) {
+    updateOffer.value = null
+    return
+  }
   if (actionDialog.visible) {
     closeActionDialog()
     return
@@ -2215,6 +2224,7 @@ onMounted(async () => {
     onBeforeUnmount(() => media.removeEventListener('change', onOsTheme))
   }
   await detectCustomTitleBar()
+  await loadAppVersion()
   await ensureWindowOnScreen()
   if (windowMode.value === 'simple') {
     // окно стартует в размере из main.go — запоминаем его для возврата и сжимаем
@@ -2237,7 +2247,40 @@ onMounted(async () => {
   window.addEventListener('keyup', onWindowKeyup, true)
   window.addEventListener('blur', onWindowBlur)
   subscribeTrayEvents()
+  void checkForAppUpdate()
 })
+
+async function loadAppVersion() {
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    const version = await GetAppVersion()
+    if (version) appMeta.version = version
+  } catch (_) {
+    /* версия из сборки необязательна для интерфейса */
+  }
+}
+
+async function checkForAppUpdate() {
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    const info = await CheckForUpdate()
+    if (info?.current) appMeta.version = info.current
+    if (info?.available && info.url) updateOffer.value = info
+  } catch (_) {
+    /* нет сети или GitHub недоступен — запуск без предложения обновления */
+  }
+}
+
+function downloadOfferedUpdate() {
+  const url = updateOffer.value?.url
+  updateOffer.value = null
+  if (!url || typeof window === 'undefined' || !window.runtime) return
+  try {
+    BrowserOpenURL(url)
+  } catch (_) {
+    /* браузер не открылся — окно уже закрыто, повтор будет при следующем запуске */
+  }
+}
 
 onBeforeUnmount(() => {
   if (stateSyncTimer !== null) {
@@ -2418,6 +2461,14 @@ watch(
   </n-layout>
   </template>
   </div>
+
+  <UpdateOfferModal
+    :show="!!updateOffer"
+    :current="updateOffer?.current || appMeta.version"
+    :latest="updateOffer?.latest || ''"
+    @close="updateOffer = null"
+    @download="downloadOfferedUpdate"
+  />
 
   <n-modal
     :show="actionDialog.visible"

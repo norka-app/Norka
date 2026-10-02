@@ -361,6 +361,12 @@
             "portBusy": "Порт {port} занят «{names}»",
             "portBusyTag": "порт занят"
         },
+        "update": {
+            "title": "Доступно обновление",
+            "message": "Вышла версия {latest}. Сейчас установлена {current}. Файл откроется в браузере.",
+            "download": "Скачать",
+            "later": "Позже"
+        },
         "common": {
             "cancel": "Отмена",
             "close": "Закрыть",
