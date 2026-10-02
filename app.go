@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1090,19 +1089,7 @@ func (a *App) OpenConfigDir() error {
 		return err
 	}
 	dir := filepath.Dir(a.storage.Path())
-
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", dir)
-	case "windows":
-		cmd = exec.Command("explorer", dir)
-	default:
-		// Most desktop Linux environments provide xdg-open.
-		cmd = exec.Command("xdg-open", dir)
-	}
-
-	if err := cmd.Start(); err != nil {
+	if err := openFolder(dir); err != nil {
 		return fmt.Errorf("open config dir: %w", err)
 	}
 	return nil

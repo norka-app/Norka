@@ -200,7 +200,8 @@ func (a *App) ResetConfigDirectoryToDefault(overwriteExisting bool) error {
 }
 
 // QuitApplication exits the process so config on disk reloads on next startup.
-// In packaged builds this schedules an automatic restart after ~2s; under wails dev it only quits.
+// In packaged builds this schedules an automatic restart once this process can
+// release the single-instance lock. Under wails dev it only quits.
 func (a *App) QuitApplication() {
 	if a.ctx == nil {
 		return
