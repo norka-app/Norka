@@ -12,6 +12,7 @@ import (
 	"time"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"norka/internal/features"
 	"norka/internal/update"
 )
 
@@ -43,6 +44,9 @@ func (a *App) CheckForUpdateNow() (update.Offer, error) {
 }
 
 func (a *App) lookupUpdate(manual bool) (update.Offer, error) {
+	if !a.featureOn(features.AutoUpdate) {
+		return update.Offer{Current: appVersion()}, nil
+	}
 	parent := a.ctx
 	if parent == nil {
 		parent = context.Background()
@@ -66,6 +70,9 @@ func (a *App) lookupUpdate(manual bool) (update.Offer, error) {
 // ApplyUpdate downloads the cached offer, verifies it, and restarts into the
 // new build when the install location is writable.
 func (a *App) ApplyUpdate() (update.ApplyResult, error) {
+	if !a.featureOn(features.AutoUpdate) {
+		return update.ApplyResult{Code: update.CodeNone}, nil
+	}
 	updateMu.Lock()
 	if updateCancel != nil {
 		updateMu.Unlock()

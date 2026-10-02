@@ -5,6 +5,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } fro
 import { useI18n } from 'vue-i18n'
 import { BrowserOpenURL, ClipboardSetText } from '../../../wailsjs/runtime/runtime'
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
+import { useFeature } from '../../features/feature-store'
 import { findPortConflicts } from '../../utils/port-conflicts'
 
 const COPIED_FEEDBACK_MS = 1500
@@ -37,6 +38,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  profilesEnabled: {
+    type: Boolean,
+    default: false
+  },
   activeProfileId: {
     type: Number,
     default: 0
@@ -50,6 +55,7 @@ const props = defineProps({
 const emit = defineEmits(['select', 'toggle', 'manage', 'port-switch-confirm', 'port-switch-cancel', 'activate-profile', 'clear-profile'])
 
 const { t } = useI18n()
+const mascotOn = useFeature('mascot')
 const now = ref(Date.now())
 const copied = ref(false)
 let uptimeTimer = null
@@ -458,13 +464,14 @@ onBeforeUnmount(() => {
         :size="117"
         :title="$t('app.title')"
         :status-label="statusLabel"
-        idle
-        easter-egg
+        :idle="mascotOn"
+        :easter-egg="mascotOn"
       />
     </div>
 
     <div class="simple-col">
       <button
+        v-if="profilesEnabled"
         ref="profileTriggerRef"
         type="button"
         class="simple-select simple-select--profile"
@@ -564,7 +571,7 @@ onBeforeUnmount(() => {
 
     <div v-if="listOpen || profileOpen" class="simple-backdrop" aria-hidden="true" @pointerdown.prevent="closeList(); closeProfileList()" />
     <Transition name="simple-pop">
-      <div v-if="profileOpen" class="simple-panel" @focusout="onProfileFocusOut">
+      <div v-if="profilesEnabled && profileOpen" class="simple-panel" @focusout="onProfileFocusOut">
         <ul
           :id="profileListId"
           ref="profileListRef"

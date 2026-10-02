@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"norka/internal/conf"
+	"norka/internal/features"
 	"norka/internal/hotkey"
 	"norka/internal/model"
 
@@ -117,7 +118,7 @@ func (a *App) GetQuickSearchSettings() (model.QuickSearchSettings, error) {
 	if err != nil {
 		return settings, err
 	}
-	settings.Enabled = cfg.QuickSearchOn()
+	settings.Enabled = cfg.Features.Enabled(features.QuickSearch)
 	settings.Hotkey = cfg.QuickSearchHotkey
 	if strings.TrimSpace(cfg.QuickSearchHotkey) != "" {
 		settings.EffectiveHotkey = cfg.QuickSearchHotkey
@@ -144,14 +145,19 @@ func (a *App) SetQuickSearchSettings(input model.QuickSearchSettings) (model.Qui
 		}
 	}
 	enabled := input.Enabled
-	if _, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
+		if err := cfg.Features.Set(features.QuickSearch, enabled); err != nil {
+			return err
+		}
 		cfg.QuickSearchEnabled = &enabled
 		cfg.QuickSearchHotkey = spec
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return model.QuickSearchSettings{}, err
 	}
 	a.applyQuickSearchHotkey(enabled, spec)
+	a.publishFeatures(cfg.Features)
 	return a.GetQuickSearchSettings()
 }
 
@@ -159,7 +165,7 @@ func (a *App) SetQuickSearchSettings(input model.QuickSearchSettings) (model.Qui
 // to open the command palette. A second press closes it. If the window was
 // hidden, closing the palette hides it again.
 func (a *App) OpenQuickSearch() {
-	if a.ctx == nil {
+	if a.ctx == nil || !a.featureOn(features.QuickSearch) {
 		return
 	}
 	if a.quickSearchOpen.Load() {

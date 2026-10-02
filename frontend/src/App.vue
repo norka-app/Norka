@@ -15,8 +15,8 @@ import {
   DebugSavedTunnelFailure as DebugSavedTunnelFailureAPI,
   DebugTunnelFailure as DebugTunnelFailureAPI,
   GetSSHConfigImportSources,
+  GetFeatures,
   GetState,
-  GetTrafficMonitorEnabled,
   GetTrafficStats,
   LoadSSHConfigJumpersByPath,
   MoveTunnelToGroup,
@@ -64,6 +64,7 @@ import ImportTunnelModal from './components/modals/ImportTunnelModal.vue'
 import UpdateOfferModal from './components/modals/UpdateOfferModal.vue'
 import './styles/app-shell.css'
 import { AI_DEBUG_ENABLED } from './config/features'
+import { applyFeatureViews, featureEnabled, useFeature } from './features/feature-store'
 import { aggregateNorkaStatus, trackTunnelErrorSince, trackTunnelStatusSince } from './utils/norka-status'
 import {
   SIMPLE_ON_TOP_STORAGE_KEY,
@@ -85,14 +86,23 @@ const languagePreference = ref(readStoredPreference())
 const naiveLocale = computed(() => (locale.value === 'en' ? enUS : ruRU))
 const naiveDateLocale = computed(() => (locale.value === 'en' ? dateEnUS : dateRuRU))
 
-const pages = computed(() => [
-  { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: 'bi-speedometer2' },
-  { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: 'bi-hdd-network' },
-  { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: 'bi-diagram-3' },
-  { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: 'bi-collection' },
-  { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: 'bi-journal-text' },
-  { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: 'bi-sliders2' }
-])
+const profilesOn = useFeature('profiles')
+const quickSearchOn = useFeature('quick_search')
+const trafficOn = useFeature('traffic_monitor')
+const autoUpdateOn = useFeature('auto_update')
+
+const pages = computed(() => {
+  const all = [
+    { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: 'bi-speedometer2' },
+    { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: 'bi-hdd-network' },
+    { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: 'bi-diagram-3' },
+    { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: 'bi-collection' },
+    { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: 'bi-journal-text' },
+    { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: 'bi-sliders2' },
+  ]
+  if (profilesOn.value) return all
+  return all.filter((page) => page.key !== 'profiles')
+})
 
 const modeOptions = computed(() => [
   { value: 'local', label: t('app.options.mode.local') },
@@ -292,14 +302,16 @@ function subscribeTrayEvents() {
     EventsOn('notification:focus', (id) => focusTunnelFromNotification(id)),
     EventsOn('update:progress', onUpdateProgress),
     EventsOn('window:page', (page) => {
-      if (page !== 'profiles') return
+      if (page !== 'profiles' || !profilesOn.value) return
       void setWindowMode('advanced').then(() => { activePage.value = 'profiles' })
     }),
     EventsOn('quicksearch:open', (payload) => {
+      if (!quickSearchOn.value) return
       const open = !!(payload && payload.open)
       quickSearchOpen.value = open
       quickSearchRestoreHide.value = open && !!payload.restoreHide
-    })
+    }),
+    EventsOn('features:changed', (views) => applyFeatureViews(views))
   ]
 }
 
@@ -982,16 +994,50 @@ function startTrafficSync() {
   trafficSyncTimer = window.setInterval(syncTrafficSilently, TRAFFIC_SYNC_INTERVAL_MS)
 }
 
-function onTrafficMonitorChange(enabled) {
-  trafficMonitorEnabled.value = !!enabled
-  if (trafficMonitorEnabled.value) {
-    startTrafficSync()
-  } else {
-    stopTrafficSync()
+function startUpdateChecks() {
+  if (!featureEnabled('auto_update') || updateCheckTimer !== null) return
+  void checkForAppUpdate()
+  updateCheckTimer = window.setInterval(() => {
+    void checkForAppUpdate()
+  }, UPDATE_CHECK_INTERVAL_MS)
+}
+
+function stopUpdateChecks() {
+  if (updateCheckTimer !== null) {
+    window.clearInterval(updateCheckTimer)
+    updateCheckTimer = null
+  }
+  updateOffer.value = null
+}
+
+async function loadFeatures() {
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    applyFeatureViews(await GetFeatures())
+  } catch (_) {
+    /* остаются значения каталога */
   }
 }
 
+function syncFeatureEffects() {
+  trafficMonitorEnabled.value = featureEnabled('traffic_monitor')
+  if (trafficMonitorEnabled.value) startTrafficSync()
+  else stopTrafficSync()
+  if (featureEnabled('auto_update')) startUpdateChecks()
+  else stopUpdateChecks()
+  if (!profilesOn.value && activePage.value === 'profiles') activePage.value = 'overview'
+  if (!quickSearchOn.value && quickSearchOpen.value) void closeQuickSearch()
+}
+
+watch([profilesOn, quickSearchOn, trafficOn, autoUpdateOn], () => {
+  syncFeatureEffects()
+})
+
 function switchPage(pageKey) {
+  if (pageKey === 'profiles' && !profilesOn.value) {
+    activePage.value = 'overview'
+    return
+  }
   activePage.value = pageKey
 }
 
@@ -2300,7 +2346,7 @@ async function toggleWindowModeFromShortcut(event) {
 function onWindowKeydown(event) {
   const hotkeyField = event.target instanceof HTMLElement && event.target.closest('[data-hotkey-capture="1"]')
   if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
-    if (hotkeyField) return
+    if (hotkeyField || !quickSearchOn.value) return
     event.preventDefault()
     toggleQuickSearch()
     return
@@ -2429,21 +2475,13 @@ onMounted(async () => {
   await syncLanguageFromBackend()
   languageReady.value = true
   await loadStateFromBackend()
-  try {
-    trafficMonitorEnabled.value = await GetTrafficMonitorEnabled()
-  } catch (_) {
-    trafficMonitorEnabled.value = true
-  }
+  await loadFeatures()
+  syncFeatureEffects()
   stateSyncTimer = window.setInterval(syncStateSilently, STATE_SYNC_INTERVAL_MS)
-  startTrafficSync()
   window.addEventListener('keydown', onWindowKeydown, true)
   window.addEventListener('keyup', onWindowKeyup, true)
   window.addEventListener('blur', onWindowBlur)
   subscribeTrayEvents()
-  void checkForAppUpdate()
-  updateCheckTimer = window.setInterval(() => {
-    void checkForAppUpdate()
-  }, UPDATE_CHECK_INTERVAL_MS)
 })
 
 async function loadAppVersion() {
@@ -2470,6 +2508,7 @@ function showUpdateOffer(info) {
 }
 
 async function checkForAppUpdate() {
+  if (!featureEnabled('auto_update')) return null
   if (typeof window === 'undefined' || !window.go?.main?.App) return null
   if (updateCheckInFlight) return null
   updateCheckInFlight = true
@@ -2644,6 +2683,7 @@ watch(
     :tunnels="tunnels"
     :tunnel="simpleTunnel"
     :profiles="profiles"
+    :profiles-enabled="profilesOn"
     :active-profile-id="activeProfileId"
     :stop-others="profileStopOthers"
     :theme="theme"
@@ -2679,7 +2719,7 @@ watch(
       <AppTopHeader
         :current-page="currentPage"
         :active-page="activePage"
-        :active-profile="activeProfile"
+        :active-profile="profilesOn ? activeProfile : null"
         @import-jumper="openImportJumper"
         @new-jumper="openNewJumper"
         @new-tunnel="openNewTunnel"
@@ -2738,7 +2778,7 @@ watch(
         />
 
         <ProfilesPage
-          v-if="activePage === 'profiles'"
+          v-if="profilesOn && activePage === 'profiles'"
           :profiles="profiles"
           :tunnels="tunnels"
           :active-profile-id="activeProfileId"
@@ -2768,7 +2808,6 @@ watch(
           @reload-state="onConfigReload"
           @language-change="onLanguageChange"
           @confirm-action="openActionDialog"
-          @traffic-monitor-change="onTrafficMonitorChange"
           @window-mode-change="setWindowMode"
           @simple-on-top-change="simpleOnTop = $event"
           @update-offer="showUpdateOffer"
@@ -2959,9 +2998,10 @@ watch(
   </n-message-provider>
   </n-dialog-provider>
   <QuickSearchPalette
+    v-if="quickSearchOn"
     :open="quickSearchOpen"
     :tunnels="tunnels"
-    :profiles="profiles"
+    :profiles="profilesOn ? profiles : []"
     :active-profile-id="activeProfileId"
     @close="closeQuickSearch"
     @toggle-tunnel="onPaletteToggle"

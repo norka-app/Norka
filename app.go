@@ -19,6 +19,7 @@ import (
 	"norka/internal/autostart"
 	"norka/internal/biz"
 	"norka/internal/conf"
+	"norka/internal/features"
 	"norka/internal/model"
 	"norka/internal/notify"
 	"norka/internal/secrets"
@@ -375,6 +376,7 @@ func (a *App) loadNotifySettings() {
 	if a.storage != nil {
 		if cfg, err := a.storage.Load(); err == nil {
 			settings = notifySettingsFromConfig(cfg.Notifications)
+			settings.Enabled = cfg.Features.Enabled(features.Notifications)
 		}
 	}
 	a.notifyMu.Lock()
@@ -408,7 +410,9 @@ func (a *App) GetNotificationSettings() (conf.NotificationSettings, error) {
 	if err != nil {
 		return conf.NotificationSettings{}, err
 	}
-	return cfg.Notifications, nil
+	settings := cfg.Notifications
+	settings.Enabled = cfg.Features.Enabled(features.Notifications)
+	return settings, nil
 }
 
 // SetNotificationSettings stores the notification toggles.
@@ -416,17 +420,16 @@ func (a *App) SetNotificationSettings(settings conf.NotificationSettings) error 
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	_, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
 		cfg.Notifications = settings
 		cfg.NotificationsSet = true
-		return nil
+		return cfg.Features.Set(features.Notifications, settings.Enabled)
 	})
 	if err != nil {
 		return err
 	}
-	a.notifyMu.Lock()
-	a.notifySettings = notifySettingsFromConfig(settings)
-	a.notifyMu.Unlock()
+	a.loadNotifySettings()
+	a.publishFeatures(cfg.Features)
 	return nil
 }
 
@@ -509,6 +512,15 @@ func (a *App) GetState() (model.State, error) {
 func (a *App) GetTrafficStats() (model.TrafficStats, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.TrafficStats{}, err
+	}
+
+	if !a.featureOn(features.TrafficMonitor) {
+		a.trafficMu.Lock()
+		a.lastTrafficUp = 0
+		a.lastTrafficDown = 0
+		a.lastTrafficAt = time.Time{}
+		a.trafficMu.Unlock()
+		return model.TrafficStats{}, nil
 	}
 
 	up, down := a.tunnel.TrafficSnapshot()
@@ -890,18 +902,22 @@ func (a *App) GetTrafficMonitorEnabled() (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	return cfg.TrafficMonitorEnabled, nil
+	return cfg.Features.Enabled(features.TrafficMonitor), nil
 }
 
 func (a *App) SetTrafficMonitorEnabled(enabled bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	_, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
 		cfg.TrafficMonitorEnabled = enabled
-		return nil
+		return cfg.Features.Set(features.TrafficMonitor, enabled)
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	a.publishFeatures(cfg.Features)
+	return nil
 }
 
 // GetConfigPath returns the absolute path of the current config file.
@@ -1042,6 +1058,11 @@ func (a *App) ImportConfig(srcPath string) error {
 		a.forgetRemovedSecrets(oldRefs, secrets.SecretRefs(newCfg.Jumpers))
 	}
 	a.loadNotifySettings()
+	a.bindQuickSearchHotkey()
+	a.invalidateTrayMenu()
+	if fresh, loadErr := a.storage.Load(); loadErr == nil {
+		a.publishFeatures(fresh.Features)
+	}
 
 	// Restart auto-start tunnels.
 	_ = a.tunnel.StartAutoStart(a.tunnelStartLimit())

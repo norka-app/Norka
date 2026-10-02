@@ -10,6 +10,7 @@ import (
 
 	"github.com/energye/systray"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"norka/internal/features"
 	"norka/internal/model"
 	"norka/internal/traytext"
 )
@@ -102,6 +103,9 @@ func (a *App) buildTrayMenu(showWindow func()) {
 
 	systray.AddSeparator()
 	m.profiles = systray.AddMenuItem(text.Profiles, text.ProfilesTooltip)
+	if !a.featureOn(features.Profiles) {
+		m.profiles.Hide()
+	}
 	m.profileNone = m.profiles.AddSubMenuItem(text.ProfileNone, text.ProfileNoneTooltip)
 	m.profileNone.Click(func() { go a.trayActivateProfile(0) })
 	for i := 0; i < trayMaxProfileItems; i++ {
@@ -147,9 +151,13 @@ func (a *App) refreshTrayMenu() {
 	text := traytext.ForLocale(a.uiLocaleTag())
 	var profiles []model.Profile
 	var activeProfileID int
+	profilesOn := false
 	if cfg, cfgErr := a.storage.Load(); cfgErr == nil {
-		profiles = cfg.Profiles
-		activeProfileID = cfg.ActiveProfileID
+		profilesOn = cfg.Features.Enabled(features.Profiles)
+		if profilesOn {
+			profiles = cfg.Profiles
+			activeProfileID = cfg.ActiveProfileID
+		}
 	}
 	m := &a.trayMenu
 	m.mu.Lock()
@@ -170,7 +178,7 @@ func (a *App) refreshTrayMenu() {
 		m.iconKey = key
 		setTrayStatusIcon(key)
 	}
-	sig := state.signature() + "§" + profileState.signature()
+	sig := state.signature() + "§" + profileState.signature() + "§" + fmt.Sprintf("%t", profilesOn)
 	if sig == m.signature {
 		return
 	}
@@ -220,13 +228,18 @@ func (a *App) refreshTrayMenu() {
 	} else {
 		m.retryAll.Hide()
 	}
-	a.paintTrayProfiles(m, profileState, text.NoProfiles)
+	a.paintTrayProfiles(m, profileState, text.NoProfiles, profilesOn)
 }
 
-func (a *App) paintTrayProfiles(m *trayMenu, state trayProfileModel, emptyTitle string) {
+func (a *App) paintTrayProfiles(m *trayMenu, state trayProfileModel, emptyTitle string, visible bool) {
 	if m.profiles == nil || m.profileNone == nil || len(m.profileSlots) == 0 {
 		return
 	}
+	if !visible {
+		m.profiles.Hide()
+		return
+	}
+	m.profiles.Show()
 	if state.ActiveID == 0 {
 		m.profileNone.Check()
 	} else {
