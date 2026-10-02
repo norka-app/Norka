@@ -12,6 +12,9 @@ func TestCatalogDefaults(t *testing.T) {
 	if Default(Notifications) {
 		t.Fatal("notifications default must stay off")
 	}
+	if Default(Automation) {
+		t.Fatal("automation default must be off")
+	}
 	if Default(ID("language")) {
 		t.Fatal("unknown flag must be off")
 	}

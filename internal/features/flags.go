@@ -23,6 +23,7 @@ const (
 	Mascot         ID = "mascot"
 	SSHCommand     ID = "ssh_command"
 	WakeReconnect  ID = "wake_reconnect"
+	Automation     ID = "automation"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -66,6 +67,7 @@ func All() []Flag {
 		{ID: Mascot, Default: true, TitleKey: "features.mascot", DescriptionKey: "features.mascotDesc"},
 		{ID: SSHCommand, Default: true, TitleKey: "features.sshCommand", DescriptionKey: "features.sshCommandDesc"},
 		{ID: WakeReconnect, Default: true, TitleKey: "features.wakeReconnect", DescriptionKey: "features.wakeReconnectDesc"},
+		{ID: Automation, Default: false, TitleKey: "features.automation", DescriptionKey: "features.automationDesc"},
 	}
 }
 
@@ -103,6 +105,7 @@ type Flags struct {
 	Mascot         *bool `toml:"mascot,omitempty" json:"mascot,omitempty"`
 	SSHCommand     *bool `toml:"ssh_command,omitempty" json:"sshCommand,omitempty"`
 	WakeReconnect  *bool `toml:"wake_reconnect,omitempty" json:"wakeReconnect,omitempty"`
+	Automation     *bool `toml:"automation,omitempty" json:"automation,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -139,6 +142,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.SSHCommand = &value
 	case WakeReconnect:
 		f.WakeReconnect = &value
+	case Automation:
+		f.Automation = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -172,6 +177,7 @@ func (f Flags) Clone() Flags {
 		Mascot:         cloneBool(f.Mascot),
 		SSHCommand:     cloneBool(f.SSHCommand),
 		WakeReconnect:  cloneBool(f.WakeReconnect),
+		Automation:     cloneBool(f.Automation),
 	}
 }
 
@@ -222,6 +228,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.SSHCommand
 	case WakeReconnect:
 		return f.WakeReconnect
+	case Automation:
+		return f.Automation
 	default:
 		return nil
 	}

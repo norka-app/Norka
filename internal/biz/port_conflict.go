@@ -48,8 +48,19 @@ func PortConflicts(t model.Tunnel, all []model.Tunnel) []model.Tunnel {
 }
 
 // Stop stops a tunnel, or cancels a start in progress, and marks it stopped.
+// A tunnel that is not running and not connecting is returned as it is.
 func (b *TunnelBiz) Stop(id int) (model.Tunnel, error) {
-	b.cancelStart(id)
+	tunnel, err := b.tunnelByID(id)
+	if err != nil {
+		return model.Tunnel{}, err
+	}
+	if !b.isRunning(id) && !b.isStarting(id) && tunnel.Status != "running" && tunnel.Status != "busy" && tunnel.Status != statusReconnecting {
+		return tunnel, nil
+	}
+	if b.cancelStart(id) {
+		_ = b.stopRuntime(id)
+		return b.updateStatus(id, "stopped", "")
+	}
 	if err := b.stopRuntime(id); err != nil {
 		return model.Tunnel{}, err
 	}

@@ -13,6 +13,8 @@ import (
 	wailslinux "github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"norka/internal/automation"
+	"norka/internal/cli"
 	"norka/internal/notify"
 	"norka/internal/traytext"
 	"norka/internal/update"
@@ -40,8 +42,17 @@ func main() {
 	}
 	update.CleanupStaleRelaunchScripts()
 
+	if cli.IsCommand(os.Args[1:]) {
+		attachParentConsole()
+		os.Exit(runCLI(os.Args[1:]))
+	}
+	// Флаг остаётся в os.Args: второй экземпляр передаёт его через single-instance,
+	// и уже запущенное окно не всплывает, когда connect запускает трей.
+	startHidden := cli.IsHiddenLaunch(os.Args)
+
 	// Create an instance of the app structure
 	app := NewApp()
+	app.SetStartHidden(startHidden)
 	localeTag := app.ResolvedUILocale()
 	app.useUILocale(localeTag)
 	trayLabels := traytext.ForLocale(localeTag)
@@ -127,6 +138,7 @@ func main() {
 		Width:         1024,
 		Height:        768,
 		DisableResize: true,
+		StartHidden:   startHidden,
 		// Windows: без системной рамки, заголовок рисует фронтенд (AppTitleBar.vue, window_chrome.go).
 		// Размер не меняется пользователем, поэтому рамка для ресайза не нужна, а без кнопки
 		// «Развернуть» двойной клик по заголовку окно не разворачивает.
@@ -157,8 +169,15 @@ func main() {
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId: "norka-single-instance",
 			OnSecondInstanceLaunch: func(secondInstanceData options.SecondInstanceData) {
+				if link := automation.LinkFromArgs(secondInstanceData.Args); link != "" {
+					app.HandleDeepLink(link)
+					return
+				}
 				if id := notify.ParseFocusArg(secondInstanceData.Args); id > 0 {
 					app.FocusTunnel(id)
+					return
+				}
+				if cli.IsHiddenLaunch(secondInstanceData.Args) {
 					return
 				}
 				showMainWindow()

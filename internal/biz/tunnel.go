@@ -264,26 +264,14 @@ func (b *TunnelBiz) RunningCount() int {
 // Toggle starts or stops a tunnel. maxRunning <= 0 means unlimited (Pro);
 // otherwise starting is blocked when RunningCount() >= maxRunning.
 func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
-	if id <= 0 {
-		return model.Tunnel{}, fmt.Errorf("invalid tunnel id")
-	}
-
-	cfg, err := b.storage.Load()
+	tunnel, err := b.tunnelByID(id)
 	if err != nil {
 		return model.Tunnel{}, err
 	}
 
-	tunnel, ok := findTunnelByID(cfg.Tunnels, id)
-	if !ok {
-		return model.Tunnel{}, ErrTunnelNotFound
-	}
-
 	if b.isRunning(id) || tunnel.Status == "running" {
 		slog.Info("tunnel toggle stop", "tunnel_id", tunnel.ID, "name", tunnel.Name)
-		if err := b.stopRuntime(id); err != nil {
-			return model.Tunnel{}, err
-		}
-		return b.updateStatus(id, "stopped", "")
+		return b.stopTunnel(id)
 	}
 
 	if b.cancelStart(id) {
@@ -292,8 +280,51 @@ func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
 		return b.updateStatus(id, "stopped", "")
 	}
 
+	return b.startTunnel(tunnel, maxRunning)
+}
+
+// Start connects a tunnel. A tunnel that is already running is returned as it is.
+func (b *TunnelBiz) Start(id int, maxRunning int) (model.Tunnel, error) {
+	tunnel, err := b.tunnelByID(id)
+	if err != nil {
+		return model.Tunnel{}, err
+	}
+	if b.isRunning(id) || b.isStarting(id) {
+		return tunnel, nil
+	}
+	return b.startTunnel(tunnel, maxRunning)
+}
+
+func (b *TunnelBiz) tunnelByID(id int) (model.Tunnel, error) {
+	if id <= 0 {
+		return model.Tunnel{}, fmt.Errorf("invalid tunnel id")
+	}
+	cfg, err := b.storage.Load()
+	if err != nil {
+		return model.Tunnel{}, err
+	}
+	tunnel, ok := findTunnelByID(cfg.Tunnels, id)
+	if !ok {
+		return model.Tunnel{}, ErrTunnelNotFound
+	}
+	return tunnel, nil
+}
+
+func (b *TunnelBiz) stopTunnel(id int) (model.Tunnel, error) {
+	if err := b.stopRuntime(id); err != nil {
+		return model.Tunnel{}, err
+	}
+	return b.updateStatus(id, "stopped", "")
+}
+
+func (b *TunnelBiz) startTunnel(tunnel model.Tunnel, maxRunning int) (model.Tunnel, error) {
+	id := tunnel.ID
 	if maxRunning > 0 && b.RunningCount() >= maxRunning {
 		return model.Tunnel{}, fmt.Errorf("%w: limit %d", ErrFreePlanRunningLimit, maxRunning)
+	}
+	cfg, err := b.storage.Load()
+	if err != nil {
+		return model.Tunnel{}, err
 	}
 
 	jumpers, err := collectJumpers(cfg.Jumpers, tunnel.JumperIDs)

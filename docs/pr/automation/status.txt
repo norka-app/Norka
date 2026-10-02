@@ -1,0 +1,24 @@
+Флаг выключен (config.toml без [features].automation):
+
+$ norka status
+Автоматизация выключена. Включите её в Настройки → Функции.
+$ echo $?
+1
+
+Флаг включён, программа не запущена:
+
+$ norka status
+Norka не запущена.
+$ echo $?
+2
+
+$ norka status --json
+{
+  "ok": false,
+  "code": "not_running",
+  "message": "Norka не запущена.",
+  "exitCode": 2,
+  "running": false
+}
+$ echo $?
+2

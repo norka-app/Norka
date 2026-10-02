@@ -99,13 +99,15 @@ A command you used to type in a terminal can be pasted as a whole. **Import** on
 
 ## Features in Settings
 
-**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, and reconnect after sleep. Each row is a name and a one-line description, in the light and dark themes and in both languages.
+**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, reconnect after sleep, and automation. Each row is a name and a one-line description, in the light and dark themes and in both languages.
 
 The choices live in the `[features]` table of `config.toml`. A missing key uses the default, so an older file keeps working. An explicit `false` is stored and kept. Turning a feature off hides it immediately and stops the work behind it: the hotkey, the tray item, the background check.
 
-Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Quick search, updates, traffic, mascot animations, the SSH command, and reconnect after sleep are on. The language setting and OS-keychain passwords are not flags.
+Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Automation is off too: it opens the local commands and `norka://` links. Quick search, updates, traffic, mascot animations, the SSH command, and reconnect after sleep are on. The language setting and OS-keychain passwords are not flags.
 
 A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md).
+
+Automation is off by default. After it is turned on in **Settings → Features**, a tunnel can be controlled from the terminal (`norka connect`, `status`, `list`) and from an `norka://` link. The first `connect` or `disconnect` from a link asks for confirmation. Commands, exit codes, a Windows shortcut, and a shell alias: [docs/CLI.md](docs/CLI.md).
 
 ---
 
