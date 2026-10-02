@@ -2,15 +2,18 @@ package model
 
 // Jumper is the SSH jumper configuration used by the frontend.
 type Jumper struct {
-	ID                     int    `json:"id" toml:"id"`
-	Name                   string `json:"name" toml:"name"`
-	Host                   string `json:"host" toml:"host"`
-	Port                   int    `json:"port" toml:"port"`
-	User                   string `json:"user" toml:"user"`
-	AuthType               string `json:"authType" toml:"auth_type"`
-	KeyPath                string `json:"keyPath" toml:"key_path"`
-	AgentSocketPath        string `json:"agentSocketPath" toml:"agent_socket_path"`
-	Password               string `json:"password" toml:"password"`
+	ID              int    `json:"id" toml:"id"`
+	Name            string `json:"name" toml:"name"`
+	Host            string `json:"host" toml:"host"`
+	Port            int    `json:"port" toml:"port"`
+	User            string `json:"user" toml:"user"`
+	AuthType        string `json:"authType" toml:"auth_type"`
+	KeyPath         string `json:"keyPath" toml:"key_path"`
+	AgentSocketPath string `json:"agentSocketPath" toml:"agent_socket_path"`
+	Password        string `json:"password,omitempty" toml:"password,omitempty"`
+	// SecretRef is the OS keychain account for Password. It is not a secret.
+	SecretRef              string `json:"-" toml:"secret_ref,omitempty"`
+	HasSecret              bool   `json:"hasSecret,omitempty" toml:"-"`
 	BypassHostVerification bool   `json:"bypassHostVerification" toml:"bypass_host_verification"`
 	KeepAliveIntervalMs    int    `json:"keepAliveIntervalMs" toml:"keep_alive_interval_ms"`
 	TimeoutMs              int    `json:"timeoutMs" toml:"timeout_ms"`
@@ -56,6 +59,8 @@ type TunnelGroupPayload struct {
 
 // JumperPayload is used by create/update APIs.
 type JumperPayload struct {
+	ID                     int    `json:"id"`
+	SecretSourceID         int    `json:"secretSourceId"`
 	Name                   string `json:"name"`
 	Host                   string `json:"host"`
 	Port                   int    `json:"port"`

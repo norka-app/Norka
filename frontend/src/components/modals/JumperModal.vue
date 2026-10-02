@@ -1,8 +1,10 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AIDebugResultCard from '../common/AIDebugResultCard.vue'
 import AppSelect from '../common/AppSelect.vue'
 
-defineProps({
+const props = defineProps({
   show: {
     type: Boolean,
     required: true
@@ -62,6 +64,14 @@ defineProps({
 })
 
 defineEmits(['close', 'submit', 'toggle-basic', 'toggle-advanced', 'key-file-change', 'test-connection', 'ai-debug', 'report-ai-content'])
+
+const { t } = useI18n()
+const keepsStoredSecret = computed(() => !!props.jumperForm?.hasSecret || Number(props.jumperForm?.secretSourceId) > 0)
+const passwordPlaceholder = computed(() => {
+  if (keepsStoredSecret.value) return t('app.modals.jumper.passwordKeepPlaceholder')
+  if (props.jumperNeedsPassword) return t('app.modals.jumper.passwordPlaceholder')
+  return t('app.modals.jumper.passwordOptionalPlaceholder')
+})
 </script>
 
 <template>
@@ -191,9 +201,10 @@ defineEmits(['close', 'submit', 'toggle-basic', 'toggle-advanced', 'key-file-cha
                       autocorrect="off"
                       spellcheck="false"
                       :maxlength="jumperLimits.password"
-                      :placeholder="$t('app.modals.jumper.passwordOptionalPlaceholder')"
-                      :required="jumperNeedsPassword"
+                      :placeholder="passwordPlaceholder"
+                      :required="jumperNeedsPassword && !keepsStoredSecret"
                     />
+                    <div v-if="keepsStoredSecret" class="field-note">{{ $t('app.modals.jumper.passwordStoredHint') }}</div>
                   </div>
                 </template>
 
@@ -207,9 +218,10 @@ defineEmits(['close', 'submit', 'toggle-basic', 'toggle-advanced', 'key-file-cha
                     autocorrect="off"
                     spellcheck="false"
                     :maxlength="jumperLimits.password"
-                    :placeholder="$t('app.modals.jumper.passwordPlaceholder')"
-                    :required="jumperNeedsPassword"
+                    :placeholder="passwordPlaceholder"
+                    :required="jumperNeedsPassword && !keepsStoredSecret"
                   />
+                  <div v-if="keepsStoredSecret" class="field-note">{{ $t('app.modals.jumper.passwordStoredHint') }}</div>
                 </div>
 
                 <div class="col-md-12">

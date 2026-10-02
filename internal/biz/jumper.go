@@ -8,6 +8,7 @@ import (
 	"norka/internal/conf"
 	"norka/internal/forward"
 	"norka/internal/model"
+	"norka/internal/secrets"
 )
 
 var (
@@ -23,10 +24,19 @@ const (
 
 type JumperBiz struct {
 	storage *conf.Storage
+	secrets *secrets.Vault
 }
 
 func NewJumperBiz(storage *conf.Storage) *JumperBiz {
 	return &JumperBiz{storage: storage}
+}
+
+// SetSecrets attaches the OS keychain. Without it, passwords stay in config.toml.
+func (b *JumperBiz) SetSecrets(vault *secrets.Vault) {
+	if b == nil {
+		return
+	}
+	b.secrets = vault
 }
 
 func (b *JumperBiz) List() ([]model.Jumper, error) {
@@ -36,38 +46,39 @@ func (b *JumperBiz) List() ([]model.Jumper, error) {
 	}
 
 	items := append([]model.Jumper{}, cfg.Jumpers...)
+	if b.secrets != nil {
+		for i := range items {
+			secrets.Redact(&items[i])
+		}
+	}
 	return items, nil
 }
 
 func (b *JumperBiz) Create(payload model.JumperPayload) (model.Jumper, error) {
 	payload = normalizeJumperPayload(payload)
-	if err := validateJumperPayload(payload); err != nil {
+	if payload.Password == "" && payload.SecretSourceID > 0 {
+		if err := b.copySecretIntoPayload(&payload, payload.SecretSourceID); err != nil {
+			return model.Jumper{}, err
+		}
+	}
+	if err := validateJumperPayload(payload, false); err != nil {
 		return model.Jumper{}, err
 	}
 
 	var created model.Jumper
+	var forgetRef string
 	_, err := b.storage.Update(func(cfg *conf.Config) error {
-		created = model.Jumper{
-			ID:                     nextJumperID(cfg.Jumpers),
-			Name:                   payload.Name,
-			Host:                   payload.Host,
-			Port:                   payload.Port,
-			User:                   payload.User,
-			AuthType:               payload.AuthType,
-			KeyPath:                payload.KeyPath,
-			AgentSocketPath:        payload.AgentSocketPath,
-			Password:               payload.Password,
-			BypassHostVerification: payload.BypassHostVerification,
-			KeepAliveIntervalMs:    payload.KeepAliveIntervalMs,
-			TimeoutMs:              payload.TimeoutMs,
-			HostKeyAlgorithms:      payload.HostKeyAlgorithms,
-			Notes:                  payload.Notes,
-		}
+		created = jumperFromPayload(nextJumperID(cfg.Jumpers), payload)
+		forgetRef = b.sealJumper(nil, &created, payload.Password)
 		cfg.Jumpers = append(cfg.Jumpers, created)
 		return nil
 	})
 	if err != nil {
 		return model.Jumper{}, err
+	}
+	if b.secrets != nil {
+		b.secrets.Forget(forgetRef)
+		secrets.Redact(&created)
 	}
 
 	return created, nil
@@ -79,12 +90,20 @@ func (b *JumperBiz) Update(id int, payload model.JumperPayload) (model.Jumper, e
 	}
 
 	payload = normalizeJumperPayload(payload)
-	if err := validateJumperPayload(payload); err != nil {
+	existing, found, err := b.loadJumper(id)
+	if err != nil {
+		return model.Jumper{}, err
+	}
+	if !found {
+		return model.Jumper{}, ErrJumperNotFound
+	}
+	if err := validateJumperPayload(payload, jumperHasSecret(existing)); err != nil {
 		return model.Jumper{}, err
 	}
 
 	var updated model.Jumper
-	_, err := b.storage.Update(func(cfg *conf.Config) error {
+	var forgetRef string
+	_, err = b.storage.Update(func(cfg *conf.Config) error {
 		idx := -1
 		for i := range cfg.Jumpers {
 			if cfg.Jumpers[i].ID == id {
@@ -96,27 +115,18 @@ func (b *JumperBiz) Update(id int, payload model.JumperPayload) (model.Jumper, e
 			return ErrJumperNotFound
 		}
 
-		updated = model.Jumper{
-			ID:                     id,
-			Name:                   payload.Name,
-			Host:                   payload.Host,
-			Port:                   payload.Port,
-			User:                   payload.User,
-			AuthType:               payload.AuthType,
-			KeyPath:                payload.KeyPath,
-			AgentSocketPath:        payload.AgentSocketPath,
-			Password:               payload.Password,
-			BypassHostVerification: payload.BypassHostVerification,
-			KeepAliveIntervalMs:    payload.KeepAliveIntervalMs,
-			TimeoutMs:              payload.TimeoutMs,
-			HostKeyAlgorithms:      payload.HostKeyAlgorithms,
-			Notes:                  payload.Notes,
-		}
+		current := cfg.Jumpers[idx]
+		updated = jumperFromPayload(id, payload)
+		forgetRef = b.sealJumper(&current, &updated, payload.Password)
 		cfg.Jumpers[idx] = updated
 		return nil
 	})
 	if err != nil {
 		return model.Jumper{}, err
+	}
+	if b.secrets != nil {
+		b.secrets.Forget(forgetRef)
+		secrets.Redact(&updated)
 	}
 
 	return updated, nil
@@ -127,6 +137,7 @@ func (b *JumperBiz) Delete(id int) error {
 		return fmt.Errorf("invalid jumper id")
 	}
 
+	var forgetRef string
 	_, err := b.storage.Update(func(cfg *conf.Config) error {
 		for _, tunnel := range cfg.Tunnels {
 			for _, jid := range tunnel.JumperIDs {
@@ -147,15 +158,33 @@ func (b *JumperBiz) Delete(id int) error {
 			return ErrJumperNotFound
 		}
 
+		forgetRef = cfg.Jumpers[idx].SecretRef
 		cfg.Jumpers = append(cfg.Jumpers[:idx], cfg.Jumpers[idx+1:]...)
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if b.secrets != nil {
+		b.secrets.Forget(forgetRef)
+	}
+	return nil
 }
 
 func (b *JumperBiz) TestConnection(payload model.JumperPayload) error {
 	payload = normalizeJumperPayload(payload)
-	if err := validateJumperPayload(payload); err != nil {
+	if payload.Password == "" {
+		sourceID := payload.ID
+		if sourceID <= 0 {
+			sourceID = payload.SecretSourceID
+		}
+		if sourceID > 0 {
+			if err := b.copySecretIntoPayload(&payload, sourceID); err != nil {
+				return err
+			}
+		}
+	}
+	if err := validateJumperPayload(payload, false); err != nil {
 		return err
 	}
 
@@ -210,7 +239,7 @@ func normalizeJumperPayload(payload model.JumperPayload) model.JumperPayload {
 	return payload
 }
 
-func validateJumperPayload(payload model.JumperPayload) error {
+func validateJumperPayload(payload model.JumperPayload, hasStoredSecret bool) error {
 	if payload.Name == "" {
 		return fmt.Errorf("name is required")
 	}
@@ -234,7 +263,7 @@ func validateJumperPayload(payload model.JumperPayload) error {
 	}
 	switch payload.AuthType {
 	case "password":
-		if strings.TrimSpace(payload.Password) == "" {
+		if payload.Password == "" && !hasStoredSecret {
 			return fmt.Errorf("password auth requires password")
 		}
 	case "ssh_key":
@@ -246,6 +275,72 @@ func validateJumperPayload(payload model.JumperPayload) error {
 		return fmt.Errorf("unsupported authType: %s", payload.AuthType)
 	}
 	return nil
+}
+
+func jumperFromPayload(id int, payload model.JumperPayload) model.Jumper {
+	return model.Jumper{
+		ID:                     id,
+		Name:                   payload.Name,
+		Host:                   payload.Host,
+		Port:                   payload.Port,
+		User:                   payload.User,
+		AuthType:               payload.AuthType,
+		KeyPath:                payload.KeyPath,
+		AgentSocketPath:        payload.AgentSocketPath,
+		BypassHostVerification: payload.BypassHostVerification,
+		KeepAliveIntervalMs:    payload.KeepAliveIntervalMs,
+		TimeoutMs:              payload.TimeoutMs,
+		HostKeyAlgorithms:      payload.HostKeyAlgorithms,
+		Notes:                  payload.Notes,
+	}
+}
+
+func jumperHasSecret(jumper model.Jumper) bool {
+	return jumper.Password != "" || strings.TrimSpace(jumper.SecretRef) != ""
+}
+
+func (b *JumperBiz) sealJumper(existing *model.Jumper, next *model.Jumper, plaintext string) string {
+	if b == nil || b.secrets == nil {
+		next.Password = plaintext
+		if existing != nil && plaintext == "" && next.AuthType != "ssh_agent" {
+			next.Password = existing.Password
+			next.SecretRef = existing.SecretRef
+		}
+		if next.AuthType == "ssh_agent" {
+			next.Password = ""
+			next.SecretRef = ""
+		}
+		return ""
+	}
+	return b.secrets.Seal(existing, next, plaintext)
+}
+
+func (b *JumperBiz) copySecretIntoPayload(payload *model.JumperPayload, id int) error {
+	jumper, found, err := b.loadJumper(id)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrJumperNotFound
+	}
+	if b.secrets != nil {
+		b.secrets.Open(&jumper)
+	}
+	payload.Password = jumper.Password
+	return nil
+}
+
+func (b *JumperBiz) loadJumper(id int) (model.Jumper, bool, error) {
+	cfg, err := b.storage.Load()
+	if err != nil {
+		return model.Jumper{}, false, err
+	}
+	for _, jumper := range cfg.Jumpers {
+		if jumper.ID == id {
+			return jumper, true, nil
+		}
+	}
+	return model.Jumper{}, false, nil
 }
 
 func nextJumperID(items []model.Jumper) int {

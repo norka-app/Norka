@@ -12,6 +12,7 @@ import (
 	"norka/internal/conf"
 	"norka/internal/forward"
 	"norka/internal/model"
+	"norka/internal/secrets"
 )
 
 var (
@@ -27,8 +28,21 @@ const FreePlanRunningLimit = 3
 // It ends with "running" on success or "error" when reconnect gives up.
 const statusReconnecting = "reconnecting"
 
+// TunnelEvents receives tunnel lifecycle changes that are worth telling the user.
+// Implementations must ignore calls that the user triggered themselves; TunnelBiz
+// only reports drops, reconnects, give-ups and start results.
+type TunnelEvents interface {
+	Dropped(id int, name string)
+	Reconnected(id int, name string)
+	GaveUp(id int, name string)
+	ConnectFailed(id int, name string)
+	Connected(id int, name string)
+}
+
 type TunnelBiz struct {
 	storage  *conf.Storage
+	secrets  *secrets.Vault
+	events   TunnelEvents
 	mu       sync.Mutex
 	runs     map[int]*forward.LocalForward
 	starting map[int]context.CancelFunc
@@ -39,6 +53,22 @@ func NewTunnelBiz(storage *conf.Storage) *TunnelBiz {
 		storage: storage,
 		runs:    make(map[int]*forward.LocalForward),
 	}
+}
+
+// SetSecrets hydrates jumper passwords from the OS keychain before dialing.
+func (b *TunnelBiz) SetSecrets(vault *secrets.Vault) {
+	if b == nil {
+		return
+	}
+	b.secrets = vault
+}
+
+// SetEvents attaches OS notification fan-out. Nil disables it.
+func (b *TunnelBiz) SetEvents(events TunnelEvents) {
+	if b == nil {
+		return
+	}
+	b.events = events
 }
 
 func (b *TunnelBiz) List() ([]model.Tunnel, error) {
@@ -267,6 +297,7 @@ func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
 
 	jumpers, err := collectJumpers(cfg.Jumpers, tunnel.JumperIDs)
 	if err != nil {
+		b.emitConnectFailed(tunnel.ID, tunnel.Name)
 		updated, statusErr := b.updateStatus(id, "error", "jumper not found")
 		if statusErr != nil {
 			return model.Tunnel{}, ErrJumperNotFound
@@ -275,6 +306,7 @@ func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
 	}
 	if tunnel.Mode != "local" && tunnel.Mode != "remote" && tunnel.Mode != "dynamic" {
 		msg := fmt.Sprintf("mode %s is not supported yet, only local, remote and dynamic forward are implemented", tunnel.Mode)
+		b.emitConnectFailed(tunnel.ID, tunnel.Name)
 		updated, statusErr := b.updateStatus(id, "error", msg)
 		if statusErr != nil {
 			return model.Tunnel{}, errors.New(msg)
@@ -282,11 +314,12 @@ func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
 		return updated, nil
 	}
 
-	if err := b.startRuntime(tunnel, jumpers); err != nil {
+	if err := b.startRuntime(tunnel, b.hydrateJumpers(jumpers)); err != nil {
 		if errors.Is(err, context.Canceled) {
 			_ = b.stopRuntime(id)
 			return b.updateStatus(id, "stopped", "")
 		}
+		b.emitConnectFailed(tunnel.ID, tunnel.Name)
 		updated, statusErr := b.updateStatus(id, "error", errReason(err))
 		if statusErr != nil {
 			return model.Tunnel{}, fmt.Errorf("start tunnel failed: %v (persist status failed: %v)", err, statusErr)
@@ -295,6 +328,7 @@ func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
 	}
 
 	slog.Info("tunnel toggle start", "tunnel_id", tunnel.ID, "name", tunnel.Name)
+	b.emitConnected(tunnel.ID, tunnel.Name)
 	updated, err := b.updateStatus(id, "running", "")
 	if err != nil {
 		_ = b.stopRuntime(id)
@@ -318,7 +352,7 @@ func (b *TunnelBiz) TestConnection(payload model.TunnelPayload, inlineJumper *mo
 	hasInline := false
 	if inlineJumper != nil {
 		jumperPayload := normalizeJumperPayload(*inlineJumper)
-		if err := validateJumperPayload(jumperPayload); err != nil {
+		if err := validateJumperPayload(jumperPayload, false); err != nil {
 			return 0, fmt.Errorf("jumper: %w", err)
 		}
 		inline = model.Jumper{
@@ -347,7 +381,7 @@ func (b *TunnelBiz) TestConnection(payload model.TunnelPayload, inlineJumper *mo
 		if err != nil {
 			return 0, err
 		}
-		chain = append(chain, jumpers...)
+		chain = append(chain, b.hydrateJumpers(jumpers)...)
 	}
 	if hasInline {
 		chain = append(chain, inline)
@@ -444,23 +478,27 @@ func (b *TunnelBiz) StartAutoStart(maxRunning int) error {
 		go func() {
 			defer wg.Done()
 			if t.Mode != "local" && t.Mode != "remote" && t.Mode != "dynamic" {
+				b.emitConnectFailed(t.ID, t.Name)
 				_, _ = b.updateStatus(t.ID, "error", fmt.Sprintf("mode %s is not supported yet, only local, remote and dynamic forward are implemented", t.Mode))
 				return
 			}
 
 			jumpers, err := collectJumpers(cfg.Jumpers, t.JumperIDs)
 			if err != nil {
+				b.emitConnectFailed(t.ID, t.Name)
 				_, _ = b.updateStatus(t.ID, "error", "jumper not found")
 				return
 			}
-			if err := b.startRuntime(t, jumpers); err != nil {
+			if err := b.startRuntime(t, b.hydrateJumpers(jumpers)); err != nil {
 				if errors.Is(err, context.Canceled) {
 					_, _ = b.updateStatus(t.ID, "stopped", "")
 					return
 				}
+				b.emitConnectFailed(t.ID, t.Name)
 				_, _ = b.updateStatus(t.ID, "error", errReason(err))
 				return
 			}
+			b.emitConnected(t.ID, t.Name)
 			_, _ = b.updateStatus(t.ID, "running", "")
 		}()
 	}
@@ -549,6 +587,7 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 		return
 	}
 
+	name := b.tunnelName(id)
 	events := run.Events()
 	reconnecting := false
 	lastDisconnectErr := ""
@@ -566,6 +605,9 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 
 			if run.Err() != nil {
 				slog.Warn("tunnel runtime exited with error", "tunnel_id", id, "err", run.Err())
+				if b.events != nil {
+					b.events.GaveUp(id, name)
+				}
 				_, _ = b.updateStatus(id, "error", errReason(run.Err()))
 			} else {
 				slog.Info("tunnel runtime exited", "tunnel_id", id)
@@ -592,11 +634,17 @@ func (b *TunnelBiz) watchRuntime(id int, run *forward.LocalForward) {
 				slog.Warn("tunnel runtime disconnected, reconnecting", "tunnel_id", id, "err", evt.Err)
 				reconnecting = true
 				lastDisconnectErr = errReason(evt.Err)
+				if b.events != nil {
+					b.events.Dropped(id, name)
+				}
 				_, _ = b.updateStatus(id, statusReconnecting, lastDisconnectErr)
 			case forward.RuntimeEventReconnected:
 				slog.Info("tunnel runtime reconnected", "tunnel_id", id)
 				reconnecting = false
 				lastDisconnectErr = ""
+				if b.events != nil {
+					b.events.Reconnected(id, name)
+				}
 				_, _ = b.updateStatus(id, "running", "")
 			}
 		}
@@ -732,6 +780,43 @@ func validateTunnelPayloadWithOption(payload model.TunnelPayload, requireJumpers
 		return fmt.Errorf("unsupported status: %s", payload.Status)
 	}
 	return nil
+}
+
+func (b *TunnelBiz) hydrateJumpers(jumpers []model.Jumper) []model.Jumper {
+	if b == nil || b.secrets == nil {
+		return jumpers
+	}
+	for i := range jumpers {
+		b.secrets.Open(&jumpers[i])
+	}
+	return jumpers
+}
+
+func (b *TunnelBiz) tunnelName(id int) string {
+	if b == nil || b.storage == nil {
+		return ""
+	}
+	cfg, err := b.storage.Load()
+	if err != nil {
+		return ""
+	}
+	tunnel, ok := findTunnelByID(cfg.Tunnels, id)
+	if !ok {
+		return ""
+	}
+	return tunnel.Name
+}
+
+func (b *TunnelBiz) emitConnectFailed(id int, name string) {
+	if b != nil && b.events != nil {
+		b.events.ConnectFailed(id, name)
+	}
+}
+
+func (b *TunnelBiz) emitConnected(id int, name string) {
+	if b != nil && b.events != nil {
+		b.events.Connected(id, name)
+	}
 }
 
 func collectJumpers(items []model.Jumper, ids []int) ([]model.Jumper, error) {

@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"norka/internal/notify"
 	"norka/internal/traytext"
 	"norka/internal/uilocale"
 )
@@ -138,7 +139,10 @@ func main() {
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId: "norka-single-instance",
 			OnSecondInstanceLaunch: func(secondInstanceData options.SecondInstanceData) {
-				_ = secondInstanceData
+				if id := notify.ParseFocusArg(secondInstanceData.Args); id > 0 {
+					app.FocusTunnel(id)
+					return
+				}
 				showMainWindow()
 			},
 		},

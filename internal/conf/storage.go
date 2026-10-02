@@ -216,6 +216,14 @@ func ParseConfigTOML(data []byte) (*Config, error) {
 	return cfg, nil
 }
 
+// MarshalTOML encodes a config the same way Storage saves it.
+func MarshalTOML(cfg *Config) []byte {
+	if cfg == nil {
+		cfg = DefaultConfig()
+	}
+	return encodeConfigTOML(cfg.Clone())
+}
+
 func encodeConfigTOML(cfg *Config) []byte {
 	cfg.Normalize()
 	var buf strings.Builder

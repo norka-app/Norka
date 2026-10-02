@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Макет уведомлений Norka</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+      background: #e7e5e4;
+      color: #18181b;
+    }
+    body.dark {
+      color-scheme: dark;
+      background: #1c1c22;
+      color: #f4f4f5;
+    }
+    .banner {
+      margin: 20px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    body.dark .banner {
+      background: #431407;
+      color: #fdba74;
+      border-color: #9a3412;
+    }
+    .row {
+      display: flex;
+      gap: 28px;
+      padding: 8px 20px 28px;
+      align-items: flex-start;
+    }
+    .col { display: flex; flex-direction: column; gap: 8px; }
+    .label { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.7; }
+    .win {
+      width: 360px;
+      background: #fff;
+      color: #1a1a1a;
+      border-radius: 8px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.18);
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 8px;
+      padding: 14px 14px 12px;
+    }
+    body.dark .win { background: #2b2b2b; color: #f3f3f3; }
+    .icon {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: #0ea5e9;
+      display: grid; place-items: center;
+      color: white; font-weight: 750;
+    }
+    .app { font-size: 12px; opacity: .7; }
+    .title { font-weight: 650; margin-top: 2px; }
+    .body { font-size: 14px; margin-top: 2px; }
+    .mac {
+      width: 360px;
+      background: rgba(246,246,246,.92);
+      color: #1d1d1f;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.16);
+      padding: 12px 14px;
+      backdrop-filter: blur(16px);
+    }
+    body.dark .mac { background: rgba(40,40,42,.92); color: #f5f5f7; }
+    .mac-top { display: flex; justify-content: space-between; font-size: 12px; opacity: .65; }
+    .mac .title { font-size: 13px; }
+    .mac .body { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="banner">Макет. Это не системное уведомление Windows или macOS — на этой машине настоящий toast показать нельзя.</div>
+  <div class="row">
+    <div class="col">
+      <div class="label">Макет Windows</div>
+      <div class="win">
+        <div class="icon">N</div>
+        <div>
+          <div class="app">Norka</div>
+          <div class="title">Norka</div>
+          <div class="body">Туннель «db» отключился</div>
+        </div>
+      </div>
+      <div class="win">
+        <div class="icon">N</div>
+        <div>
+          <div class="app">Norka</div>
+          <div class="title">Norka</div>
+          <div class="body">3 туннеля переподключены</div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="label">Макет macOS</div>
+      <div class="mac">
+        <div class="mac-top"><span>NORKA</span><span>сейчас</span></div>
+        <div class="title">Norka</div>
+        <div class="body">Не удалось восстановить туннель «vpn»</div>
+      </div>
+      <div class="mac">
+        <div class="mac-top"><span>NORKA</span><span>сейчас</span></div>
+        <div class="title">Norka</div>
+        <div class="body">Не удалось подключить 2 туннеля</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const dark = location.hash === '#dark' || new URLSearchParams(location.search).get('theme') === 'dark'
+    if (dark) document.body.classList.add('dark')
+  </script>
+</body>
+</html>

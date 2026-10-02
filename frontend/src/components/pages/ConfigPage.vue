@@ -15,7 +15,10 @@ import {
   SelectConfigDirectory,
   SetConfigDirectory,
   ResetConfigDirectoryToDefault,
-  QuitApplication
+  QuitApplication,
+  GetNotificationSettings,
+  SetNotificationSettings,
+  GetSecretsStatus
 } from '../../../wailsjs/go/main/App'
 
 defineProps({
@@ -52,6 +55,16 @@ const autoRunEnabled = ref(false)
 const trafficMonitorEnabled = ref(true)
 const configBusy = ref('')
 const configLocationInfo = ref(null)
+const includePasswords = ref(false)
+const secretsStatus = ref({ keychainAvailable: true, mode: 'keychain' })
+const notifications = ref({
+  enabled: false,
+  dropped: true,
+  reconnected: true,
+  gaveUp: true,
+  connectFailed: true,
+  connected: false
+})
 
 onMounted(async () => {
   try {
@@ -65,7 +78,42 @@ onMounted(async () => {
     trafficMonitorEnabled.value = true
   }
   await loadConfigLocation()
+  await loadNotificationSettings()
+  await loadSecretsStatus()
 })
+
+async function loadNotificationSettings() {
+  try {
+    const settings = await GetNotificationSettings()
+    if (settings) notifications.value = { ...notifications.value, ...settings }
+  } catch (_) {
+    /* keep defaults */
+  }
+}
+
+async function loadSecretsStatus() {
+  try {
+    const status = await GetSecretsStatus()
+    if (status) secretsStatus.value = status
+  } catch (_) {
+    secretsStatus.value = { keychainAvailable: false, mode: 'config' }
+  }
+}
+
+async function saveNotifications(next) {
+  const previous = { ...notifications.value }
+  notifications.value = next
+  try {
+    await SetNotificationSettings(next)
+  } catch (err) {
+    notifications.value = previous
+    emit('set-config-message', String(err))
+  }
+}
+
+function onNotificationToggle(key, checked) {
+  void saveNotifications({ ...notifications.value, [key]: !!checked })
+}
 
 async function loadConfigLocation() {
   try {
@@ -208,16 +256,31 @@ async function onTrafficMonitorChange(checked) {
   }
 }
 
-async function onExportConfig() {
+async function doExport(withPasswords) {
   configBusy.value = 'export'
   try {
-    await ExportConfigWithDialog()
+    await ExportConfigWithDialog(!!withPasswords)
     emit('set-config-message', t('config.exportSuccess'))
   } catch (err) {
+    if (String(err).toLowerCase().includes('export cancelled')) return
     emit('set-config-message', String(err))
   } finally {
     configBusy.value = ''
   }
+}
+
+async function onExportConfig() {
+  if (includePasswords.value) {
+    emit('confirm-action', {
+      mode: 'confirm',
+      message: t('config.includePasswordsWarning'),
+      confirmButtonClass: 'btn-warning',
+      confirmLabel: t('config.exportConfigBtn'),
+      onConfirm: () => doExport(true)
+    })
+    return
+  }
+  await doExport(false)
 }
 
 async function onImportConfig() {
@@ -310,12 +373,28 @@ async function onOpenConfigDir() {
               <div class="config-name">{{ t('config.manageConfig') }}</div>
               <div class="config-desc">{{ t('config.manageConfigDesc') }}</div>
             </div>
-            <n-space>
-              <n-button size="small" :disabled="configBusy !== ''" @click="onImportConfig">{{ t('config.importConfigBtn') }}</n-button>
-              <n-button size="small" :disabled="configBusy !== ''" @click="onExportConfig">{{ t('config.exportConfigBtn') }}</n-button>
-              <n-button size="small" @click="onOpenConfigDir">{{ t('config.openConfigDirBtn') }}</n-button>
+            <n-space vertical align="end" :size="8">
+              <n-space>
+                <n-button size="small" :disabled="configBusy !== ''" @click="onImportConfig">{{ t('config.importConfigBtn') }}</n-button>
+                <n-button size="small" :disabled="configBusy !== ''" @click="onExportConfig">{{ t('config.exportConfigBtn') }}</n-button>
+                <n-button size="small" @click="onOpenConfigDir">{{ t('config.openConfigDirBtn') }}</n-button>
+              </n-space>
+              <div>
+                <n-checkbox v-model:checked="includePasswords">{{ t('config.includePasswords') }}</n-checkbox>
+                <div class="config-desc">{{ t('config.includePasswordsDesc') }}</div>
+                <div v-if="includePasswords" class="config-desc config-warning">{{ t('config.includePasswordsWarning') }}</div>
+              </div>
             </n-space>
           </n-space>
+          <div>
+            <div class="config-name">{{ t('config.secretsTitle') }}</div>
+            <n-alert v-if="secretsStatus.keychainAvailable" class="config-secret-alert" type="success" :show-icon="true">
+              {{ t('config.secretsOk') }}
+            </n-alert>
+            <n-alert v-else class="config-secret-alert" type="warning" :show-icon="true">
+              {{ t('config.secretsUnavailable') }}
+            </n-alert>
+          </div>
           <n-space justify="space-between" align="start">
             <div>
               <div class="config-name">{{ t('config.configDataDir') }}</div>
@@ -341,10 +420,59 @@ async function onOpenConfigDir() {
       </n-card>
     </n-gi>
     <n-gi span="2 l:1">
-      <n-card size="small" :title="t('config.advancedSettings')">
-        <div class="config-name">{{ t('config.currentVersion') }}</div>
-        <div class="config-desc">{{ appMeta.version }}</div>
-      </n-card>
+      <div class="config-stack">
+        <n-card size="small" :title="t('config.notifications')">
+          <n-space vertical :size="16">
+            <div class="config-desc">{{ t('config.notificationsDesc') }}</div>
+            <n-space justify="space-between" align="center">
+              <div>
+                <div class="config-name">{{ t('config.notificationsMaster') }}</div>
+                <div class="config-desc">{{ t('config.notificationsMasterDesc') }}</div>
+              </div>
+              <n-switch :value="notifications.enabled" @update:value="(checked) => onNotificationToggle('enabled', checked)" />
+            </n-space>
+            <n-space justify="space-between" align="center">
+              <div>
+                <div class="config-name">{{ t('config.notifyDropped') }}</div>
+                <div class="config-desc">{{ t('config.notifyDroppedDesc') }}</div>
+              </div>
+              <n-switch :value="notifications.dropped" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('dropped', checked)" />
+            </n-space>
+            <n-space justify="space-between" align="center">
+              <div>
+                <div class="config-name">{{ t('config.notifyReconnected') }}</div>
+                <div class="config-desc">{{ t('config.notifyReconnectedDesc') }}</div>
+              </div>
+              <n-switch :value="notifications.reconnected" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('reconnected', checked)" />
+            </n-space>
+            <n-space justify="space-between" align="center">
+              <div>
+                <div class="config-name">{{ t('config.notifyGaveUp') }}</div>
+                <div class="config-desc">{{ t('config.notifyGaveUpDesc') }}</div>
+              </div>
+              <n-switch :value="notifications.gaveUp" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('gaveUp', checked)" />
+            </n-space>
+            <n-space justify="space-between" align="center">
+              <div>
+                <div class="config-name">{{ t('config.notifyConnectFailed') }}</div>
+                <div class="config-desc">{{ t('config.notifyConnectFailedDesc') }}</div>
+              </div>
+              <n-switch :value="notifications.connectFailed" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('connectFailed', checked)" />
+            </n-space>
+            <n-space justify="space-between" align="center">
+              <div>
+                <div class="config-name">{{ t('config.notifyConnected') }}</div>
+                <div class="config-desc">{{ t('config.notifyConnectedDesc') }}</div>
+              </div>
+              <n-switch :value="notifications.connected" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('connected', checked)" />
+            </n-space>
+          </n-space>
+        </n-card>
+        <n-card size="small" :title="t('config.advancedSettings')">
+          <div class="config-name">{{ t('config.currentVersion') }}</div>
+          <div class="config-desc">{{ appMeta.version }}</div>
+        </n-card>
+      </div>
     </n-gi>
   </n-grid>
 </template>

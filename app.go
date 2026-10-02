@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -20,6 +20,8 @@ import (
 	"norka/internal/biz"
 	"norka/internal/conf"
 	"norka/internal/model"
+	"norka/internal/notify"
+	"norka/internal/secrets"
 	"norka/internal/sshconfig"
 	"norka/internal/traytext"
 	"norka/internal/uilocale"
@@ -60,7 +62,23 @@ type App struct {
 
 	window   windowModeState
 	trayMenu trayMenu
+
+	vault    *secrets.Vault
+	notifier *notify.Service
+
+	notifyMu       sync.Mutex
+	notifySettings notify.Settings
 }
+
+// SecretsStatus tells Settings whether jumper passwords live in the OS keychain.
+type SecretsStatus struct {
+	KeychainAvailable bool   `json:"keychainAvailable"`
+	Mode              string `json:"mode"`
+}
+
+const eventNotificationFocus = "notification:focus"
+
+var errExportCancelled = errors.New("export cancelled")
 
 // NewApp creates a new App application struct
 func NewApp() *App {
@@ -74,12 +92,22 @@ func NewApp() *App {
 	}
 	slog.Info("app initialized", "config", storage.Path())
 
+	vault := secrets.OpenSystem()
+	if _, err := vault.MigrateStorage(storage); err != nil {
+		slog.Error("jumper secret migration failed", "error", err)
+	}
+	jumper := biz.NewJumperBiz(storage)
+	jumper.SetSecrets(vault)
+	tunnel := biz.NewTunnelBiz(storage)
+	tunnel.SetSecrets(vault)
+
 	return &App{
 		storage: storage,
-		jumper:  biz.NewJumperBiz(storage),
+		jumper:  jumper,
 		group:   biz.NewGroupBiz(storage),
-		tunnel:  biz.NewTunnelBiz(storage),
+		tunnel:  tunnel,
 		aiDebug: aidebug.NewService("", ""),
+		vault:   vault,
 	}
 }
 
@@ -193,13 +221,147 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	slog.Info("app startup")
 	if err := a.ensureReady(); err == nil {
+		a.initNotifier()
 		a.syncAutoRunWithConfig()
+		if id := notify.ParseFocusArg(os.Args); id > 0 {
+			a.FocusTunnel(id)
+		}
 		go func() {
 			if err := a.tunnel.StartAutoStart(0); err != nil {
 				slog.Error("auto start tunnel failed", "err", err)
 			}
 		}()
 	}
+}
+
+func (a *App) initNotifier() {
+	if a.storage == nil || a.tunnel == nil {
+		return
+	}
+	a.loadNotifySettings()
+	dir := filepath.Dir(a.storage.Path())
+	poster := notify.NewSystemPoster(notify.PosterConfig{
+		AppID:    "Norka",
+		IconPath: a.writeNotifyIcon(),
+		OnClick: func(id int) {
+			a.FocusTunnel(id)
+		},
+	})
+	a.notifier = notify.NewService(notify.ServiceConfig{
+		Window:   2 * time.Second,
+		Settings: a.currentNotifySettings,
+		Catalog: func() notify.Catalog {
+			return notify.CatalogFor(uilocale.Resolve(dir))
+		},
+		Poster: poster,
+	})
+	a.tunnel.SetEvents(a.notifier)
+}
+
+func (a *App) writeNotifyIcon() string {
+	if a.storage == nil {
+		return ""
+	}
+	name := "norka-notify.png"
+	data := trayIconFallback
+	if runtime.GOOS == "windows" && len(trayIconWindows) > 0 {
+		name = "norka-notify.ico"
+		data = trayIconWindows
+	}
+	if len(data) == 0 {
+		return ""
+	}
+	path := filepath.Join(filepath.Dir(a.storage.Path()), name)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		slog.Warn("notification icon was not written", "error", err)
+		return ""
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return abs
+}
+
+// FocusTunnel brings the window forward and asks the UI to show that tunnel.
+// id 0 only focuses the app.
+func (a *App) FocusTunnel(id int) {
+	if a == nil || a.ctx == nil {
+		return
+	}
+	a.showMainWindow()
+	wailsruntime.EventsEmit(a.ctx, eventNotificationFocus, id)
+}
+
+func (a *App) loadNotifySettings() {
+	settings := notify.Settings{}
+	if a.storage != nil {
+		if cfg, err := a.storage.Load(); err == nil {
+			settings = notifySettingsFromConfig(cfg.Notifications)
+		}
+	}
+	a.notifyMu.Lock()
+	a.notifySettings = settings
+	a.notifyMu.Unlock()
+}
+
+func (a *App) currentNotifySettings() notify.Settings {
+	a.notifyMu.Lock()
+	defer a.notifyMu.Unlock()
+	return a.notifySettings
+}
+
+func notifySettingsFromConfig(cfg conf.NotificationSettings) notify.Settings {
+	return notify.Settings{
+		Enabled:       cfg.Enabled,
+		Dropped:       cfg.Dropped,
+		Reconnected:   cfg.Reconnected,
+		GaveUp:        cfg.GaveUp,
+		ConnectFailed: cfg.ConnectFailed,
+		Connected:     cfg.Connected,
+	}
+}
+
+// GetNotificationSettings returns the opt-in OS notification toggles.
+func (a *App) GetNotificationSettings() (conf.NotificationSettings, error) {
+	if err := a.ensureReady(); err != nil {
+		return conf.NotificationSettings{}, err
+	}
+	cfg, err := a.storage.Load()
+	if err != nil {
+		return conf.NotificationSettings{}, err
+	}
+	return cfg.Notifications, nil
+}
+
+// SetNotificationSettings stores the notification toggles.
+func (a *App) SetNotificationSettings(settings conf.NotificationSettings) error {
+	if err := a.ensureReady(); err != nil {
+		return err
+	}
+	_, err := a.storage.Update(func(cfg *conf.Config) error {
+		cfg.Notifications = settings
+		cfg.NotificationsSet = true
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	a.notifyMu.Lock()
+	a.notifySettings = notifySettingsFromConfig(settings)
+	a.notifyMu.Unlock()
+	return nil
+}
+
+// GetSecretsStatus reports whether the OS keychain is used for jumper secrets.
+func (a *App) GetSecretsStatus() (SecretsStatus, error) {
+	if err := a.ensureReady(); err != nil {
+		return SecretsStatus{}, err
+	}
+	if a.vault != nil && a.vault.Available() {
+		return SecretsStatus{KeychainAvailable: true, Mode: "keychain"}, nil
+	}
+	return SecretsStatus{KeychainAvailable: false, Mode: "config"}, nil
 }
 
 func (a *App) PrepareForQuit() {
@@ -672,7 +834,7 @@ func (a *App) GetConfigPath() (string, error) {
 // ExportConfig copies the current config.toml to destPath.
 // ExportConfigWithDialog opens a save-file dialog, then copies the config.
 // Returns empty string if the user cancelled.
-func (a *App) ExportConfigWithDialog() error {
+func (a *App) ExportConfigWithDialog(includeSecrets bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
@@ -686,12 +848,12 @@ func (a *App) ExportConfigWithDialog() error {
 		return fmt.Errorf("file dialog: %w", err)
 	}
 	if strings.TrimSpace(destPath) == "" {
-		return nil // user cancelled
+		return errExportCancelled
 	}
-	return a.ExportConfig(destPath)
+	return a.ExportConfig(destPath, includeSecrets)
 }
 
-func (a *App) ExportConfig(destPath string) error {
+func (a *App) ExportConfig(destPath string, includeSecrets bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
@@ -700,29 +862,19 @@ func (a *App) ExportConfig(destPath string) error {
 		return fmt.Errorf("destination path is empty")
 	}
 
-	src, err := os.Open(a.storage.Path())
+	cfg, err := a.storage.Load()
 	if err != nil {
-		return fmt.Errorf("open config file: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
-	defer src.Close()
+	data := conf.MarshalTOML(secrets.PrepareExport(cfg, a.vault, includeSecrets))
 
 	if err := os.MkdirAll(filepath.Dir(destPath), conf.PrivateDirPerm); err != nil {
 		return fmt.Errorf("create destination directory: %w", err)
 	}
-
-	dst, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, conf.PrivateFilePerm)
-	if err != nil {
-		return fmt.Errorf("create destination file: %w", err)
+	if err := os.WriteFile(destPath, data, conf.PrivateFilePerm); err != nil {
+		return fmt.Errorf("write exported config: %w", err)
 	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		return fmt.Errorf("copy config file: %w", err)
-	}
-	if err := dst.Chmod(conf.PrivateFilePerm); err != nil {
-		return fmt.Errorf("restrict exported config permissions: %w", err)
-	}
-	slog.Info("config exported", "dest", destPath)
+	slog.Info("config exported", "dest", destPath, "include_secrets", includeSecrets)
 	return nil
 }
 
@@ -763,6 +915,12 @@ func (a *App) ImportConfig(srcPath string) error {
 		return fmt.Errorf("invalid config file: %w", err)
 	}
 
+	oldCfg, err := a.storage.Load()
+	if err != nil {
+		return err
+	}
+	oldRefs := secrets.SecretRefs(oldCfg.Jumpers)
+
 	// Stop all running tunnels.
 	if a.tunnel != nil {
 		a.tunnel.Shutdown()
@@ -779,14 +937,40 @@ func (a *App) ImportConfig(srcPath string) error {
 
 	// Reinitialise biz layer so the new config takes effect.
 	a.jumper = biz.NewJumperBiz(a.storage)
+	a.jumper.SetSecrets(a.vault)
 	a.group = biz.NewGroupBiz(a.storage)
 	a.tunnel = biz.NewTunnelBiz(a.storage)
+	a.tunnel.SetSecrets(a.vault)
+	if a.notifier != nil {
+		a.tunnel.SetEvents(a.notifier)
+	}
+	if a.vault != nil {
+		if _, err := a.vault.MigrateStorage(a.storage); err != nil {
+			slog.Error("imported jumper secrets were not moved to keychain", "error", err)
+		}
+	}
+	if newCfg, err := a.storage.Load(); err == nil {
+		a.forgetRemovedSecrets(oldRefs, secrets.SecretRefs(newCfg.Jumpers))
+	}
+	a.loadNotifySettings()
 
 	// Restart auto-start tunnels.
 	_ = a.tunnel.StartAutoStart(a.tunnelStartLimit())
 
 	slog.Info("config imported", "src", srcPath)
 	return nil
+}
+
+func (a *App) forgetRemovedSecrets(oldRefs, newRefs map[string]struct{}) {
+	if a.vault == nil {
+		return
+	}
+	for ref := range oldRefs {
+		if _, ok := newRefs[ref]; ok {
+			continue
+		}
+		a.vault.Forget(ref)
+	}
 }
 
 // OpenConfigDir opens the config file's parent directory in the OS file manager.
