@@ -60,11 +60,25 @@ func getDefaultConfigDir() string {
 }
 
 // Config is persisted in TOML storage.
+//
+// Profiles group tunnels into named environments. A tunnel may sit in several
+// profiles (membership is Profile.TunnelIDs). ActiveProfileID 0 means none.
+// ProfileStopOthers is off by default: activating a profile connects its
+// tunnels and leaves every other tunnel running. When it is on, tunnels
+// outside the profile are stopped first.
+//
+// QuickSearchEnabled is a pointer so an old config that lacks the key stays
+// nil and is treated as enabled. An explicit false is saved when the user
+// turns the global hotkey off. QuickSearchHotkey empty means the platform
+// default.
 type Config struct {
 	Version               int                  `toml:"version"`
 	Jumpers               []model.Jumper       `toml:"jumpers"`
 	Groups                []model.TunnelGroup  `toml:"groups"`
 	Tunnels               []model.Tunnel       `toml:"tunnels"`
+	Profiles              []model.Profile      `toml:"profiles"`
+	ActiveProfileID       int                  `toml:"active_profile_id"`
+	ProfileStopOthers     bool                 `toml:"profile_stop_others"`
 	AutoRun               bool                 `toml:"auto_run"`
 	TrafficMonitorEnabled bool                 `toml:"traffic_monitor_enabled"`
 	Notifications         NotificationSettings `toml:"notifications"`
@@ -73,7 +87,9 @@ type Config struct {
 	NotificationsSet bool `toml:"notifications_set"`
 	// Language is the UI language preference: "auto", "ru", or "en".
 	// Empty means auto (follow the system locale: Russian for ru*, English otherwise).
-	Language string `toml:"language,omitempty"`
+	Language           string `toml:"language,omitempty"`
+	QuickSearchEnabled *bool  `toml:"quick_search_enabled,omitempty"`
+	QuickSearchHotkey  string `toml:"quick_search_hotkey,omitempty"`
 }
 
 // NotificationSettings controls opt-in OS notifications.
@@ -141,16 +157,37 @@ func (c *Config) Clone() *Config {
 
 	out := &Config{
 		Version:               c.Version,
+		ActiveProfileID:       c.ActiveProfileID,
+		ProfileStopOthers:     c.ProfileStopOthers,
 		AutoRun:               c.AutoRun,
 		TrafficMonitorEnabled: c.TrafficMonitorEnabled,
 		Notifications:         c.Notifications,
 		NotificationsSet:      c.NotificationsSet,
 		Language:              c.Language,
+		QuickSearchHotkey:     c.QuickSearchHotkey,
+	}
+	if c.QuickSearchEnabled != nil {
+		enabled := *c.QuickSearchEnabled
+		out.QuickSearchEnabled = &enabled
 	}
 	out.Jumpers = append(out.Jumpers, c.Jumpers...)
 	out.Groups = append(out.Groups, c.Groups...)
 	out.Tunnels = append(out.Tunnels, c.Tunnels...)
+	out.Profiles = append(out.Profiles, c.Profiles...)
+	for i := range out.Profiles {
+		out.Profiles[i].TunnelIDs = append([]int{}, c.Profiles[i].TunnelIDs...)
+	}
 	return out
+}
+
+// QuickSearchOn reports whether the global palette hotkey should be registered.
+// A missing key (nil) means enabled, so configs written before the feature load
+// with the hotkey on.
+func (c *Config) QuickSearchOn() bool {
+	if c == nil || c.QuickSearchEnabled == nil {
+		return true
+	}
+	return *c.QuickSearchEnabled
 }
 
 // Normalize ensures stable defaults before save.
@@ -167,15 +204,66 @@ func (c *Config) Normalize() {
 	if c.Tunnels == nil {
 		c.Tunnels = []model.Tunnel{}
 	}
+	if c.Profiles == nil {
+		c.Profiles = []model.Profile{}
+	}
 	// AutoRun defaults to false; no need to set if already present
 	if !c.NotificationsSet {
 		c.Notifications = DefaultNotificationSettings()
 		c.NotificationsSet = true
 	}
 	c.Language = strings.TrimSpace(c.Language)
+	knownTunnels := make(map[int]struct{}, len(c.Tunnels))
 	for i := range c.Tunnels {
 		c.Tunnels[i].JumperIDs = normalizeJumperIDs(c.Tunnels[i].JumperIDs)
+		if c.Tunnels[i].ID > 0 {
+			knownTunnels[c.Tunnels[i].ID] = struct{}{}
+		}
 	}
+	c.Profiles = normalizeProfiles(c.Profiles, knownTunnels)
+	if c.ActiveProfileID > 0 && profileIndex(c.Profiles, c.ActiveProfileID) < 0 {
+		c.ActiveProfileID = 0
+	}
+}
+
+func normalizeProfiles(profiles []model.Profile, knownTunnels map[int]struct{}) []model.Profile {
+	if profiles == nil {
+		return []model.Profile{}
+	}
+	out := make([]model.Profile, 0, len(profiles))
+	for _, profile := range profiles {
+		if profile.ID <= 0 {
+			continue
+		}
+		ids := make([]int, 0, len(profile.TunnelIDs))
+		seen := make(map[int]struct{}, len(profile.TunnelIDs))
+		for _, id := range profile.TunnelIDs {
+			if id <= 0 {
+				continue
+			}
+			if _, ok := knownTunnels[id]; !ok {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+		profile.TunnelIDs = ids
+		profile.Name = strings.TrimSpace(profile.Name)
+		out = append(out, profile)
+	}
+	return out
+}
+
+func profileIndex(profiles []model.Profile, id int) int {
+	for i := range profiles {
+		if profiles[i].ID == id {
+			return i
+		}
+	}
+	return -1
 }
 
 func normalizeJumperIDs(ids []int) []int {

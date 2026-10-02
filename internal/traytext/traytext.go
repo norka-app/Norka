@@ -33,6 +33,12 @@ type Strings struct {
 	SimpleModeTooltip   string `json:"simpleModeTooltip"`
 	AdvancedMode        string `json:"advancedMode"`
 	AdvancedModeTooltip string `json:"advancedModeTooltip"`
+	Profiles            string `json:"profiles"`
+	ProfilesTooltip     string `json:"profilesTooltip"`
+	ProfileNone         string `json:"profileNone"`
+	ProfileNoneTooltip  string `json:"profileNoneTooltip"`
+	NoProfiles          string `json:"noProfiles"`
+	MoreProfiles        string `json:"moreProfiles"`
 	HeaderNone          string `json:"headerNone"`
 	HeaderCount         string `json:"headerCount"`
 	TooltipConnecting   string `json:"tooltipConnecting"`
@@ -98,6 +104,12 @@ func fallbackRussian() Strings {
 		SimpleModeTooltip:   "Компактное окно на один туннель",
 		AdvancedMode:        "Расширенный режим",
 		AdvancedModeTooltip: "Полное окно со списком туннелей",
+		Profiles:            "Профили",
+		ProfilesTooltip:     "Подключить набор туннелей",
+		ProfileNone:         "Не выбран",
+		ProfileNoneTooltip:  "Снять активный профиль, туннели не останавливать",
+		NoProfiles:          "Нет профилей",
+		MoreProfiles:        "Ещё профилей: %d…",
 		HeaderNone:          "Norka · нет туннелей",
 		HeaderCount:         "Norka · %d из %d подключено",
 		TooltipConnecting:   " · подключение…",
@@ -139,6 +151,12 @@ func fallbackEnglish() Strings {
 		SimpleModeTooltip:   "Compact window for one tunnel",
 		AdvancedMode:        "Advanced mode",
 		AdvancedModeTooltip: "Full window with the tunnel list",
+		Profiles:            "Profiles",
+		ProfilesTooltip:     "Connect a set of tunnels",
+		ProfileNone:         "None",
+		ProfileNoneTooltip:  "Clear the active profile without disconnecting tunnels",
+		NoProfiles:          "No profiles",
+		MoreProfiles:        "%d more profiles…",
 		HeaderNone:          "Norka · no tunnels",
 		HeaderCount:         "Norka · %d of %d connected",
 		TooltipConnecting:   " · connecting…",

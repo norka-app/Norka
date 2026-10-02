@@ -18,7 +18,7 @@ export const SIMPLE_TUNNEL_STORAGE_KEY = 'lt.simple.tunnel-id'
 
 // Размер содержимого простого режима (без строки заголовка)
 export const SIMPLE_CONTENT_WIDTH = 413
-export const SIMPLE_CONTENT_HEIGHT = 149
+export const SIMPLE_CONTENT_HEIGHT = 181
 // Собственная строка заголовка (AppTitleBar.vue) — часть WebView на Windows (окно без рамки)
 export const TITLE_BAR_HEIGHT = 32
 

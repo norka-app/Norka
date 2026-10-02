@@ -47,9 +47,12 @@ type Tunnel struct {
 
 // State is the full frontend state stored in config.
 type State struct {
-	Jumpers []Jumper      `json:"jumpers"`
-	Groups  []TunnelGroup `json:"groups"`
-	Tunnels []Tunnel      `json:"tunnels"`
+	Jumpers           []Jumper      `json:"jumpers"`
+	Groups            []TunnelGroup `json:"groups"`
+	Tunnels           []Tunnel      `json:"tunnels"`
+	Profiles          []Profile     `json:"profiles"`
+	ActiveProfileID   int           `json:"activeProfileId"`
+	ProfileStopOthers bool          `json:"profileStopOthers"`
 }
 
 // TunnelGroupPayload is used by create/update group APIs.

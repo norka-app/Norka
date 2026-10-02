@@ -28,6 +28,9 @@ import {
   TestJumperConnection as TestJumperConnectionAPI,
   TestTunnelConnection as TestTunnelConnectionAPI,
   ToggleTunnel,
+  ActivateProfile,
+  ClearActiveProfile,
+  FinishQuickSearch,
   UpdateGroup,
   UpdateJumper,
   UpdateTunnel,
@@ -49,7 +52,9 @@ import JumpersPage from './components/pages/JumpersPage.vue'
 import TunnelsPage from './components/pages/TunnelsPage.vue'
 import LogsPage from './components/pages/LogsPage.vue'
 import ConfigPage from './components/pages/ConfigPage.vue'
+import ProfilesPage from './components/pages/ProfilesPage.vue'
 import SimpleMode from './components/simple/SimpleMode.vue'
+import QuickSearchPalette from './components/quick-search/QuickSearchPalette.vue'
 import AIDebugModal from './components/common/AIDebugModal.vue'
 import JumperModal from './components/modals/JumperModal.vue'
 import ImportJumperModal from './components/modals/ImportJumperModal.vue'
@@ -84,6 +89,7 @@ const pages = computed(() => [
   { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: 'bi-speedometer2' },
   { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: 'bi-hdd-network' },
   { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: 'bi-diagram-3' },
+  { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: 'bi-collection' },
   { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: 'bi-journal-text' },
   { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: 'bi-sliders2' }
 ])
@@ -124,6 +130,11 @@ const simpleTunnelId = ref(
 // Ожидающее подтверждение смены порта в простом режиме: id туннеля, который просили запустить.
 // Сбрасывается отменой, выбором другого туннеля, сменой режима или если конфликт исчез сам.
 const simplePortSwitchId = ref(null)
+const profiles = ref([])
+const activeProfileId = ref(0)
+const profileStopOthers = ref(false)
+const quickSearchOpen = ref(false)
+const quickSearchRestoreHide = ref(false)
 const hideEmptyUngrouped = ref(savedHideEmptyUngrouped !== '0' && savedHideEmptyUngrouped !== 'false')
 const activePage = ref('overview')
 const selectedLogLevel = ref('all')
@@ -279,7 +290,16 @@ function subscribeTrayEvents() {
       void setWindowMode(mode)
     }),
     EventsOn('notification:focus', (id) => focusTunnelFromNotification(id)),
-    EventsOn('update:progress', onUpdateProgress)
+    EventsOn('update:progress', onUpdateProgress),
+    EventsOn('window:page', (page) => {
+      if (page !== 'profiles') return
+      void setWindowMode('advanced').then(() => { activePage.value = 'profiles' })
+    }),
+    EventsOn('quicksearch:open', (payload) => {
+      const open = !!(payload && payload.open)
+      quickSearchOpen.value = open
+      quickSearchRestoreHide.value = open && !!payload.restoreHide
+    })
   ]
 }
 
@@ -431,6 +451,73 @@ const simpleTunnel = computed(() => (
   || tunnels.value[0]
   || null
 ))
+const activeProfile = computed(() => profiles.value.find((profile) => profile.id === activeProfileId.value) || null)
+
+function profileActivationText(profile, result) {
+  const lines = [t('app.profiles.activated', {
+    name: profile?.name || '',
+    started: result?.started?.length || 0,
+    stopped: result?.stopped?.length || 0
+  })]
+  for (const conflict of result?.conflicts || []) {
+    lines.push(t(conflict.insideProfile ? 'app.profiles.conflictInside' : 'app.profiles.conflictOutside', {
+      name: conflict.tunnelName,
+      holder: conflict.holderName,
+      port: conflict.port
+    }))
+  }
+  return lines.join('\n')
+}
+
+async function activateProfile(id) {
+  const profile = profiles.value.find((item) => item.id === id)
+  try {
+    const result = await ActivateProfile(id)
+    await loadStateFromBackend()
+    setConfigMessage(profileActivationText(profile, result))
+  } catch (err) {
+    setConfigMessage(errorMessage(err))
+  }
+}
+
+async function clearActiveProfile() {
+  try {
+    await ClearActiveProfile()
+    await loadStateFromBackend()
+  } catch (err) {
+    setConfigMessage(errorMessage(err))
+  }
+}
+
+function toggleQuickSearch() {
+  if (quickSearchOpen.value) {
+    void closeQuickSearch()
+    return
+  }
+  quickSearchOpen.value = true
+}
+
+async function closeQuickSearch() {
+  const restore = quickSearchRestoreHide.value
+  quickSearchOpen.value = false
+  quickSearchRestoreHide.value = false
+  try {
+    await FinishQuickSearch(!!restore)
+  } catch (_) {
+    /* палитра закрывается и без бэкенда */
+  }
+  if (!restore) setSimpleAlwaysOnTop(windowMode.value === 'simple' && simpleOnTop.value)
+}
+
+function onPaletteToggle(tunnel) {
+  void closeQuickSearch()
+  void toggleTunnel(tunnel)
+}
+
+function onPaletteProfile(id) {
+  void closeQuickSearch()
+  void activateProfile(id)
+}
 // null до первой загрузки состояния, чтобы иконка не подмигивала при старте приложения.
 // Пересчитывается при каждом опросе бэкенда (tunnels.value заменяется каждые STATE_SYNC_INTERVAL_MS),
 // поэтому устаревание ошибки подхватывается без отдельного таймера.
@@ -813,6 +900,9 @@ async function loadStateFromBackend(options = {}) {
     tunnelsLoaded.value = true
     jumpers.value = Array.isArray(state?.jumpers) ? state.jumpers : []
     tunnelGroups.value = Array.isArray(state?.groups) ? state.groups : []
+    profiles.value = Array.isArray(state?.profiles) ? state.profiles : []
+    activeProfileId.value = Number(state?.activeProfileId) || 0
+    profileStopOthers.value = !!state?.profileStopOthers
     const backendTunnels = (Array.isArray(state?.tunnels) ? state.tunnels : []).map(normalizeTunnelFromBackend)
     const validTunnelIds = new Set(backendTunnels.map((item) => String(item.id)))
     Object.keys(tunnelErrorAiDebugStates).forEach((key) => {
@@ -2208,6 +2298,18 @@ async function toggleWindowModeFromShortcut(event) {
 }
 
 function onWindowKeydown(event) {
+  const hotkeyField = event.target instanceof HTMLElement && event.target.closest('[data-hotkey-capture="1"]')
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
+    if (hotkeyField) return
+    event.preventDefault()
+    toggleQuickSearch()
+    return
+  }
+  if (quickSearchOpen.value && event.key === 'Escape') {
+    event.preventDefault()
+    void closeQuickSearch()
+    return
+  }
   if (isShiftKey(event)) {
     shiftDown = true
     return
@@ -2541,6 +2643,9 @@ watch(
     v-if="windowMode === 'simple'"
     :tunnels="tunnels"
     :tunnel="simpleTunnel"
+    :profiles="profiles"
+    :active-profile-id="activeProfileId"
+    :stop-others="profileStopOthers"
     :theme="theme"
     :get-running-since="getTunnelRunningSince"
     :port-switch-pending="simplePortSwitchPending"
@@ -2549,6 +2654,8 @@ watch(
     @port-switch-confirm="confirmSimplePortSwitch"
     @port-switch-cancel="cancelSimplePortSwitch"
     @manage="openTunnelsFromSimple"
+    @activate-profile="activateProfile"
+    @clear-profile="clearActiveProfile"
   />
   <template v-else>
   <a class="skip-link" href="#page-main">{{ $t('app.common.skipToContent') }}</a>
@@ -2572,10 +2679,12 @@ watch(
       <AppTopHeader
         :current-page="currentPage"
         :active-page="activePage"
+        :active-profile="activeProfile"
         @import-jumper="openImportJumper"
         @new-jumper="openNewJumper"
         @new-tunnel="openNewTunnel"
         @import-tunnel="openImportTunnel"
+        @open-profiles="switchPage('profiles')"
       />
 
       <main id="page-main" tabindex="-1" class="page-body" :class="{ 'page-body-overview': activePage === 'overview' }">
@@ -2626,6 +2735,18 @@ watch(
           @rename-group="requestRenameTunnelGroup"
           @delete-group="deleteTunnelGroup"
           @move-tunnel-to-group="moveTunnelToGroup"
+        />
+
+        <ProfilesPage
+          v-if="activePage === 'profiles'"
+          :profiles="profiles"
+          :tunnels="tunnels"
+          :active-profile-id="activeProfileId"
+          :stop-others="profileStopOthers"
+          :theme="theme"
+          @changed="loadStateFromBackend"
+          @confirm-action="openActionDialog"
+          @message="setConfigMessage"
         />
 
         <LogsPage
@@ -2837,5 +2958,14 @@ watch(
   />
   </n-message-provider>
   </n-dialog-provider>
+  <QuickSearchPalette
+    :open="quickSearchOpen"
+    :tunnels="tunnels"
+    :profiles="profiles"
+    :active-profile-id="activeProfileId"
+    @close="closeQuickSearch"
+    @toggle-tunnel="onPaletteToggle"
+    @activate-profile="onPaletteProfile"
+  />
   </n-config-provider>
 </template>

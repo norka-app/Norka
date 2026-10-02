@@ -32,10 +32,22 @@ const props = defineProps({
   portSwitchPending: {
     type: Boolean,
     default: false
+  },
+  profiles: {
+    type: Array,
+    default: () => []
+  },
+  activeProfileId: {
+    type: Number,
+    default: 0
+  },
+  stopOthers: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['select', 'toggle', 'manage', 'port-switch-confirm', 'port-switch-cancel'])
+const emit = defineEmits(['select', 'toggle', 'manage', 'port-switch-confirm', 'port-switch-cancel', 'activate-profile', 'clear-profile'])
 
 const { t } = useI18n()
 const now = ref(Date.now())
@@ -158,7 +170,7 @@ function cancelPortSwitch() {
 }
 
 function onWindowKeydown(event) {
-  if (event.key !== 'Escape' || !portConflict.value || listOpen.value) return
+  if (event.key !== 'Escape' || !portConflict.value || listOpen.value || profileOpen.value) return
   event.preventDefault()
   cancelPortSwitch()
 }
@@ -169,10 +181,15 @@ function onWindowKeydown(event) {
 // маленького окна. Панель открывается поверх правой колонки и не выходит за окно;
 // если пунктов много — прокручивается, «Управление туннелями…» закреплён снизу.
 const listId = useId()
+const profileListId = useId()
 const listOpen = ref(false)
+const profileOpen = ref(false)
 const activeIndex = ref(0)
+const profileIndex = ref(0)
 const triggerRef = ref(null)
+const profileTriggerRef = ref(null)
 const listRef = ref(null)
+const profileListRef = ref(null)
 let typeahead = ''
 let typeaheadTimer = null
 
@@ -215,6 +232,7 @@ function setActive(index) {
 
 async function openList() {
   if (listOpen.value) return
+  profileOpen.value = false
   const selected = props.tunnels.findIndex((item) => item.id === props.tunnel?.id)
   activeIndex.value = selected >= 0 ? selected : 0
   listOpen.value = true
@@ -238,6 +256,70 @@ function chooseOption(index) {
   const item = props.tunnels[index]
   closeList()
   if (item) emit('select', item.id)
+}
+
+const activeProfile = computed(() => props.profiles.find((item) => item.id === props.activeProfileId) || null)
+const profileOptionCount = computed(() => props.profiles.length + 1)
+
+function profileOptionId(index) {
+  return `${profileListId}-opt-${index}`
+}
+
+async function openProfileList() {
+  if (profileOpen.value) return
+  closeList(false)
+  const selected = props.profiles.findIndex((item) => item.id === props.activeProfileId)
+  profileIndex.value = selected >= 0 ? selected + 1 : 0
+  profileOpen.value = true
+  await nextTick()
+  profileListRef.value?.focus({ preventScroll: true })
+}
+
+function closeProfileList(restoreFocus = true) {
+  if (!profileOpen.value) return
+  profileOpen.value = false
+  if (restoreFocus) nextTick(() => profileTriggerRef.value?.focus({ preventScroll: true }))
+}
+
+function chooseProfile(index) {
+  closeProfileList()
+  if (index <= 0) {
+    emit('clear-profile')
+    return
+  }
+  const profile = props.profiles[index - 1]
+  if (profile) emit('activate-profile', profile.id)
+}
+
+function onProfileKeydown(event) {
+  switch (event.key) {
+    case 'ArrowDown':
+      profileIndex.value = Math.min(profileOptionCount.value - 1, profileIndex.value + 1)
+      break
+    case 'ArrowUp':
+      profileIndex.value = Math.max(0, profileIndex.value - 1)
+      break
+    case 'Enter':
+    case ' ':
+      chooseProfile(profileIndex.value)
+      break
+    case 'Escape':
+      closeProfileList()
+      break
+    case 'Tab':
+      closeProfileList(false)
+      return
+    default:
+      return
+  }
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+function onProfileFocusOut(event) {
+  const next = event.relatedTarget
+  if (next && (event.currentTarget.contains(next) || next === profileTriggerRef.value)) return
+  closeProfileList(false)
 }
 
 function onTriggerKeydown(event) {
@@ -383,6 +465,21 @@ onBeforeUnmount(() => {
 
     <div class="simple-col">
       <button
+        ref="profileTriggerRef"
+        type="button"
+        class="simple-select simple-select--profile"
+        aria-haspopup="listbox"
+        :aria-expanded="profileOpen ? 'true' : 'false'"
+        :aria-controls="profileListId"
+        :aria-label="`${$t('app.simple.selectProfile')}: ${activeProfile ? activeProfile.name : $t('app.simple.noProfile')}`"
+        :title="stopOthers ? $t('app.simple.profileStopOthersOn') : $t('app.simple.profileStopOthersOff')"
+        @click="profileOpen ? closeProfileList() : openProfileList()"
+      >
+        <span class="simple-select__emoji" aria-hidden="true">{{ activeProfile?.emoji || '•' }}</span>
+        <span class="simple-select__name">{{ activeProfile ? activeProfile.name : $t('app.simple.noProfile') }}</span>
+        <i class="bi bi-chevron-down simple-select__chev" aria-hidden="true" />
+      </button>
+      <button
         ref="triggerRef"
         type="button"
         class="simple-select"
@@ -465,7 +562,47 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="listOpen" class="simple-backdrop" aria-hidden="true" @pointerdown.prevent="closeList()" />
+    <div v-if="listOpen || profileOpen" class="simple-backdrop" aria-hidden="true" @pointerdown.prevent="closeList(); closeProfileList()" />
+    <Transition name="simple-pop">
+      <div v-if="profileOpen" class="simple-panel" @focusout="onProfileFocusOut">
+        <ul
+          :id="profileListId"
+          ref="profileListRef"
+          class="simple-list"
+          role="listbox"
+          tabindex="-1"
+          :aria-label="$t('app.simple.selectProfile')"
+          :aria-activedescendant="profileOptionId(profileIndex)"
+          @keydown="onProfileKeydown"
+        >
+          <li
+            :id="profileOptionId(0)"
+            role="option"
+            class="simple-option"
+            :class="{ 'is-active': profileIndex === 0, 'is-selected': !activeProfile }"
+            :aria-selected="!activeProfile ? 'true' : 'false'"
+            @mousemove="profileIndex = 0"
+            @click="chooseProfile(0)"
+          >
+            <span class="simple-option__name">{{ $t('app.simple.noProfile') }}</span>
+          </li>
+          <li
+            v-for="(item, index) in profiles"
+            :id="profileOptionId(index + 1)"
+            :key="item.id"
+            role="option"
+            class="simple-option"
+            :class="{ 'is-active': profileIndex === index + 1, 'is-selected': item.id === activeProfileId }"
+            :aria-selected="item.id === activeProfileId ? 'true' : 'false'"
+            @mousemove="profileIndex = index + 1"
+            @click="chooseProfile(index + 1)"
+          >
+            <span class="simple-option__emoji">{{ item.emoji || '•' }}</span>
+            <span class="simple-option__name">{{ item.name }}</span>
+          </li>
+        </ul>
+      </div>
+    </Transition>
     <Transition name="simple-pop">
       <div v-if="listOpen" class="simple-panel" @focusout="onListFocusOut">
         <ul
@@ -545,7 +682,7 @@ onBeforeUnmount(() => {
   width: 100vw;
   height: 100vh;
   min-width: 413px;
-  min-height: 149px;
+  min-height: 181px;
   overflow: hidden;
   background: var(--s-bg);
   color: var(--s-text);
@@ -601,6 +738,8 @@ onBeforeUnmount(() => {
   border-color: var(--s-accent);
   box-shadow: inset 0 -1px 0 var(--s-accent);
 }
+.simple-select--profile { height: 26px; font-size: 12px; }
+.simple-select__emoji, .simple-option__emoji { flex: none; width: 16px; text-align: center; }
 .simple-select__lead { color: var(--s-text); font-size: 15px; }
 .simple-select__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .simple-select__port { color: var(--s-muted); white-space: nowrap; }

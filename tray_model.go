@@ -18,6 +18,7 @@ import (
 // Ошибки старше trayStaleErrorAfter для иконки не считаются.
 const (
 	trayMaxTunnelItems  = 10
+	trayMaxProfileItems = 12
 	trayStaleErrorAfter = 5 * time.Minute
 )
 
@@ -233,4 +234,88 @@ func trayRetryIDs(tunnels []model.Tunnel) []int {
 		planned[i].Status = "busy" // будет запущен — его порт занят для следующих
 	}
 	return ids
+}
+
+type trayProfileItem struct {
+	ID     int
+	Title  string
+	Active bool
+	More   bool
+}
+
+type trayProfileModel struct {
+	ActiveID   int
+	ActiveName string
+	Items      []trayProfileItem
+	Empty      bool
+}
+
+func (m trayProfileModel) signature() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%d|%s|%t", m.ActiveID, m.ActiveName, m.Empty)
+	for _, it := range m.Items {
+		fmt.Fprintf(&b, "|%d:%s:%t:%t", it.ID, it.Title, it.Active, it.More)
+	}
+	return b.String()
+}
+
+// buildTrayProfiles puts the active profile first so it stays visible, then
+// the rest in config order. The last slot becomes «Ещё профилей», when the
+// list does not fit.
+func buildTrayProfiles(profiles []model.Profile, activeID int, moreFormat string) trayProfileModel {
+	modelOut := trayProfileModel{ActiveID: activeID}
+	if len(profiles) == 0 {
+		modelOut.Empty = true
+		return modelOut
+	}
+	ordered := make([]model.Profile, 0, len(profiles))
+	var active []model.Profile
+	for _, profile := range profiles {
+		if profile.ID == activeID {
+			modelOut.ActiveName = profileTrayTitle(profile)
+			active = append(active, profile)
+			continue
+		}
+		ordered = append(ordered, profile)
+	}
+	ordered = append(active, ordered...)
+
+	limit := len(ordered)
+	hidden := 0
+	if len(ordered) > trayMaxProfileItems {
+		limit = trayMaxProfileItems - 1
+		hidden = len(ordered) - limit
+	}
+	for i := 0; i < limit; i++ {
+		profile := ordered[i]
+		modelOut.Items = append(modelOut.Items, trayProfileItem{
+			ID:     profile.ID,
+			Title:  profileTrayTitle(profile),
+			Active: profile.ID == activeID,
+		})
+	}
+	if hidden > 0 {
+		modelOut.Items = append(modelOut.Items, trayProfileItem{
+			Title: fmt.Sprintf(moreFormat, hidden),
+			More:  true,
+		})
+	}
+	return modelOut
+}
+
+func profileTrayTitle(profile model.Profile) string {
+	name := strings.TrimSpace(profile.Name)
+	emoji := strings.TrimSpace(profile.Emoji)
+	if emoji == "" {
+		return name
+	}
+	return emoji + " " + name
+}
+
+func insertTrayProfile(header, name string) string {
+	const prefix = "Norka · "
+	if strings.HasPrefix(header, prefix) {
+		return prefix + name + " · " + strings.TrimPrefix(header, prefix)
+	}
+	return header
 }

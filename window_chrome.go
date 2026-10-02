@@ -46,6 +46,7 @@ func (a *App) closeHidesToTray() bool {
 }
 
 func (a *App) hideMainWindow() {
+	a.windowVisible.Store(false)
 	wailsruntime.Hide(a.ctx)
 	wailsruntime.WindowHide(a.ctx)
 	wailsruntime.EventsEmit(a.ctx, eventWindowVisibility, false)
@@ -56,6 +57,7 @@ func (a *App) showMainWindow() {
 	if a.ctx == nil {
 		return
 	}
+	a.windowVisible.Store(true)
 	wailsruntime.Show(a.ctx)
 	wailsruntime.WindowShow(a.ctx)
 	wailsruntime.WindowUnminimise(a.ctx)
