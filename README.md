@@ -8,7 +8,7 @@
 
 ![Version](https://img.shields.io/badge/version-0.0.1-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue)
-![License](https://img.shields.io/badge/license-Apache%202.0-green)
+![License](https://img.shields.io/badge/license-MIT-green)
 ![Built with Wails](https://img.shields.io/badge/built%20with-Wails%20v2.16-informational)
 
 </div>
@@ -152,4 +152,4 @@ status = "stopped"
 
 ## Лицензия
 
-Apache MIT. Текст — в файле [LICENSE](LICENSE).
+MIT. Текст — в файле [LICENSE](LICENSE).
