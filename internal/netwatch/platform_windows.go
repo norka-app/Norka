@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -31,16 +32,30 @@ var (
 	user32                                  = windows.NewLazySystemDLL("user32.dll")
 	procRegisterSuspendResumeNotification   = user32.NewProc("RegisterSuspendResumeNotification")
 	procUnregisterSuspendResumeNotification = user32.NewProc("UnregisterSuspendResumeNotification")
-	powerSubscription                       suspendResumeSubscription
-	powerHandle                             uintptr
-	ipHandle                                windows.Handle
-	powerCallbackPtr                        uintptr
-	ipCallbackPtr                           uintptr
+
+	// NewCallback cannot be freed and the runtime only keeps a few thousand
+	// of them. Build both once and reuse them across flag toggles.
+	callbackOnce     sync.Once
+	powerCallbackPtr uintptr
+	ipCallbackPtr    uintptr
+
+	winMu             sync.Mutex
+	winGen            uint64
+	powerSubscription suspendResumeSubscription
+	powerHandle       uintptr
+	ipHandle          windows.Handle
 )
 
+func ensureWindowsCallbacks() {
+	callbackOnce.Do(func() {
+		powerCallbackPtr = windows.NewCallback(onPowerBroadcast)
+		ipCallbackPtr = windows.NewCallback(onInterfaceChange)
+		powerSubscription.Callback = powerCallbackPtr
+	})
+}
+
 func startOSWatch(ctx context.Context, out chan<- Event) error {
-	powerErr := watchPower(ctx)
-	netErr := watchIP(ctx)
+	powerErr, netErr, gen := registerWindowsWatch()
 	if powerErr != nil {
 		slog.Info("power resume watch unavailable", "err", powerErr)
 	}
@@ -50,17 +65,35 @@ func startOSWatch(ctx context.Context, out chan<- Event) error {
 	}
 	go func() {
 		<-ctx.Done()
-		stopWindowsWatch()
+		stopWindowsWatch(gen)
 	}()
 	return nil
 }
 
-func watchPower(ctx context.Context) error {
+// registerWindowsWatch bumps the generation and registers each source that is
+// not already registered. A second start reuses the live registration instead
+// of calling NewCallback or the register APIs again. The returned generation
+// lets a stale stop ignore itself after a newer start has taken over.
+func registerWindowsWatch() (powerErr, netErr error, gen uint64) {
+	ensureWindowsCallbacks()
 	if err := procRegisterSuspendResumeNotification.Find(); err != nil {
-		return err
+		powerErr = err
 	}
-	powerCallbackPtr = windows.NewCallback(onPowerBroadcast)
-	powerSubscription = suspendResumeSubscription{Callback: powerCallbackPtr}
+	winMu.Lock()
+	defer winMu.Unlock()
+	winGen++
+	gen = winGen
+	if powerErr == nil {
+		powerErr = registerPowerLocked()
+	}
+	netErr = registerIPLocked()
+	return powerErr, netErr, gen
+}
+
+func registerPowerLocked() error {
+	if powerHandle != 0 {
+		return nil
+	}
 	handle, _, callErr := procRegisterSuspendResumeNotification.Call(
 		uintptr(unsafe.Pointer(&powerSubscription)),
 		uintptr(deviceNotifyCallback),
@@ -72,7 +105,6 @@ func watchPower(ctx context.Context) error {
 		return callErr
 	}
 	powerHandle = handle
-	_ = ctx
 	return nil
 }
 
@@ -85,14 +117,15 @@ func onPowerBroadcast(context, eventType, setting uintptr) uintptr {
 	return 0
 }
 
-func watchIP(ctx context.Context) error {
-	ipCallbackPtr = windows.NewCallback(onInterfaceChange)
+func registerIPLocked() error {
+	if ipHandle != 0 {
+		return nil
+	}
 	var handle windows.Handle
 	if err := windows.NotifyIpInterfaceChange(windows.AF_UNSPEC, ipCallbackPtr, nil, false, &handle); err != nil {
 		return err
 	}
 	ipHandle = handle
-	_ = ctx
 	return nil
 }
 
@@ -105,7 +138,12 @@ func onInterfaceChange(callerContext, row, notificationType uintptr) uintptr {
 	return 0
 }
 
-func stopWindowsWatch() {
+func stopWindowsWatch(gen uint64) {
+	winMu.Lock()
+	defer winMu.Unlock()
+	if gen != winGen {
+		return
+	}
 	if powerHandle != 0 {
 		_, _, _ = procUnregisterSuspendResumeNotification.Call(powerHandle)
 		powerHandle = 0

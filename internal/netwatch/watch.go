@@ -21,7 +21,12 @@ func Start(ctx context.Context) (<-chan Event, error) {
 	go runSystemJump(ctx, raw)
 	startPlatform(ctx, raw)
 	go func() {
-		defer close(out)
+		defer func() {
+			// Drop the OS callback target before closing the debounced
+			// channel. publish then sees no listener and returns.
+			clearPublisher(ctx)
+			close(out)
+		}()
 		Debounce(ctx, systemClock{}, DebounceWindow, raw, out)
 	}()
 	return out, nil
@@ -50,12 +55,32 @@ func setPublisher(ctx context.Context, out chan<- Event) {
 	pubMu.Unlock()
 }
 
+// publish is called from OS notification threads. The send stays under pubMu
+// and is non-blocking, so the callback returns even when the buffer is full.
+// After stop, clearPublisher drops the listener under the same lock; publish
+// then returns without touching the channel, including if that channel was closed.
 func publish(kind Kind) {
-	pubMu.Lock()
-	current := pub
-	pubMu.Unlock()
-	if current.ctx == nil || current.out == nil {
+	if kind == "" {
 		return
 	}
-	emit(current.ctx, current.out, Event{Kind: kind})
+	pubMu.Lock()
+	defer pubMu.Unlock()
+	if pub.out == nil || pub.ctx == nil || pub.ctx.Err() != nil {
+		return
+	}
+	select {
+	case pub.out <- Event{Kind: kind}:
+	default:
+	}
+}
+
+// clearPublisher forgets the listener for ctx. A newer Start that already
+// replaced the publisher is left alone. Call it before closing the channel
+// publish was given.
+func clearPublisher(ctx context.Context) {
+	pubMu.Lock()
+	defer pubMu.Unlock()
+	if pub.ctx == ctx {
+		pub = publisher{}
+	}
 }
