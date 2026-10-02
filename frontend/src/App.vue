@@ -158,7 +158,7 @@ const CONFIG_TOAST_DURATION_MS = 3800
 let configToastTimer = null
 
 const appMeta = reactive({
-  version: '1.1.0'
+  version: '1.2.0'
 })
 const updateOffer = ref(null)
 const updatePhase = ref('')

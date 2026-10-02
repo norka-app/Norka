@@ -12,7 +12,7 @@
 Идентификатор пакета: `NorkaApp.Norka`. Файлы для первой заявки: `packaging/winget/`.
 
 1. Поставьте [wingetcreate](https://github.com/microsoft/winget-create) или проверяйте YAML по схемам из комментария в начале каждого файла.
-2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Сейчас в файлах стоит версия `1.1.0` и ссылки на тег `v1.1.0`. SHA256 пока от `norka.exe` выпуска 1.0.2: файла 1.1.0 ещё нет. Когда выпуск появится, замените хеш (`sha256sum norka.exe` или поле digest в API GitHub).
+2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Сейчас в файлах стоит версия `1.2.0` и ссылки на тег `v1.2.0`. SHA256 пока от `norka.exe` выпуска 1.0.2: файла 1.2.0 ещё нет. Когда выпуск появится, замените хеш (`sha256sum norka.exe` или поле digest в API GitHub).
 3. Скопируйте четыре файла в свой форк [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) по пути:
 
    `manifests/n/NorkaApp/Norka/<версия>/`
@@ -91,7 +91,7 @@ jobs:
    shasum -a 256 norka.dmg
    ```
 
-   Сейчас в cask стоит версия `1.1.0`. SHA256 пока от dmg выпуска 1.0.2: когда появится `norka.dmg` версии 1.1.0, замените хеш.
+   Сейчас в cask стоит версия `1.2.0`. SHA256 пока от dmg выпуска 1.0.2: когда появится `norka.dmg` версии 1.2.0, замените хеш.
 4. В cask есть `caveats`: сборка ad-hoc, без нотаризации, macOS ставит карантин. Снять его: `xattr -dr com.apple.quarantine /Applications/norka.app`.
 5. `zap trash: "~/.norka"` — каталог конфига на macOS.
 

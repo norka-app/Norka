@@ -229,6 +229,7 @@
                     "duplicate_batch": "This tunnel is repeated in the paste and the copy was left unselected."
                 },
                 "parsedTunnels": "Parsed tunnels",
+                "hostName": "Name",
                 "tunnelName": "Tunnel name",
                 "mode": "Mode",
                 "route": "Route",

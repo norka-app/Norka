@@ -204,7 +204,7 @@ watch(
           <table class="table align-middle mb-0 tunnels-table import-tunnels-table">
             <thead>
               <tr>
-                <th>{{ $t('app.modals.importTunnel.tunnelName') }}</th>
+                <th>{{ $t('app.modals.importTunnel.hostName') }}</th>
                 <th>{{ $t('app.modals.importTunnel.route') }}</th>
                 <th>{{ $t('app.modals.importTunnel.hostStatus') }}</th>
               </tr>
