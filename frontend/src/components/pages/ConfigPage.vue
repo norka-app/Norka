@@ -24,6 +24,7 @@ import {
   CheckForUpdateNow
 } from '../../../wailsjs/go/main/App'
 import { applyFeatureViews, featureEnabled, featureState, setFeatureEnabled, useFeature } from '../../features/feature-store'
+import { hotkeyChord, matchesKey } from '../../utils/keyboard'
 
 const props = defineProps({
   theme: {
@@ -193,27 +194,14 @@ async function beginHotkeyCapture() {
 }
 
 function chordFromEvent(event) {
-  const parts = []
-  if (event.ctrlKey) parts.push('ctrl')
-  if (event.altKey) parts.push(quickSearch.value?.platform === 'darwin' ? 'option' : 'alt')
-  if (event.shiftKey) parts.push('shift')
-  if (event.metaKey) parts.push('meta')
-  let key = String(event.key || '').toLowerCase()
-  if (key === ' ') key = 'space'
-  if (['control', 'alt', 'shift', 'meta'].includes(key)) return ''
-  if (key === 'esc') key = 'escape'
-  const allowed = key.length === 1 || ['space', 'escape', 'tab', 'enter'].includes(key) || /^f([1-9]|1[0-2])$/.test(key)
-  if (!allowed) return ''
-  parts.push(key)
-  if (parts.length < 2) return ''
-  return parts.join('+')
+  return hotkeyChord(event, { altName: quickSearch.value?.platform === 'darwin' ? 'option' : 'alt' })
 }
 
 function onHotkeyKeydown(event) {
   if (!capturingHotkey.value) return
   event.preventDefault()
   event.stopPropagation()
-  if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+  if (matchesKey(event, 'escape') && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
     capturingHotkey.value = false
     return
   }

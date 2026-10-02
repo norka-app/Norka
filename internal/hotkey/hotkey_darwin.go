@@ -71,6 +71,11 @@ var (
 	darwinInstalled bool
 )
 
+// listen registers with the application event target. The Cocoa main run loop
+// already pumps that target, so there is no per-thread message queue to pin
+// and LockOSThread would not change delivery. Carbon hotkeys are not tied to
+// the goroutine that called RegisterEventHotKey the way Win32 RegisterHotKey(0)
+// is tied to the registering OS thread.
 func listen(acc Accelerator, callback func()) (func(), error) {
 	keyCode, ok := darwinKeyCode[acc.Key]
 	if !ok {

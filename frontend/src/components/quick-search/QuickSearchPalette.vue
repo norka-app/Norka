@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { findPortConflicts } from '../../utils/port-conflicts'
 import { bestFuzzyScore } from '../../utils/fuzzy'
+import { matchesKey } from '../../utils/keyboard'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -121,22 +122,22 @@ function runSelected() {
 }
 
 function onKeydown(event) {
-  if (event.key === 'Escape') {
+  if (matchesKey(event, 'escape')) {
     event.preventDefault()
     close()
     return
   }
-  if (event.key === 'ArrowDown') {
+  if (matchesKey(event, 'arrowdown')) {
     event.preventDefault()
     if (results.value.length) activeIndex.value = (activeIndex.value + 1) % results.value.length
     return
   }
-  if (event.key === 'ArrowUp') {
+  if (matchesKey(event, 'arrowup')) {
     event.preventDefault()
     if (results.value.length) activeIndex.value = (activeIndex.value - 1 + results.value.length) % results.value.length
     return
   }
-  if (event.key === 'Enter') {
+  if (matchesKey(event, 'enter')) {
     event.preventDefault()
     runSelected()
   }
