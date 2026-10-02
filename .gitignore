@@ -25,6 +25,9 @@ ui.locale
 update.skip
 .DS_Store
 
+# Local backups (config migration and in-place updates write *.old)
+*.old
+
 # .log
 *.log
 
