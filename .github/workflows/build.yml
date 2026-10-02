@@ -1,0 +1,232 @@
+# ==========================================
+# Часть 1. Основные сведения о рабочем процессе
+# ==========================================
+
+# Это имя видно на вкладке Actions в репозитории GitHub.
+# Можно задать любое, обычно "Build" или "CI/CD".
+name: Build
+
+# Права GITHUB_TOKEN, нужные для создания Release
+permissions:
+  contents: write  # запись: создать release и загрузить файлы
+  actions: read    # чтение: скачать artifacts
+
+# `on` — триггер. Он задаёт, когда запускать задачи ниже.
+on:
+  # `push` срабатывает, когда код отправляют в репозиторий GitHub.
+  push:
+    # Ограничение: рабочий процесс запускается только для этих веток.
+    # Отправка в ветку вроде "test-bug" его не запустит и не потратит ресурсы.
+    branches:
+      - main
+      - master
+      - release/* # звёздочка — любые ветки с префиксом release/, например release/v1.0
+    
+    # Дополнительно: запуск и при отправке тега версии.
+    # Обычно релиз помечают так: `git tag v1.0.0`, затем `git push --tags`.
+    tags:
+      - "v*"       # все теги на v, например v1.0.0, v2.1.3
+
+  # `workflow_dispatch` — ручной запуск.
+  # После этой строки на странице GitHub Actions появляется кнопка "Run workflow":
+  # сборку можно запустить вручную, не отправляя новый код.
+  workflow_dispatch:
+
+
+# ==========================================
+# Часть 2. Задачи (Jobs)
+# ==========================================
+
+# В `jobs` описано, что именно выполнять.
+# По умолчанию задачи (например build-macos и build-windows) стартуют параллельно.
+jobs:
+
+  # ----------------------------------------
+  # Задача 1: сборка версии для macOS
+  # ----------------------------------------
+  build-macos:
+    # `runs-on` задаёт операционную систему облачного сервера.
+    # `macos-latest` — свежая виртуальная машина Mac от GitHub.
+    runs-on: macos-latest
+    
+    # `steps` — шаги задачи, они идут строго по порядку.
+    steps:
+      # Шаг 1. Получить код: клонировать проект с GitHub на эту машину Mac.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Шаг 2. Установить Go (версия синхронизирована с локальной: 1.26).
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26" # та же версия Go, что и локально
+          cache: true        # кэш скачанных зависимостей Go, следующие запуски быстрее
+
+      # Шаг 3. Установить Node.js (нужен фронтенду Wails, версия 24).
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24" # та же версия Node, что и локально
+
+      # Шаг 4. Установить менеджер пакетов pnpm (версия 10).
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10        # та же версия pnpm, что и локально
+
+      # Шаг 5. Попробовать взять уже собранный Wails CLI из облачного кэша.
+      - name: Cache Wails CLI
+        id: cache-wails      # идентификатор шага, чтобы следующий шаг прочитал результат
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/wails                  # путь к файлу в кэше
+          key: ${{ runner.os }}-wails-cli-v2.16.0 # уникальное имя кэша, с именем системы, чтобы не пересекаться
+
+      # Шаг 6. Установить Wails CLI.
+      # `if`: ставить заново, только если кэш не сработал (первый запуск или кэш устарел).
+      - name: Install Wails
+        if: steps.cache-wails.outputs.cache-hit != 'true'
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+
+      # Шаг 7. Сборка: Wails компилирует Go и фронтенд в приложение macOS.
+      # darwin/universal — одна сборка для Intel и чипов M1/M2/M3/M4.
+      - name: Build macOS app
+        run: wails build -platform darwin/universal
+
+      # Шаг 8. Установить create-dmg.
+      # Сторонний инструмент для DMG: свой фон и точная раскладка окна.
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      # Собрать установщик с фоном через create-dmg.
+      # Шаг 9. Создать DMG (с лучшей совместимостью по безопасности)
+      - name: Create DMG Installer
+        run: |
+          cd build/bin
+          
+          # 1. Дать исполняемому файлу право на запуск.
+          # Wails кладёт его в Contents/MacOS/.
+          chmod +x "norka.app/Contents/MacOS/norka"
+          
+          # 2. Снять атрибут карантина и лишние метаданные,
+          # чтобы в пакет не попала пометка «нужно проверить».
+          xattr -cr "norka.app"
+          
+          # 3. Подпись Ad-hoc (локальная подпись без сертификата разработчика).
+          # Для открытого проекта без сертификата это говорит macOS:
+          # «нотаризации нет, но локальная проверка подписи пройдена» — реже появляется ошибка «повреждено».
+          codesign --force --deep --sign - "norka.app"
+          
+          # 4. Запустить create-dmg
+          create-dmg \
+            --volname "norka" \
+            --background "../../dmg-bg.png" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "norka.app" 110 200 \
+            --hide-extension "norka.app" \
+            --app-drop-link 490 200 \
+            "norka.dmg" \
+            "norka.app"  
+
+      # Шаг 10. Загрузить готовый DMG в хранилище GitHub.
+      # Виртуальная машина после задачи уничтожается, без загрузки сборка пропадёт.
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: norka-macos
+          path: build/bin/norka.dmg
+
+  # ----------------------------------------
+  # Задача 2: сборка версии для Windows
+  # (та же логика, что у macOS, только среда — Windows)
+  # ----------------------------------------
+  build-windows:
+    # Свежая виртуальная машина Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # В Windows другой разделитель пути, файл называется wails.exe
+      - name: Cache Wails CLI
+        id: cache-wails
+        uses: actions/cache@v4
+        with:
+          path: ~\go\bin\wails.exe
+          key: ${{ runner.os }}-wails-cli-v2.16.0
+
+      - name: Install Wails
+        if: steps.cache-wails.outputs.cache-hit != 'true'
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+
+      # Собрать 64-битную программу для Windows
+      - name: Build Windows app
+        run: wails build -platform windows/amd64
+
+      # Загрузить файлы .exe в хранилище
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: norka-windows
+          path: build/bin/*.exe
+
+
+  # ----------------------------------------
+  # Задача 3: автоматическая публикация Release
+  # ----------------------------------------
+  release:
+    # `needs`: эта задача стартует только после успешного завершения build-macos и build-windows.
+    needs: [build-macos, build-windows]
+    
+    # Публикация лёгкая, хватает самой быстрой и дешёвой машины Ubuntu.
+    runs-on: ubuntu-latest
+    
+    # `if`: публиковать только если запуск вызван тегом на "v" (например v1.0.0).
+    # Обычный push кода заканчивается на двух сборках, этот шаг пропускается.
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      # Шаг 1. Скачать собранное приложение macOS из архива задачи build-macos.
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: norka-macos
+          path: artifacts/macos      # куда положить скачанное на этой машине
+
+      # Шаг 2. Скачать сборку Windows.
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: norka-windows
+          path: artifacts/windows
+
+      # Шаг 3. Официальным действием GitHub создать страницу Release.
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          # Все файлы из artifacts прикрепить к странице Release
+          files: artifacts/**/*
+          draft: false           # false — опубликовать сразу, без черновика
+          prerelease: false      # false — это стабильный выпуск, не предварительный
+        env:
+          # Токен даёт действию право создать Release в репозитории.
+          # GITHUB_TOKEN GitHub Actions выдаёт сам, отдельно его заводить не нужно.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "norka",
+  "outputfilename": "norka",
+  "info": {
+    "productName": "Norka",
+    "productVersion": "0.0.1"
+  },
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm run build",
+  "frontend:dev:watcher": "pnpm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Norka",
+    "email": ""
+  }
+}

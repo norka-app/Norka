@@ -1,0 +1,421 @@
+{
+    "app": {
+        "title": "Norka",
+        "sidebar": {
+            "subtitle": "Менеджер SSH-туннелей",
+            "overview": "Обзор",
+            "overviewSubtitle": "Основное состояние и недавняя активность",
+            "jumpers": "Jump hosts",
+            "jumpersSubtitle": "Управление SSH jump host",
+            "tunnels": "Туннели",
+            "tunnelsSubtitle": "Создание и управление SSH-туннелями",
+            "logs": "Журнал",
+            "logsSubtitle": "Просмотр последних операций",
+            "config": "Настройки",
+            "configSubtitle": "Тема, версия и данные приложения",
+            "collapse": "Свернуть боковую панель",
+            "expand": "Развернуть боковую панель",
+            "traffic": "Трафик в реальном времени",
+            "upload": "Upload",
+            "download": "Download",
+            "norkaStatus": {
+                "connected": "все туннели подключены",
+                "connecting": "подключение…",
+                "partial": "часть туннелей с ошибкой",
+                "error": "ошибка туннеля",
+                "stopped": "нет активных туннелей"
+            }
+        },
+        "titlebar": {
+            "minimise": "Свернуть",
+            "close": "Закрыть",
+            "toSimple": "Простой режим",
+            "toAdvanced": "Расширенный режим"
+        },
+        "header": {
+            "newJumper": "Создать jump host",
+            "newTunnel": "Создать туннель",
+            "importTunnel": "Импортировать"
+        },
+        "overview": {
+            "totalTunnels": "Всего туннелей",
+            "running": "Запущено",
+            "stopped": "Остановлено",
+            "autoStart": "Автозапуск",
+            "activeTunnels": "Активные туннели",
+            "recentActivity": "Недавняя активность",
+            "collapsePanel": "Свернуть панель",
+            "expandPanel": "Развернуть панель",
+            "noRunningTunnels": "Нет запущенных туннелей",
+            "table": {
+                "name": "Имя",
+                "route": "Маршрут",
+                "jumper": "Jump host",
+                "action": "Действие"
+            },
+            "actions": {
+                "stopTunnel": "Остановить"
+            },
+            "pagination": {
+                "prev": "Предыдущая страница",
+                "next": "Следующая страница",
+                "pageInfo": "{current}/{total}"
+            }
+        },
+        "jumpers": {
+            "title": "Все jump hosts",
+            "noJumpers": "Jump host пока нет",
+            "table": {
+                "name": "Имя",
+                "connection": "Подключение",
+                "auth": "Аутентификация",
+                "notes": "Заметки",
+                "action": "Действие"
+            },
+            "actions": {
+                "copy": "Копировать",
+                "edit": "Изменить",
+                "delete": "Удалить"
+            }
+        },
+        "tunnels": {
+            "title": "Все туннели",
+            "noTunnels": "Туннелей пока нет",
+            "errorReason": "Ошибка",
+            "table": {
+                "name": "Имя",
+                "mode": "Режим",
+                "route": "Маршрут",
+                "jumper": "Jump host",
+                "status": "Статус",
+                "latency": "Задержка",
+                "action": "Действие"
+            },
+            "latency": {
+                "measuring": "Измерение..."
+            },
+            "actions": {
+                "stop": "Остановить",
+                "start": "Запустить",
+                "retry": "Повторить",
+                "more": "Ещё",
+                "copy": "Копировать",
+                "copyError": "Копировать ошибку",
+                "copied": "Скопировано",
+                "expandError": "Показать полный текст ошибки",
+                "collapseError": "Скрыть полный текст ошибки",
+                "edit": "Изменить",
+                "delete": "Удалить"
+            },
+            "status": {
+                "running": "Работает",
+                "stopped": "Остановлен",
+                "busy": "В процессе",
+                "reconnecting": "Переподключение",
+                "error": "Ошибка"
+            },
+            "portSwitch": {
+                "message": "Закрыть «{oldName}» и открыть «{newName}»? Локальный порт {port} может слушать только одно соединение.",
+                "confirm": "Переключить",
+                "dontAsk": "Больше не спрашивать"
+            },
+            "groups": {
+                "manage": "Управление группами",
+                "manageTitle": "Группы туннелей",
+                "create": "Создать группу",
+                "newGroupPlaceholder": "Название группы",
+                "empty": "Групп пока нет. Создайте группу для организации туннелей.",
+                "ungrouped": "Без группы",
+                "rename": "Переименовать",
+                "delete": "Удалить группу",
+                "moveTo": "Переместить в группу",
+                "moved": "«{name}» перемещён в {group}",
+                "nameRequired": "Укажите название группы.",
+                "nameTooLong": "Название группы: не более {max} символов. Широкий символ считается за два, поэтому таких не больше {half}.",
+                "nameDuplicate": "Группа с таким названием уже существует.",
+                "hideEmptyUngrouped": "Скрывать «Без группы», если пусто"
+            }
+        },
+        "confirmations": {
+            "deleteTunnel": "Удалить туннель «{name}»?",
+            "deleteTunnelGroup": "Удалить группу «{name}»? Туннели будут перемещены в «Без группы».",
+            "deleteJumper": "Удалить jump host «{name}»?",
+            "deleteJumperBlocked": "Нельзя удалить «{name}»: используется в {count} туннеле(ях)."
+        },
+        "logs": {
+            "title": "Журнал операций",
+            "levels": {
+                "all": "Все",
+                "info": "Инфо",
+                "warn": "Предупреждения",
+                "error": "Ошибки"
+            },
+            "table": {
+                "time": "Время",
+                "level": "Уровень",
+                "message": "Сообщение"
+            },
+            "noLogs": "Для этого уровня записей нет"
+        },
+        "modals": {
+            "jumper": {
+                "newTitle": "Новый jump host",
+                "editTitle": "Изменить jump host",
+                "basicSettings": "Основные параметры",
+                "advancedOptions": "Дополнительно",
+                "name": "Имя",
+                "user": "Пользователь",
+                "host": "Хост",
+                "port": "Порт",
+                "authMethod": "Аутентификация",
+                "sshKeyFile": "Файл SSH-ключа",
+                "browse": "Обзор",
+                "password": "Пароль",
+                "notes": "Заметки",
+                "keepAliveInterval": "Интервал KeepAlive (мс)",
+                "keepAliveIntervalTooltip": "0 — отключено. Положительное значение — интервал keepalive в миллисекундах.",
+                "timeout": "Таймаут подключения (мс)",
+                "bypassHostCheck": "Пропуск проверки хоста",
+                "testConnection": "Проверить подключение",
+                "testing": "Проверка...",
+                "sshAgentNote": "SSH Agent использует ключи из системы; файл ключа или пароль не нужны.",
+                "agentSocketPath": "Путь к сокету Agent (необязательно)",
+                "agentSocketPlaceholder": "~/.ssh/ssh-agent.sock",
+                "agentSocketNote": "Необязательно. Если указан, используется вместо SSH_AUTH_SOCK.",
+                "keyFileNote": "Введите путь вручную или нажмите «Обзор».",
+                "passwordPlaceholder": "Введите пароль",
+                "passwordOptionalPlaceholder": "Необязательно (passphrase)",
+                "keyPathPlaceholder": "~/.ssh/id_rsa",
+                "bypassTooltip": "Пропустить проверку отпечатка SSH-хоста (только в доверенной среде)."
+            },
+            "importTunnel": {
+                "title": "Импорт туннелей",
+                "source": "Источник",
+                "sshCommand": "Команда SSH",
+                "sshCommandPlaceholder": "Вставьте команду SSH...\nПример: ssh -N -L 3307:remote:3306 -i key.pem user{'@'}host",
+                "parseCmd": "Разобрать команду",
+                "parsedTunnels": "Разобранные туннели",
+                "tunnelName": "Имя туннеля",
+                "mode": "Режим",
+                "route": "Маршрут",
+                "importBtn": "Импорт",
+                "jumperSectionTitle": "Jump host",
+                "parsedTargetLabel": "Разобранная цель: {target}",
+                "jumperAction": "Действие",
+                "useExistingJumper": "Использовать существующий jump host",
+                "createNewJumper": "Создать новый jump host",
+                "existingJumper": "Существующий jump host",
+                "defaultMatchedJumper": "По умолчанию выбран подходящий существующий jump host.",
+                "warningInvalidLocal": "Проигнорировано неверных правил -L: {count}.",
+                "warningInvalidRemote": "Проигнорировано неверных правил -R: {count}.",
+                "warningInvalidDynamic": "Неверное правило -D проигнорировано.",
+                "warningInvalidTarget": "Найден токен с {'@'}, но формат неверный; не удалось разобрать user{'@'}host.",
+                "warningMissingTarget": "Нет корректного user{'@'}host; импорт заблокирован.",
+                "warningDuplicateSkipped": "Обнаружено дубликатов туннелей: {count}; снято с выбора.",
+                "statusSuccess": "Успех",
+                "statusError": "Ошибка",
+                "errorDuplicateExisting": "Такой туннель уже есть: тот же маршрут и тот же jump host.",
+                "errorDuplicateBatch": "В этом разборе уже есть туннель с тем же маршрутом и jump host.",
+                "errorMissingTarget": "В команде SSH нет корректного user{'@'}host; импорт заблокирован."
+            },
+            "importJumper": {
+                "title": "Импорт jump host",
+                "source": "Источник",
+                "loadResult": "Результат загрузки",
+                "load": "Загрузить",
+                "loading": "Читаем SSH config...",
+                "emptyTitle": "Подходящие хосты не найдены",
+                "emptyDesc": "Добавьте явные алиасы Host в ~/.ssh/config и повторите загрузку.",
+                "jumperName": "Имя jump host",
+                "aliasLabel": "SSH alias: {alias}",
+                "statusReady": "Готово",
+                "statusError": "Заблокирован",
+                "detailLabel": "Детали импорта",
+                "importBtn": "Импорт ({count})",
+                "warningAgentFallback": "IdentityFile не найден. По умолчанию будет использован SSH Agent.",
+                "errorMissingUser": "В SSH config отсутствует User. Добавьте его перед импортом.",
+                "errorMissingHost": "В SSH config отсутствует HostName или целевой хост.",
+                "errorProxyJump": "Для алиаса настроен ProxyJump ({proxyJump}). Пока создайте цепочку jump host вручную.",
+                "errorDuplicateExisting": "Jump host с тем же user/host/port уже существует.",
+                "errorDuplicateBatch": "Этот хост дублируется в текущем результате импорта."
+            },
+            "tunnel": {
+                "newTitle": "Новый туннель",
+                "editTitle": "Изменить туннель",
+                "name": "Имя",
+                "mode": "Режим",
+                "group": "Группа",
+                "localHost": "Локальный хост",
+                "localPort": "Локальный порт",
+                "localPortInUseWarning": "Локальный порт {port} уже используется другой конфигурацией туннеля: {names} (только предупреждение, сохранение не блокируется)",
+                "remoteHost": "Удалённый хост",
+                "remotePort": "Удалённый порт",
+                "jumpers": "Jump hosts",
+                "selectPrimaryJumperPlaceholder": "Выберите основной jump host (#1)",
+                "primaryJumperHint": "Выбранный jump host — первый в цепочке (#1).",
+                "addMoreJumpers": "Добавить jump host",
+                "jumpersHint": "Нажмите +, чтобы добавить jump host. Туннель идёт по порядку в списке.",
+                "selectAdditionalJumperPlaceholder": "Выберите jump host",
+                "addJumper": "Добавить jump host",
+                "selectedJumpers": "Выбранные jump host",
+                "selectedJumpersOrderTooltip": "Подключение от #1 до #N по списку. Кнопки вверх/вниз меняют порядок.",
+                "noSelectedJumpers": "Jump host ещё не выбраны.",
+                "moveJumperUp": "Выше",
+                "moveJumperDown": "Ниже",
+                "removeJumper": "Убрать jump host",
+                "appendNewJumper": "Создать и добавить jump host",
+                "quickCreateJumper": "Создать jump host",
+                "description": "Описание",
+                "autoStart": "Автозапуск с приложением",
+                "testConnection": "Проверить подключение",
+                "testing": "Проверка...",
+                "testRequiredFields": "Заполните обязательные поля.",
+                "testRequiredRemote": "Укажите удалённый хост и порт.",
+                "testSelectJumper": "Выберите хотя бы один jump host.",
+                "testPassedWithLatency": "Проверка успешна. Задержка SSH: {latency}."
+            }
+        },
+        "options": {
+            "mode": {
+                "local": "Local Forward",
+                "remote": "Remote Forward",
+                "dynamic": "Dynamic SOCKS5"
+            },
+            "auth": {
+                "password": "Пароль",
+                "sshKey": "SSH-ключ",
+                "sshAgent": "SSH Agent",
+                "unknown": "Неизвестно"
+            },
+            "jumper": {
+                "unknown": "Неизвестный jump host"
+            }
+        },
+        "aiDebug": {
+            "action": "AI диагностика",
+            "analyzing": "Анализ...",
+            "failed": "Сбой AI Debug",
+            "connectionFailed": "Проверка подключения не удалась",
+            "inlineHint": "Запустите диагностику, чтобы проверить SSH-клиент, цепочку jump host и журналы ошибок.",
+            "panelTitle": "Диагностика подключения",
+            "panelHint": "Собираем локальные SSH данные и готовим рекомендации.",
+            "resultTitle": "Наиболее вероятная причина",
+            "firstActions": "Сначала попробуйте",
+            "retryDebug": "Запустить снова",
+            "testAgain": "Проверить снова",
+            "viewResult": "Открыть диагностику",
+            "sourceError": "Исходная ошибка",
+            "modalTitle": "AI диагностика для {name}",
+            "savedTunnelFallback": "Текущий туннель",
+            "progress": {
+                "sshClient": "Проверка SSH клиента",
+                "reproduce": "Повторение сбоя",
+                "analyze": "Анализ SSH журналов",
+                "suggest": "Подготовка рекомендаций"
+            },
+            "confidence": {
+                "high": "Высокая",
+                "medium": "Средняя",
+                "low": "Низкая"
+            },
+            "confidenceLabel": "Уверенность: {value}",
+            "details": "Технические подробности",
+            "sshClient": "SSH клиент",
+            "matchedRules": "Совпавшие правила",
+            "checks": "Проверки",
+            "rawError": "Исходная ошибка",
+            "debugExcerpt": "Фрагмент SSH-отладки",
+            "fallbackHint": "Показывается локальная диагностика, потому что AI-анализ сейчас недоступен.",
+            "quotaExceeded": "Дневной лимит AI диагностики исчерпан. Free: {freeLimit} в день; Pro: {proLimit} в день.",
+            "providerBusy": "AI сервис сейчас занят. Повторите попытку позже.",
+            "unavailable": "Сервис AI диагностики временно недоступен. Повторите попытку позже."
+        },
+        "simple": {
+            "selectTunnel": "Туннель",
+            "manageTunnels": "Управление туннелями…",
+            "noTunnels": "Нет туннелей",
+            "noTunnelsHint": "Создайте туннель в расширенном режиме",
+            "status": {
+                "running": "Подключено",
+                "busy": "Подключение…",
+                "reconnecting": "Переподключение…",
+                "error": "Ошибка",
+                "stopped": "Отключено"
+            },
+            "optionStatus": {
+                "running": "активен",
+                "busy": "подключение",
+                "reconnecting": "переподключение",
+                "error": "ошибка",
+                "stopped": "остановлен"
+            },
+            "actions": {
+                "connect": "Подключить",
+                "disconnect": "Отключить",
+                "cancel": "Отмена",
+                "retry": "Повторить"
+            },
+            "iconHint": {
+                "connect": "Нажмите на Норку, чтобы подключить",
+                "disconnect": "Нажмите на Норку, чтобы отключить",
+                "cancel": "Нажмите на Норку, чтобы отменить",
+                "retry": "Нажмите на Норку, чтобы повторить"
+            },
+            "uptimeDays": "{days} д {time}",
+            "copyAddress": "Копировать адрес",
+            "copied": "Скопировано",
+            "openBrowser": "Открыть в браузере",
+            "portBusy": "Порт {port} занят «{names}»",
+            "portBusyTag": "порт занят"
+        },
+        "common": {
+            "cancel": "Отмена",
+            "close": "Закрыть",
+            "confirm": "Подтвердить",
+            "delete": "Удалить",
+            "save": "Сохранить",
+            "action": "Действие",
+            "searchPlaceholder": "Поиск",
+            "searchTunnels": "Поиск туннелей",
+            "searchJumpers": "Поиск jump host",
+            "skipToContent": "К содержимому"
+        }
+    },
+    "config": {
+        "general": "Общие",
+        "advancedSettings": "Дополнительно",
+        "theme": "Тёмная тема",
+        "themeDesc": "Переключение светлой и тёмной темы",
+        "windowMode": "Режим окна",
+        "windowModeDesc": "Компактное окно на один туннель",
+        "windowModeAdvanced": "Расширенный",
+        "windowModeSimple": "Простой",
+        "simpleOnTop": "Простой режим поверх всех окон",
+        "simpleOnTopDesc": "Закрепить компактное окно над другими",
+        "autoRun": "Запуск при входе",
+        "autoRunDesc": "Запускать Norka при входе в систему",
+        "trafficMonitor": "Мониторинг трафика",
+        "trafficMonitorDesc": "Показывать скорость и график трафика в боковой панели",
+        "currentVersion": "Текущая версия",
+        "manageConfig": "Управление конфигурацией",
+        "manageConfigDesc": "Экспорт, импорт или открытие папки с конфигурацией",
+        "exportConfigBtn": "Экспорт",
+        "importConfigBtn": "Импорт",
+        "openConfigDirBtn": "Открыть папку",
+        "configDataDir": "Каталог данных конфигурации",
+        "configDirCurrentPathPrefix": "Текущий каталог: ",
+        "configDirUnavailable": "Не удалось получить путь (возможно, нет бэкенда).",
+        "chooseConfigDirBtn": "Изменить…",
+        "resetConfigDirBtn": "По умолчанию",
+        "configDirRelocateConfirm": "Скопировать конфигурацию в выбранную папку и переключиться? Активные туннели будут остановлены. Приложение закроется — запустите снова.\n\n{dir}",
+        "configDirConflictPrompt": "{dir}\n\nВ папке уже есть файлы конфигурации. Перезаписать или оставить существующие?",
+        "configDirConflictOverwrite": "Перезаписать",
+        "configDirConflictUseExisting": "Оставить существующие",
+        "configDirResetConfirm": "Скопировать конфигурацию в каталог по умолчанию и убрать перенаправление? Приложение закроется — запустите снова.",
+        "configDirResetImplicitMissing": "Не удалось определить каталог конфигурации по умолчанию.",
+        "configDirRelocateQuitHint": "Конфигурация обновлена. Приложение закроется и собранная версия обычно перезапустится через секунду. В режиме wails dev запустите вручную.",
+        "exportSuccess": "Конфигурация успешно экспортирована.",
+        "importSuccess": "Конфигурация импортирована. Автозапуск туннелей перезапущен.",
+        "importConfirm": "Текущая конфигурация будет безвозвратно перезаписана. Активные туннели остановятся и перезапустятся. Продолжить?"
+    }
+}

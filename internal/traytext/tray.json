@@ -1,0 +1,10 @@
+{
+  "ru": {
+    "showMainTitle": "Показать окно",
+    "showMainTooltip": "Вывести окно приложения на передний план",
+    "quitTitle": "Выход",
+    "quitTooltip": "Закрыть приложение",
+    "iconTooltip": "Norka",
+    "appTitle": "Norka"
+  }
+}
