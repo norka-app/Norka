@@ -38,7 +38,7 @@ func isDirWritable(dir string) bool {
 // getDefaultConfigDir returns the default config directory for the app.
 // Priority:
 // 1. Current directory (if writable) - for development and portable mode
-// 2. User config directory (~/.norka/) - for installed apps
+// 2. User config directory (homeConfigDir) - for installed apps
 func getDefaultConfigDir() string {
 	// Try current directory first (for development and portable mode)
 	cwd, err := os.Getwd()
@@ -58,15 +58,6 @@ func getDefaultConfigDir() string {
 	return "."
 }
 
-// homeConfigDir is ~/.norka.
-func homeConfigDir(homeDir string) string {
-	homeDir = strings.TrimSpace(homeDir)
-	if homeDir == "" {
-		return ""
-	}
-	return filepath.Join(homeDir, appConfigDirName)
-}
-
 // Config is persisted in TOML storage.
 type Config struct {
 	Version               int                 `toml:"version"`
@@ -77,8 +68,10 @@ type Config struct {
 	TrafficMonitorEnabled bool                `toml:"traffic_monitor_enabled"`
 }
 
-// GetHomeConfigPath returns the absolute path for the home config file
-// (~/.norka/config.toml). Empty string if UserHomeDir fails.
+// GetHomeConfigPath returns the absolute path for the home config file.
+// Windows and macOS use ~/.norka/config.toml. Linux follows XDG
+// ($XDG_CONFIG_HOME/norka or ~/.config/norka), with a fallback to ~/.norka
+// when that legacy file already exists. Empty string if UserHomeDir fails.
 func GetHomeConfigPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil || strings.TrimSpace(homeDir) == "" {

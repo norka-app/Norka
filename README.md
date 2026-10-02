@@ -7,12 +7,12 @@
 
 **SSH-туннели в одном окне: подключил, свернул в трей, забыл.**
 
-<sub>A tiny SSH tunnel manager for Windows and macOS with a burrow-dwelling mascot. The UI is in Russian.</sub>
+<sub>A tiny SSH tunnel manager for Windows, macOS and Linux with a burrow-dwelling mascot. The UI is in Russian.</sub>
 
 <br>
 
 ![Version](https://img.shields.io/badge/version-1.0.2-blue)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 ![Wails](https://img.shields.io/badge/Wails-v2.16-DF0000)
 ![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)
 ![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js&logoColor=white)
@@ -85,7 +85,7 @@ Norka создаёт и держит SSH-туннели из окна, без р
 - 📈 **Трафик и задержка.** Скорость и график в боковой панели, задержка SSH у каждого работающего туннеля.
 - 📥 **Импорт.** Туннели из команды `ssh` (`-L`, `-R`, `-D`). Jump host из файла SSH config, включая `ProxyJump`.
 - 🧾 **Журнал** операций с фильтром по уровню.
-- 🎨 **Оформление.** Светлая и тёмная тема, собственная строка заголовка без системной рамки на Windows (на macOS — нативная).
+- 🎨 **Оформление.** Светлая и тёмная тема, собственная строка заголовка без системной рамки на Windows (на macOS и Linux — нативная рамка).
 - ⚙️ **Настройки.** Запуск при входе в систему, экспорт и импорт `config.toml`, свой каталог конфигурации.
 
 ---
@@ -131,8 +131,28 @@ Norka создаёт и держит SSH-туннели из окна, без р
 |---|---|
 | macOS (Intel и Apple Silicon) | `norka.dmg` — перетащите Norka в «Программы» |
 | Windows (x64) | `norka.exe` |
+| Linux (x64) | `norka-x86_64.AppImage`, пакет `norka_<версия>_amd64.deb` или архив `norka_<версия>_linux_amd64.tar.gz` |
 
-Сборки публикует GitHub Actions по тегу `v*`.
+Сборки публикует GitHub Actions по тегу `v*`. Без секретов подписи `norka.exe` остаётся неподписанным; как включить Azure Artifact Signing или PFX — в [docs/SIGNING.md](docs/SIGNING.md).
+
+Linux-сборке нужны GTK 3 и WebKitGTK 4.1 из дистрибутива. AppImage на Ubuntu 24.04 дополнительно просит FUSE 2 (`libfuse2t64`); без него запуск — `./norka-x86_64.AppImage --appimage-extract-and-run`. Пакет ставится так: `sudo apt install ./norka_<версия>_amd64.deb`. Иконка трея — StatusNotifier (AppIndicator). На GNOME без расширения AppIndicator её может не быть, окно при этом работает. Подробности — в [docs/LINUX.md](docs/LINUX.md).
+
+### Пакетные менеджеры — скоро
+
+Манифесты уже в репозитории (`packaging/`), в каталоги winget, Scoop и Homebrew они ещё не отправлены. Команды заработают после шагов из [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md):
+
+```bash
+# Windows, winget — скоро
+winget install NorkaApp.Norka
+
+# Windows, Scoop — скоро, после репозитория norka-app/scoop-bucket
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka
+
+# macOS, Homebrew — скоро, после репозитория norka-app/homebrew-tap
+brew tap norka-app/tap
+brew install --cask norka-app/tap/norka
+```
 
 ### Первый запуск на macOS
 
@@ -180,7 +200,14 @@ wails dev     # режим разработки с горячей перезаг
 wails build   # сборка в build/bin
 ```
 
-`wails build` без `-platform` собирает программу для текущей системы. В CI: `darwin/universal` и `windows/amd64`.
+`wails build` без `-platform` собирает программу для текущей системы. В CI: `darwin/universal`, `windows/amd64` и `linux/amd64`.
+
+На Linux (Ubuntu 24.04 и новее) перед сборкой поставьте `libgtk-3-dev` и `libwebkit2gtk-4.1-dev`, затем:
+
+```bash
+wails build -platform linux/amd64 -tags webkit2_41
+packaging/linux/package.sh   # AppImage, .deb и tar.gz в build/bin
+```
 
 ---
 
@@ -191,7 +218,7 @@ wails build   # сборка в build/bin
 Куда пишется конфиг, если каталог не переопределён:
 
 - **`wails dev`** (задана переменная `devserver`): `./config.toml`, если текущий каталог доступен на запись. Иначе `~/.norka/config.toml`.
-- **Собранная программа**, в том числе автозапуск при входе: `~/.norka/config.toml`.
+- **Собранная программа**, в том числе автозапуск при входе: `~/.norka/config.toml` на Windows и macOS. На Linux — `$XDG_CONFIG_HOME/norka/config.toml`, обычно `~/.config/norka/config.toml`. Если каталога XDG ещё нет, а `~/.norka/config.toml` уже есть, читается старый путь.
 
 Если файла нет или он пустой, Norka создаёт его с пустыми списками.
 
@@ -259,7 +286,9 @@ status = "stopped"
 │       ├── layout/          # заголовок, боковая панель
 │       └── pages/           # обзор, jump host, туннели, журнал, настройки
 ├── build/                   # иконки приложения и трея, манифесты
-└── .github/workflows/       # сборка .dmg и .exe, публикация релиза
+├── packaging/               # AppImage/.deb, winget, Scoop, Homebrew, подпись PFX
+├── docs/                    # Linux, подпись Windows, публикация в каталоги
+└── .github/workflows/       # сборка .dmg, .exe и Linux, публикация релиза
 ```
 
 ## Стек

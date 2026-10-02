@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	wailslinux "github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"norka/internal/traytext"
@@ -90,7 +91,9 @@ func main() {
 
 		// По клику на иконку открывается меню (как в примере energye/systray).
 		// macOS: CreateMenu вешает меню на NSStatusItem, система сама показывает его по левому клику (в Wails это надёжнее, чем SetOnClick).
-		// Windows / Linux: ShowMenu показывает тот же набор пунктов.
+		// Windows: ShowMenu показывает тот же набор пунктов.
+		// Linux: меню — это DBusMenu StatusNotifier. Библиотека вызывает SetOnClick без объекта меню,
+		// поэтому левый клик открывает окно, а меню рисует оболочка (AppIndicator / KDE).
 		popupTrayMenu := func(menu systray.IMenu) {
 			if menu != nil {
 				_ = menu.ShowMenu()
@@ -99,6 +102,8 @@ func main() {
 		switch runtime.GOOS {
 		case "darwin":
 			systray.CreateMenu()
+		case "linux":
+			systray.SetOnClick(func(systray.IMenu) { showMainWindow() })
 		default:
 			systray.SetOnClick(popupTrayMenu)
 			systray.SetOnRClick(popupTrayMenu)
@@ -134,6 +139,13 @@ func main() {
 		Windows: &windows.Options{
 			WebviewUserDataPath:  webviewUserDataPath(),
 			WebviewGpuIsDisabled: true,
+		},
+		// Linux: нативные рамка и иконка окна. GPU выключен так же, как если Linux == nil:
+		// интерфейс — формы и списки, программный рендеринг устойчивее на Xvfb и части дистрибутивов.
+		Linux: &wailslinux.Options{
+			Icon:             trayIconFallback,
+			ProgramName:      "norka",
+			WebviewGpuPolicy: wailslinux.WebviewGpuPolicyNever,
 		},
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId: "norka-single-instance",

@@ -207,7 +207,7 @@ func (a *App) PrepareForQuit() {
 }
 
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != "windows" && runtime.GOOS != "linux" {
 		return false
 	}
 	if a.allowClose.Load() {

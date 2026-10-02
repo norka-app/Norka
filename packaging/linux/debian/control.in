@@ -1,0 +1,14 @@
+Package: norka
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: amd64
+Maintainer: Norka <https://github.com/norka-app/Norka>
+Homepage: https://github.com/norka-app/Norka
+Depends: libgtk-3-0t64 | libgtk-3-0, libwebkit2gtk-4.1-0
+Recommends: libayatana-appindicator3-1
+Description: SSH tunnel manager
+ Norka keeps SSH local, remote and dynamic tunnels in one window
+ and can sit in the system tray. The interface is in Russian.
+ The tray icon needs a StatusNotifier host (AppIndicator on GNOME,
+ or the tray built into KDE and Xfce).
