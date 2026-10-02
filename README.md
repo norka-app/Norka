@@ -171,7 +171,7 @@ sudo xattr -rd com.apple.quarantine /Applications/norka.app
 - [Wails CLI](https://wails.io/docs/gettingstarted/installation) v2.16
 
 ```bash
-git clone https://github.com/ojenya/Norka.git
+git clone https://github.com/norka-app/Norka.git
 cd Norka
 
 cd frontend && pnpm install && cd ..
