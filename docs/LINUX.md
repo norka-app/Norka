@@ -27,7 +27,7 @@ chmod +x norka-x86_64.AppImage
 Пакет `.deb` сам объявляет зависимости. Установка:
 
 ```bash
-sudo apt install ./norka_1.0.2_amd64.deb
+sudo apt install ./norka_1.1.0_amd64.deb
 ```
 
 Версию в имени файла замените на ту, что в релизе.

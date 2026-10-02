@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
 PackageIdentifier: NorkaApp.Norka
-PackageVersion: 1.0.2
+PackageVersion: 1.1.0
 PackageLocale: en-US
 Publisher: Norka
 PublisherUrl: https://github.com/norka-app/Norka
@@ -8,7 +8,7 @@ PublisherSupportUrl: https://github.com/norka-app/Norka/issues
 PackageName: Norka
 PackageUrl: https://github.com/norka-app/Norka
 License: MIT
-LicenseUrl: https://github.com/norka-app/Norka/blob/v1.0.2/LICENSE
+LicenseUrl: https://github.com/norka-app/Norka/blob/v1.1.0/LICENSE
 ShortDescription: SSH tunnel manager
 Description: |-
   Norka keeps SSH local, remote and dynamic tunnels in one window.
@@ -19,6 +19,6 @@ Tags:
   - tunnel
   - proxy
   - socks
-ReleaseNotesUrl: https://github.com/norka-app/Norka/releases/tag/v1.0.2
+ReleaseNotesUrl: https://github.com/norka-app/Norka/releases/tag/v1.1.0
 ManifestType: defaultLocale
 ManifestVersion: 1.9.0
