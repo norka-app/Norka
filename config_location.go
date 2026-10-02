@@ -10,6 +10,7 @@ import (
 	"norka/internal/autorestart"
 	"norka/internal/conf"
 	"norka/internal/uilocale"
+	"norka/internal/update"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -152,6 +153,7 @@ func (a *App) SetConfigDirectory(targetDir string, overwriteExisting bool) error
 			slog.Warn("could not remove previous config.toml", "path", srcPath, "error", err)
 		}
 		_ = conf.TryRemoveFile(filepath.Join(srcDir, uilocale.FileName))
+		_ = conf.TryRemoveFile(filepath.Join(srcDir, update.SkipFileName))
 	}
 
 	slog.Info("config directory relocated", "anchor", anchor, "target", absTarget)
@@ -191,6 +193,7 @@ func (a *App) ResetConfigDirectoryToDefault(overwriteExisting bool) error {
 
 	_ = conf.TryRemoveFile(srcPath)
 	_ = conf.TryRemoveFile(filepath.Join(srcDir, uilocale.FileName))
+	_ = conf.TryRemoveFile(filepath.Join(srcDir, update.SkipFileName))
 
 	slog.Info("config directory reset to default", "implicit", implicit)
 	return nil
@@ -243,6 +246,7 @@ func syncArtifactsToTargetDir(srcDir, dstDir string, overwriteExisting bool) err
 	}
 
 	if !localeShouldCopy {
+		copyOptionalSkip(srcDir, dstDir, overwriteExisting)
 		return nil
 	}
 
@@ -252,7 +256,20 @@ func syncArtifactsToTargetDir(srcDir, dstDir string, overwriteExisting bool) err
 		}
 		return fmt.Errorf("copy ui.locale: %w", err)
 	}
+	copyOptionalSkip(srcDir, dstDir, overwriteExisting)
 	return nil
+}
+
+func copyOptionalSkip(srcDir, dstDir string, overwrite bool) {
+	src := filepath.Join(srcDir, update.SkipFileName)
+	dst := filepath.Join(dstDir, update.SkipFileName)
+	if !regularExistsFile(src) {
+		return
+	}
+	if !overwrite && regularExistsFile(dst) {
+		return
+	}
+	_ = conf.AtomicCopyFileWithMD5Verify(src, dst)
 }
 
 func pathsEqualPathfile(a, b string) bool {

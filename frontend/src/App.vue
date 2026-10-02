@@ -32,7 +32,10 @@ import {
   HasCustomTitleBar,
   ShiftDown,
   GetAppVersion,
-  CheckForUpdate
+  CheckForUpdate,
+  ApplyUpdate,
+  SkipUpdateVersion,
+  CancelUpdate
 } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
@@ -127,6 +130,13 @@ const appMeta = reactive({
   version: '1.0.2'
 })
 const updateOffer = ref(null)
+const updatePhase = ref('')
+const updatePercent = ref(0)
+const updateError = ref('')
+const updateBrowserOnly = ref(false)
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+let updateCheckTimer = null
+let updateCheckInFlight = false
 const AI_REPORT_SUPPORT_EMAIL = ''
 const AI_REPORT_SUBJECT = '[Norka] Report'
 const AI_REPORT_MAX_FIELD_LEN = 800
@@ -260,7 +270,8 @@ function subscribeTrayEvents() {
       if (mode === 'simple' && dialogOpen.value) return
       void setWindowMode(mode)
     }),
-    EventsOn('notification:focus', (id) => focusTunnelFromNotification(id))
+    EventsOn('notification:focus', (id) => focusTunnelFromNotification(id)),
+    EventsOn('update:progress', onUpdateProgress)
   ]
 }
 
@@ -2112,7 +2123,7 @@ const dialogOpen = computed(() => (
 
 function dismissTopDialog() {
   if (updateOffer.value) {
-    updateOffer.value = null
+    void dismissUpdateOffer()
     return
   }
   if (actionDialog.visible) {
@@ -2278,6 +2289,9 @@ onMounted(async () => {
   window.addEventListener('blur', onWindowBlur)
   subscribeTrayEvents()
   void checkForAppUpdate()
+  updateCheckTimer = window.setInterval(() => {
+    void checkForAppUpdate()
+  }, UPDATE_CHECK_INTERVAL_MS)
 })
 
 async function loadAppVersion() {
@@ -2290,29 +2304,137 @@ async function loadAppVersion() {
   }
 }
 
+function resetUpdateUi() {
+  updatePhase.value = ''
+  updatePercent.value = 0
+  updateError.value = ''
+  updateBrowserOnly.value = false
+}
+
+function showUpdateOffer(info) {
+  if (!info?.available || !info.url) return
+  resetUpdateUi()
+  updateOffer.value = info
+}
+
 async function checkForAppUpdate() {
-  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  if (typeof window === 'undefined' || !window.go?.main?.App) return null
+  if (updateCheckInFlight) return null
+  updateCheckInFlight = true
   try {
     const info = await CheckForUpdate()
     if (info?.current) appMeta.version = info.current
-    if (info?.available && info.url) updateOffer.value = info
+    if (updateOffer.value) return info
+    if (info?.available && info.url) showUpdateOffer(info)
+    return info
   } catch (_) {
     /* нет сети или GitHub недоступен — запуск без предложения обновления */
+    return null
+  } finally {
+    updateCheckInFlight = false
   }
 }
 
-function downloadOfferedUpdate() {
-  const url = updateOffer.value?.url
-  updateOffer.value = null
+function openExternal(url) {
   if (!url || typeof window === 'undefined' || !window.runtime) return
   try {
     BrowserOpenURL(url)
   } catch (_) {
-    /* браузер не открылся — окно уже закрыто, повтор будет при следующем запуске */
+    /* браузер не открылся */
+  }
+}
+
+function onUpdateProgress(payload) {
+  const progress = payload && typeof payload === 'object' ? payload : null
+  if (!progress?.phase) return
+  updatePhase.value = progress.phase
+  if (typeof progress.percent === 'number') updatePercent.value = progress.percent
+}
+
+async function dismissUpdateOffer() {
+  try {
+    await CancelUpdate()
+  } catch (_) {
+    /* отмена загрузки необязательна, окно всё равно закрывается */
+  }
+  updateOffer.value = null
+  resetUpdateUi()
+}
+
+async function skipOfferedUpdate() {
+  const version = updateOffer.value?.latest
+  await dismissUpdateOffer()
+  if (!version) return
+  try {
+    await SkipUpdateVersion(version)
+  } catch (_) {
+    /* не записали пропуск — та же версия может появиться снова */
+  }
+}
+
+async function applyOfferedUpdate() {
+  const offer = updateOffer.value
+  if (!offer) return
+  if (!offer.canApply || updateBrowserOnly.value) {
+    openExternal(offer.url)
+    return
+  }
+  updateError.value = ''
+  updatePhase.value = 'download'
+  updatePercent.value = 0
+  try {
+    const result = await ApplyUpdate()
+    if (!updateOffer.value) return
+    if (result?.restarting) {
+      updatePhase.value = 'restart'
+      return
+    }
+    if (result?.code === 'cancelled') {
+      updatePhase.value = ''
+      return
+    }
+    if (result?.code === 'checksum') {
+      updateBrowserOnly.value = true
+      updatePhase.value = 'error'
+      updateError.value = t('app.update.checksumFailed')
+      return
+    }
+    if (result?.code === 'size') {
+      updateBrowserOnly.value = true
+      updatePhase.value = 'error'
+      updateError.value = t('app.update.sizeFailed')
+      return
+    }
+    if (result?.fallback && result.url) {
+      updateBrowserOnly.value = true
+      updatePhase.value = 'error'
+      updateError.value = t('app.update.fallbackBrowser')
+      openExternal(result.url)
+      return
+    }
+    if (result?.fallback && result.code === 'install') {
+      updatePhase.value = 'error'
+      updateError.value = t('app.update.fallbackDmg')
+      return
+    }
+    if (result?.code && result.code !== 'none') {
+      updateBrowserOnly.value = true
+      updatePhase.value = 'error'
+      updateError.value = t('app.update.failed', { error: result.code })
+    }
+  } catch (err) {
+    if (!updateOffer.value) return
+    updateBrowserOnly.value = true
+    updatePhase.value = 'error'
+    updateError.value = t('app.update.failed', { error: String(err) })
   }
 }
 
 onBeforeUnmount(() => {
+  if (updateCheckTimer !== null) {
+    window.clearInterval(updateCheckTimer)
+    updateCheckTimer = null
+  }
   if (stateSyncTimer !== null) {
     window.clearInterval(stateSyncTimer)
     stateSyncTimer = null
@@ -2476,6 +2598,7 @@ watch(
           @traffic-monitor-change="onTrafficMonitorChange"
           @window-mode-change="setWindowMode"
           @simple-on-top-change="simpleOnTop = $event"
+          @update-offer="showUpdateOffer"
         />
       </main>
 
@@ -2497,8 +2620,16 @@ watch(
     :show="!!updateOffer"
     :current="updateOffer?.current || appMeta.version"
     :latest="updateOffer?.latest || ''"
-    @close="updateOffer = null"
-    @download="downloadOfferedUpdate"
+    :notes="updateOffer?.notes || ''"
+    :page-url="updateOffer?.pageUrl || ''"
+    :can-apply="!!updateOffer?.canApply && !updateBrowserOnly"
+    :phase="updatePhase"
+    :percent="updatePercent"
+    :error="updateError"
+    @close="dismissUpdateOffer"
+    @download="applyOfferedUpdate"
+    @skip="skipOfferedUpdate"
+    @open-url="openExternal"
   />
 
   <n-modal

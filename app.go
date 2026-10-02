@@ -25,6 +25,7 @@ import (
 	"norka/internal/sshconfig"
 	"norka/internal/traytext"
 	"norka/internal/uilocale"
+	"norka/internal/update"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -220,6 +221,7 @@ func (a *App) SaveUILocale(locale string) error {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	slog.Info("app startup")
+	update.CleanupBackup()
 	if err := a.ensureReady(); err == nil {
 		a.initNotifier()
 		a.syncAutoRunWithConfig()

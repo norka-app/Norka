@@ -18,10 +18,11 @@ import {
   QuitApplication,
   GetNotificationSettings,
   SetNotificationSettings,
-  GetSecretsStatus
+  GetSecretsStatus,
+  CheckForUpdateNow
 } from '../../../wailsjs/go/main/App'
 
-defineProps({
+const props = defineProps({
   theme: {
     type: String,
     required: true
@@ -47,7 +48,8 @@ const emit = defineEmits([
   'confirm-action',
   'traffic-monitor-change',
   'window-mode-change',
-  'simple-on-top-change'
+  'simple-on-top-change',
+  'update-offer'
 ])
 
 const { t } = useI18n()
@@ -65,6 +67,8 @@ const notifications = ref({
   connectFailed: true,
   connected: false
 })
+const updateChecking = ref(false)
+const updateStatus = ref('')
 
 onMounted(async () => {
   try {
@@ -314,6 +318,23 @@ async function onImportConfig() {
   }
 }
 
+async function onCheckUpdates() {
+  updateChecking.value = true
+  try {
+    const info = await CheckForUpdateNow()
+    if (info?.available && info.url) {
+      updateStatus.value = t('config.updateAvailable', { latest: info.latest })
+      emit('update-offer', info)
+      return
+    }
+    updateStatus.value = t('config.upToDate', { version: info?.current || props.appMeta.version })
+  } catch (_) {
+    updateStatus.value = t('config.checkFailed')
+  } finally {
+    updateChecking.value = false
+  }
+}
+
 async function onOpenConfigDir() {
   try {
     await OpenConfigDir()
@@ -471,6 +492,15 @@ async function onOpenConfigDir() {
         <n-card size="small" :title="t('config.advancedSettings')">
           <div class="config-name">{{ t('config.currentVersion') }}</div>
           <div class="config-desc">{{ appMeta.version }}</div>
+          <n-space justify="space-between" align="center" style="margin-top: 16px">
+            <div>
+              <div class="config-name">{{ t('config.checkUpdates') }}</div>
+              <div class="config-desc">{{ updateStatus || t('config.checkUpdatesDesc') }}</div>
+            </div>
+            <n-button size="small" :loading="updateChecking" @click="onCheckUpdates">
+              {{ t('config.checkUpdatesBtn') }}
+            </n-button>
+          </n-space>
         </n-card>
       </div>
     </n-gi>
