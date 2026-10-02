@@ -1300,67 +1300,6 @@
   white-space: pre-line;
 }
 
-.license-code-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--lt-border);
-}
-
-.license-redeem-panel {
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-md);
-  background: var(--lt-surface-2);
-  padding: 0.85rem 0.9rem;
-}
-
-.license-redeem-panel .form-label {
-  font-size: 0.82rem;
-  margin-bottom: 0.35rem;
-}
-
-.license-code-label {
-  font-size: 0.78rem;
-  color: var(--lt-muted);
-}
-
-.license-code-value {
-  font-size: 0.78rem;
-  color: var(--lt-ink);
-  background: var(--lt-surface-2);
-  padding: 0.15rem 0.4rem;
-  border-radius: var(--lt-radius-sm);
-  font-family: var(--bs-font-monospace);
-}
-
-.pro-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 31px;
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--lt-ink);
-  background: transparent;
-  border: 1px solid var(--lt-border-strong);
-  border-radius: 7px;
-  padding: 0.25rem 0.7rem;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.pro-badge-btn {
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.pro-badge-btn:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-
 .overlay {
   position: absolute;
   inset: 0;
@@ -1387,10 +1326,6 @@
 
 .dialog-large {
   width: min(760px, 100%);
-}
-
-.redeem-dialog {
-  width: min(460px, 100%);
 }
 
 .dialog-head {

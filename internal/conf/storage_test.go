@@ -3,6 +3,7 @@ package conf
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"norka/internal/model"
@@ -66,6 +67,32 @@ func TestStorage_LoadUpdate(t *testing.T) {
 	}
 	if !contains(content, "name = \"Test Jumper\"") {
 		t.Errorf("file missing jumper name: %s", content)
+	}
+}
+
+func TestParseConfigTOML_DropsLegacyLicense(t *testing.T) {
+	const raw = `
+version = 1
+auto_run = true
+
+[license]
+code = "LEGACY-LICENSE-CODE"
+`
+
+	cfg, err := ParseConfigTOML([]byte(raw))
+	if err != nil {
+		t.Fatalf("ParseConfigTOML: %v", err)
+	}
+	if !cfg.AutoRun {
+		t.Fatal("auto_run was not kept")
+	}
+
+	out := string(MarshalTOML(cfg))
+	if strings.Contains(out, "license") || strings.Contains(out, "LEGACY-LICENSE-CODE") {
+		t.Fatalf("legacy license was written back:\n%s", out)
+	}
+	if !strings.Contains(out, "auto_run = true") {
+		t.Fatalf("saved config lost auto_run:\n%s", out)
 	}
 }
 

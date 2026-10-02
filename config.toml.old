@@ -1,9 +1,0 @@
-version = 1
-jumpers = []
-groups = []
-tunnels = []
-auto_run = false
-traffic_monitor_enabled = true
-
-[license]
-  code = ""
