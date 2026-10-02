@@ -417,3 +417,18 @@ jobs:
           identifier: NorkaApp.Norka
           installers-regex: '^norka\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
+
+  # Хеши образцов winget, Scoop и Homebrew.
+  # Выпуск выше создаёт GITHUB_TOKEN, и из-за этого событие release
+  # другие workflow не запускает. Вызываем обновление сами, когда
+  # публикация тега без дефиса прошла. Теги и выпуск этот шаг не меняет.
+  update-manifests:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') && needs.release.result == 'success'
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/update-manifests.yml
+    with:
+      version: ${{ github.ref_name }}
+    secrets: inherit

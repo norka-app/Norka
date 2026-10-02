@@ -2,9 +2,14 @@
 # Хеши образцов winget, Scoop и Homebrew
 # ==========================================
 
-# После публикации выпуска переписывает версию и хеши в packaging/
-# по файлу SHA256SUMS и открывает pull request.
+# Переписывает версию и хеши в packaging/ по файлу SHA256SUMS
+# и открывает pull request.
 # Теги и страницы Release эта задача не создаёт и не меняет.
+#
+# Выпуск публикует build.yml тем же GITHUB_TOKEN. Событие, созданное
+# этим токеном, другие workflow не запускает, поэтому триггера
+# `release: published` здесь нет. Сборка вызывает этот файл через
+# workflow_call после задачи release. Ручной запуск остаётся.
 name: Update manifests
 
 permissions:
@@ -12,8 +17,12 @@ permissions:
   pull-requests: write
 
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      version:
+        description: Версия выпуска, например v1.2.1
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
@@ -23,14 +32,12 @@ on:
 
 jobs:
   update:
-    # Предварительный тег с дефисом в образцы стабильных манифестов не пишем.
-    # Ручной запуск эту проверку не проходит: версию задают явно.
-    if: github.event_name == 'workflow_dispatch' || !contains(github.event.release.tag_name, '-')
+    # Сборка передаёт только тег без дефиса. Ручной запуск версию не фильтрует.
+    if: github.event_name == 'workflow_dispatch' || !contains(inputs.version, '-')
     runs-on: ubuntu-latest
     steps:
-      # Workflow для события release читается с основной ветки,
-      # а checkout по умолчанию может встать на коммит тега.
-      # Правим образцы на верхушке основной ветки: скрипт и манифесты берутся оттуда.
+      # Вызов со сборки по тегу смотрит на коммит тега. Образцы берём
+      # с основной ветки, чтобы pull request шёл от её верхушки.
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -39,7 +46,7 @@ jobs:
       - name: Обновить манифесты из SHA256SUMS
         id: manifests
         env:
-          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+          VERSION: ${{ inputs.version }}
         run: |
           set -eu
           chmod +x scripts/update-manifests.sh
@@ -55,7 +62,7 @@ jobs:
         if: steps.manifests.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+          VERSION: ${{ inputs.version }}
           BASE: ${{ github.event.repository.default_branch }}
         run: |
           set -eu
