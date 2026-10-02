@@ -320,14 +320,36 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
-      # Шаг 1. Скачать собранное приложение macOS из архива задачи build-macos.
+      # Шаг 1. Заметки к выпуску лежат в репозитории: docs/releases/v1.2.3.md.
+      # На этой машине их ещё нет — сюда пока приезжают только собранные файлы.
+      # Клонируем одну папку: остальной проект для публикации не нужен.
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs/releases
+
+      # Шаг 2. Имя файла совпадает с тегом. Нет файла — публикуем как раньше, без текста.
+      # Пустой path действие softprops не читает и из-за этого не падает.
+      - name: Look for release notes
+        id: notes
+        run: |
+          notes_file="docs/releases/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes_file" ]; then
+            echo "path=${notes_file}" >> "$GITHUB_OUTPUT"
+            echo "Нашлись заметки: ${notes_file}"
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+            echo "Файла ${notes_file} нет. Публикуем выпуск без текста."
+          fi
+
+      # Шаг 3. Скачать собранное приложение macOS из архива задачи build-macos.
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
           name: norka-macos
           path: artifacts/macos      # куда положить скачанное на этой машине
 
-      # Шаг 2. Скачать сборку Windows.
+      # Шаг 4. Скачать сборку Windows.
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
@@ -349,7 +371,7 @@ jobs:
           done > SHA256SUMS
           cat SHA256SUMS
 
-      # Шаг 3. Официальным действием GitHub создать страницу Release.
+      # Шаг 5. Официальным действием GitHub создать страницу Release.
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -360,7 +382,13 @@ jobs:
             artifacts/linux/*
             artifacts/SHA256SUMS
           draft: false           # false — опубликовать сразу, без черновика
-          prerelease: false      # false — это стабильный выпуск, не предварительный
+          # Текст этой страницы приложение показывает в окне «Что нового».
+          # path — это docs/releases/<тег>.md, если шаг выше файл нашёл.
+          # Пустая строка значит «файла нет»: описание остаётся пустым, задача не падает.
+          body_path: ${{ steps.notes.outputs.path }}
+          # Дефис в теге (например v1.2.0-beta.1) — предварительный выпуск.
+          # Без дефиса — обычный стабильный выпуск.
+          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           # Токен даёт действию право создать Release в репозитории.
           # GITHUB_TOKEN GitHub Actions выдаёт сам, отдельно его заводить не нужно.
@@ -381,8 +409,9 @@ jobs:
             echo "WINGET_TOKEN is not set; skipping winget-releaser"
           fi
 
+      # Предварительный выпуск (в теге есть дефис) в WinGet не отправляем.
       - name: Publish to WinGet
-        if: steps.winget.outputs.enabled == 'true'
+        if: steps.winget.outputs.enabled == 'true' && !contains(github.ref_name, '-')
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: NorkaApp.Norka
