@@ -39,6 +39,10 @@ const props = defineProps({
   getTunnelJumperLabel: {
     type: Function,
     required: true
+  },
+  sshCommandEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -52,7 +56,8 @@ const emit = defineEmits([
   'manage-groups',
   'rename-group',
   'delete-group',
-  'move-tunnel-to-group'
+  'move-tunnel-to-group',
+  'copy-ssh-command'
 ])
 const { t } = useI18n()
 
@@ -519,6 +524,9 @@ function tunnelMenuOptions(tunnel) {
     { label: t('app.tunnels.actions.edit'), key: 'edit', disabled: tunnel.status === 'busy' },
     { label: t('app.tunnels.actions.copy'), key: 'copy' },
   ]
+  if (props.sshCommandEnabled) {
+    options.push({ label: t('app.tunnels.actions.copySSH'), key: 'copy-ssh' })
+  }
   const moves = showGroupedView.value ? getMoveGroupOptions(tunnel) : []
   if (moves.length > 0) {
     options.push({ type: 'divider', key: 'move-divider' })
@@ -545,6 +553,10 @@ function onTunnelMenu(key, tunnel) {
   }
   if (key === 'copy') {
     emit('copy-tunnel', tunnel)
+    return
+  }
+  if (key === 'copy-ssh') {
+    emit('copy-ssh-command', tunnel)
     return
   }
   if (key === 'delete') {

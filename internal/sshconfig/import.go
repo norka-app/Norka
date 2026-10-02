@@ -47,6 +47,63 @@ type parser struct {
 	visitedFiles map[string]struct{}
 }
 
+// LookupAlias resolves one explicit Host alias from an SSH config file.
+// configPath empty means ~/.ssh/config. ok is false when the file is missing
+// or the name is not an explicit alias. A missing file is not an error.
+func LookupAlias(configPath, name string) (model.SSHConfigImportCandidate, bool, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || strings.ContainsAny(name, "*? ") {
+		return model.SSHConfigImportCandidate{}, false, nil
+	}
+	resolvedPath, err := resolveConfigPath(configPath)
+	if err != nil {
+		return model.SSHConfigImportCandidate{}, false, err
+	}
+	absPath, err := filepath.Abs(resolvedPath)
+	if err != nil {
+		return model.SSHConfigImportCandidate{}, false, fmt.Errorf("resolve ssh config path failed: %w", err)
+	}
+	if _, err := os.Stat(absPath); err != nil {
+		if os.IsNotExist(err) {
+			return model.SSHConfigImportCandidate{}, false, nil
+		}
+		return model.SSHConfigImportCandidate{}, false, fmt.Errorf("stat ssh config failed: %w", err)
+	}
+
+	p := &parser{visitedFiles: make(map[string]struct{})}
+	if err := p.parseFile(absPath); err != nil {
+		return model.SSHConfigImportCandidate{}, false, err
+	}
+	var matched string
+	for _, alias := range collectExplicitAliases(p.entries) {
+		if strings.EqualFold(alias, name) {
+			matched = alias
+			break
+		}
+	}
+	if matched == "" {
+		return model.SSHConfigImportCandidate{}, false, nil
+	}
+	resolved := resolveAlias(matched, p.entries)
+	return model.SSHConfigImportCandidate{
+		Alias:                  matched,
+		Name:                   matched,
+		Host:                   resolved.host,
+		Port:                   resolved.port,
+		User:                   resolved.user,
+		AuthType:               deriveAuthType(resolved),
+		KeyPath:                resolved.keyPath,
+		AgentSocketPath:        resolved.agentSocketPath,
+		BypassHostVerification: resolved.bypassHostVerification,
+		KeepAliveIntervalMs:    resolved.keepAliveIntervalMs,
+		TimeoutMs:              resolved.timeoutMs,
+		HostKeyAlgorithms:      resolved.hostKeyAlgorithms,
+		ProxyJump:              resolved.proxyJump,
+		SourcePath:             resolved.sourcePath,
+		Warnings:               deriveWarnings(resolved),
+	}, true, nil
+}
+
 // DefaultConfigPath returns the default user SSH config path.
 func DefaultConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()

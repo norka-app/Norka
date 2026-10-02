@@ -18,6 +18,7 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, cfg, features.AutoUpdate, true)
 	assertFeature(t, cfg, features.TrafficMonitor, true)
 	assertFeature(t, cfg, features.Mascot, true)
+	assertFeature(t, cfg, features.SSHCommand, true)
 	if _, ok := cfg.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay missing on a fresh config")
 	}
@@ -35,6 +36,7 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, loaded, features.AutoUpdate, true)
 	assertFeature(t, loaded, features.TrafficMonitor, true)
 	assertFeature(t, loaded, features.Mascot, true)
+	assertFeature(t, loaded, features.SSHCommand, true)
 	if _, ok := loaded.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay absent so the default can change later")
 	}
@@ -99,6 +101,7 @@ notifications = false
 auto_update = false
 traffic_monitor = false
 mascot = false
+ssh_command = false
 `)
 	cfg, err := ParseConfigTOML(raw)
 	if err != nil {
@@ -136,7 +139,7 @@ mascot = false
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false"} {
+	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false"} {
 		if !strings.Contains(text, key) {
 			t.Fatalf("saved config missing %q:\n%s", key, text)
 		}
@@ -184,6 +187,7 @@ status = "running"
 	assertFeature(t, cfg, features.Profiles, false)
 	assertFeature(t, cfg, features.AutoUpdate, true)
 	assertFeature(t, cfg, features.Mascot, true)
+	assertFeature(t, cfg, features.SSHCommand, true)
 	if cfg.QuickSearchHotkey != "ctrl+shift+k" {
 		t.Fatalf("hotkey lost: %q", cfg.QuickSearchHotkey)
 	}

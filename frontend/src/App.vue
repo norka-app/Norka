@@ -41,7 +41,8 @@ import {
   CheckForUpdate,
   ApplyUpdate,
   SkipUpdateVersion,
-  CancelUpdate
+  CancelUpdate,
+  FormatTunnelSSHCommand
 } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
@@ -90,6 +91,7 @@ const profilesOn = useFeature('profiles')
 const quickSearchOn = useFeature('quick_search')
 const trafficOn = useFeature('traffic_monitor')
 const autoUpdateOn = useFeature('auto_update')
+const sshCommandOn = useFeature('ssh_command')
 
 const pages = computed(() => {
   const all = [
@@ -773,20 +775,6 @@ function normalizeJumperIdList(ids) {
       seen.add(id)
       return true
     })
-}
-
-function toHostKey(host) {
-  return String(host || '').trim().toLowerCase()
-}
-
-function getTunnelImportSignature(tunnelLike) {
-  const mode = String(tunnelLike?.mode || 'local').trim().toLowerCase()
-  const localHost = toHostKey(tunnelLike?.localHost || '127.0.0.1')
-  const localPort = Number(tunnelLike?.localPort) || 0
-  const remoteHost = mode === 'dynamic' ? '' : toHostKey(tunnelLike?.remoteHost)
-  const remotePort = mode === 'dynamic' ? 0 : (Number(tunnelLike?.remotePort) || 0)
-  const jumperKey = normalizeJumperIdList(tunnelLike?.jumperIds).join(',')
-  return `${mode}|${localHost}|${localPort}|${remoteHost}|${remotePort}|${jumperKey}`
 }
 
 function getNextTunnelJumperCandidate(selectedIds = []) {
@@ -1574,140 +1562,88 @@ function closeImportTunnel() {
   importTunnelError.value = ''
 }
 
-async function importTunnels(tunnelsToImport) {
+async function importTunnels(plan) {
   try {
     importTunnelError.value = ''
-    let importedCount = 0
-    let skippedCount = 0
+    const hosts = Array.isArray(plan?.hosts) ? plan.hosts : []
+    const selected = Array.isArray(plan?.tunnels) ? plan.tunnels : []
+    const idByKey = new Map()
     let createdJumperCount = 0
-    const existingSignatures = new Set(tunnels.value.map((item) => getTunnelImportSignature(item)))
-    const createdJumperCache = new Map()
-    
-    for (const tunnelData of tunnelsToImport) {
-      let jumperIds = []
 
-      if (tunnelData.importJumper?.mode === 'existing') {
-        const selectedJumperId = Number(tunnelData.importJumper.jumperId)
-        const selectedJumper = jumpers.value.find((item) => item.id === selectedJumperId)
-        if (!selectedJumper) {
-          throw new Error('Selected existing jumper is missing. Please re-parse and try again.')
-        }
-        jumperIds = [selectedJumper.id]
-      }
-
-      if (tunnelData.importJumper?.mode === 'new' && tunnelData.importJumper?.payload) {
-        const payload = tunnelData.importJumper.payload
-        const existingJumper = jumpers.value.find((item) => {
-          return (
-            String(item.host || '').trim().toLowerCase() === String(payload.host || '').trim().toLowerCase() &&
-            String(item.user || '').trim() === String(payload.user || '').trim() &&
-            Number(item.port) === Number(payload.port)
-          )
-        })
-
-        if (existingJumper) {
-          jumperIds = [existingJumper.id]
-        } else {
-          const cacheKey = JSON.stringify({
-            host: String(payload.host || '').trim().toLowerCase(),
-            user: String(payload.user || '').trim(),
-            port: Number(payload.port),
-            authType: payload.authType,
-            keyPath: String(payload.keyPath || '').trim(),
-            agentSocketPath: String(payload.agentSocketPath || '').trim()
-          })
-
-          if (createdJumperCache.has(cacheKey)) {
-            jumperIds = [createdJumperCache.get(cacheKey)]
-          } else {
-            const createdJumper = await CreateJumper(payload)
-            jumperIds = [createdJumper.id]
-            jumpers.value.push(createdJumper)
-            createdJumperCache.set(cacheKey, createdJumper.id)
-            createdJumperCount++
-            logEvent('info', `Jumper ${createdJumper.name} created from import`)
-          }
-        }
-      }
-
-      // Backward-compatible fallback for old import payload.
-      if (jumperIds.length === 0 && tunnelData.jumperConfig) {
-        const config = tunnelData.jumperConfig
-        const existingJumper = jumpers.value.find(
-          (item) => item.host === config.host && item.user === config.user && item.port === config.port
-        )
-
-        if (existingJumper) {
-          jumperIds = [existingJumper.id]
-        } else {
-          const fallbackPayload = {
-            name: `${config.host.split('.')[0]}-import`,
-            host: config.host,
-            port: config.port,
-            user: config.user,
-            authType: config.keyPath ? 'ssh_key' : 'ssh_agent',
-            keyPath: config.keyPath || '',
-            agentSocketPath: '',
-            password: '',
-            bypassHostVerification: false,
-            keepAliveIntervalMs: config.keepAliveIntervalMs || 5000,
-            timeoutMs: 5000,
-            notes: `Imported from SSH command on ${new Date().toLocaleDateString()}`
-          }
-
-          const createdJumper = await CreateJumper(fallbackPayload)
-          jumperIds = [createdJumper.id]
-          jumpers.value.push(createdJumper)
-          createdJumperCount++
-          logEvent('info', `Jumper ${createdJumper.name} created from import`)
-        }
-      }
-      
-      if (jumperIds.length === 0) {
-        throw new Error(t('app.modals.importTunnel.errorMissingTarget'))
-      }
-      
-      // Create the tunnel
-      const payload = {
-        name: tunnelData.name,
-        mode: tunnelData.mode,
-        jumperIds: jumperIds,
-        localHost: tunnelData.localHost,
-        localPort: tunnelData.localPort,
-        remoteHost: tunnelData.remoteHost,
-        remotePort: tunnelData.remotePort,
-        autoStart: false,
-        status: 'stopped',
-        description: `Imported from SSH command on ${new Date().toLocaleDateString()}`
-      }
-
-      const signature = getTunnelImportSignature(payload)
-      if (existingSignatures.has(signature)) {
-        skippedCount++
-        logEvent('warn', `Tunnel ${payload.name} skipped (duplicate)`)
+    for (const host of hosts) {
+      if (host.existingId) {
+        idByKey.set(host.key, Number(host.existingId))
         continue
       }
-      
-      await CreateTunnel(payload)
-      existingSignatures.add(signature)
-      importedCount++
-      logEvent('info', `Tunnel ${payload.name} imported`)
+      if (!selected.some((tunnel) => Array.isArray(tunnel.hostKeys) && tunnel.hostKeys.includes(host.key))) {
+        continue
+      }
+      const createdJumper = await CreateJumper({
+        name: String(host.name || '').trim(),
+        host: host.host,
+        port: Number(host.port) || 22,
+        user: host.user,
+        authType: host.authType === 'ssh_key' ? 'ssh_key' : 'ssh_agent',
+        keyPath: host.authType === 'ssh_key' ? (host.keyPath || '') : '',
+        agentSocketPath: host.authType === 'ssh_agent' ? (host.agentSocketPath || '') : '',
+        password: '',
+        bypassHostVerification: !!host.bypassHostVerification,
+        keepAliveIntervalMs: Number(host.keepAliveIntervalMs) || 0,
+        timeoutMs: Number(host.timeoutMs) || 10000,
+        hostKeyAlgorithms: host.hostKeyAlgorithms || '',
+        notes: ''
+      })
+      idByKey.set(host.key, createdJumper.id)
+      jumpers.value.push(createdJumper)
+      createdJumperCount++
+      logEvent('info', `Jumper ${createdJumper.name} created from import`)
     }
-    
+
+    let importedCount = 0
+    for (const tunnelData of selected) {
+      const jumperIds = (tunnelData.hostKeys || []).map((key) => idByKey.get(key)).filter((id) => Number(id) > 0)
+      if (jumperIds.length !== (tunnelData.hostKeys || []).length) {
+        throw new Error(t('app.modals.importTunnel.errorMissingTarget'))
+      }
+      await CreateTunnel({
+        name: tunnelData.name,
+        mode: tunnelData.mode,
+        jumperIds,
+        localHost: tunnelData.localHost,
+        localPort: Number(tunnelData.localPort) || 0,
+        remoteHost: tunnelData.mode === 'dynamic' ? '' : tunnelData.remoteHost,
+        remotePort: tunnelData.mode === 'dynamic' ? 0 : (Number(tunnelData.remotePort) || 0),
+        autoStart: false,
+        status: 'stopped',
+        description: ''
+      })
+      importedCount++
+      logEvent('info', `Tunnel ${tunnelData.name} imported`)
+    }
+
     await loadStateFromBackend()
     closeImportTunnel()
-    
-    let message = createdJumperCount > 0
-      ? `Successfully imported ${importedCount} tunnel(s) and created ${createdJumperCount} jumper(s)`
-      : `Successfully imported ${importedCount} tunnel(s)`
-    if (skippedCount > 0) {
-      message = `${message}; skipped ${skippedCount} duplicate tunnel(s)`
-    }
-    logEvent('info', message)
+    setConfigMessage(t('app.modals.importTunnel.imported', { count: importedCount }))
+    logEvent('info', `Imported ${importedCount} tunnel(s), created ${createdJumperCount} jumper(s)`)
   } catch (err) {
     const message = errorMessage(err, 'Failed to import tunnels')
     importTunnelError.value = message
     logEvent('error', message)
+  }
+}
+
+function openSSHCommandFromTunnel() {
+  showTunnelModal.value = false
+  openImportTunnel()
+}
+
+async function copyTunnelSSHCommand(tunnel) {
+  try {
+    const command = await FormatTunnelSSHCommand(tunnel.id)
+    const copied = await writeTextToClipboard(command)
+    setConfigMessage(copied ? t('app.tunnels.actions.sshCopied') : t('app.tunnels.actions.sshCopyFailed'))
+  } catch (err) {
+    setConfigMessage(errorMessage(err, t('app.tunnels.actions.sshCopyFailed')))
   }
 }
 
@@ -2720,6 +2656,7 @@ watch(
         :current-page="currentPage"
         :active-page="activePage"
         :active-profile="profilesOn ? activeProfile : null"
+        :ssh-command-enabled="sshCommandOn"
         @import-jumper="openImportJumper"
         @new-jumper="openNewJumper"
         @new-tunnel="openNewTunnel"
@@ -2765,9 +2702,11 @@ watch(
           :tunnel-ai-debug-states="tunnelErrorAiDebugStates"
           :ai-debug-enabled="AI_DEBUG_ENABLED"
           :get-tunnel-jumper-label="getTunnelJumperLabel"
+          :ssh-command-enabled="sshCommandOn"
           @update-search-query="tunnelSearchQuery = $event"
           @toggle-tunnel="toggleTunnel"
           @copy-tunnel="copyTunnel"
+          @copy-ssh-command="copyTunnelSSHCommand"
           @edit-tunnel="editTunnel"
           @delete-tunnel="deleteTunnel"
           @ai-debug="openSavedTunnelAIDebug"
@@ -2967,6 +2906,8 @@ watch(
     @test-connection="testTunnelConnection"
     @ai-debug="runTunnelAIDebug"
     @report-ai-content="reportAIDebugContent('tunnel', tunnelAiDebug)"
+    :ssh-command-enabled="sshCommandOn"
+    @from-ssh-command="openSSHCommandFromTunnel"
   />
 
   <TunnelGroupModal
@@ -2986,11 +2927,8 @@ watch(
 
   <ImportTunnelModal
     :show="showImportTunnelModal"
-    :jumpers="jumpers"
-    :existing-tunnels="tunnels"
     :mode-options="modeOptions"
-    :auth-options="authOptions"
-    :jumper-limits="JUMPER_LIMITS"
+    :name-max="JUMPER_LIMITS.name"
     :import-error="importTunnelError"
     @close="closeImportTunnel"
     @import="importTunnels"

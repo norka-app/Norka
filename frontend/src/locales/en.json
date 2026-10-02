@@ -36,7 +36,8 @@
         "header": {
             "newJumper": "New jump host",
             "newTunnel": "New tunnel",
-            "importTunnel": "Import"
+            "importTunnel": "Import",
+            "fromSSHCommand": "From an SSH command"
         },
         "overview": {
             "totalTunnels": "Tunnels",
@@ -101,6 +102,9 @@
                 "retry": "Retry",
                 "more": "More",
                 "copy": "Copy",
+                "copySSH": "Copy as SSH command",
+                "sshCopied": "SSH command copied",
+                "sshCopyFailed": "Could not copy the SSH command",
                 "copyError": "Copy error",
                 "copied": "Copied",
                 "expandError": "Show full error",
@@ -195,8 +199,35 @@
                 "title": "Import tunnels",
                 "source": "Source",
                 "sshCommand": "SSH command",
-                "sshCommandPlaceholder": "Paste an SSH command...\nExample: ssh -N -L 3307:remote:3306 -i key.pem user{'@'}host",
-                "parseCmd": "Parse command",
+                "sshCommandPlaceholder": "Paste one or more ssh commands...\nssh -N -L 3000:127.0.0.1:3000 -J jump{'@'}bastion user{'@'}dev-host",
+                "hint": "Passwords and other secrets from the command line are not stored. An alias from ~/.ssh/config is filled in when it exists.",
+                "parseCmd": "Parse",
+                "hostsTitle": "Jump hosts",
+                "hostStatus": "What happens",
+                "statusReuse": "Already exists",
+                "statusCreate": "Will be created",
+                "statusBlocked": "User is missing",
+                "chain": "Chain",
+                "alias": "Alias {alias}",
+                "keyPath": "Key: {path}",
+                "parseEmpty": "Enter an ssh command.",
+                "parseFailed": "Could not parse the command.",
+                "nothing": "The command has no tunnels to create.",
+                "nameInvalid": "A name is required and must be at most {max} characters.",
+                "imported": "Imported {count} tunnel(s).",
+                "warnings": {
+                    "unknown_option": "Unknown option {option} was skipped.",
+                    "invalid_forward": "Could not parse {option} {detail}.",
+                    "missing_target": "The command has no destination host.",
+                    "missing_user": "Host {detail} has no user.",
+                    "ignored_secret": "A secret from the command line is not stored ({option}).",
+                    "extra_identity": "Extra key {option} was skipped.",
+                    "not_ssh": "The line is not an ssh command and was skipped.",
+                    "no_forward": "The command has no -L, -R, or -D.",
+                    "ssh_config": "Could not read SSH config: {detail}.",
+                    "duplicate_existing": "This tunnel already exists and was left unselected.",
+                    "duplicate_batch": "This tunnel is repeated in the paste and the copy was left unselected."
+                },
                 "parsedTunnels": "Parsed tunnels",
                 "tunnelName": "Tunnel name",
                 "mode": "Mode",
@@ -548,6 +579,8 @@
         "trafficMonitor": "Traffic monitor",
         "trafficMonitorDesc": "Speed and a traffic chart in the sidebar.",
         "mascot": "Mascot animations",
-        "mascotDesc": "Idle motion and a hidden Easter egg."
+        "mascotDesc": "Idle motion and a hidden Easter egg.",
+        "sshCommand": "SSH command",
+        "sshCommandDesc": "Paste an ssh command to create a tunnel, and copy a tunnel back out as a command."
     }
 }

@@ -102,6 +102,34 @@ Host *.corp
 	}
 }
 
+func TestLookupAlias(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config")
+	if err := os.WriteFile(configPath, []byte(`
+Host dev-host
+  HostName 10.0.0.8
+  User deploy
+  Port 2222
+  IdentityFile ~/.ssh/id_ed25519
+  ProxyJump jump@bastion
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := LookupAlias(configPath, "dev-host")
+	if err != nil || !ok {
+		t.Fatalf("lookup ok=%v err=%v", ok, err)
+	}
+	if got.Host != "10.0.0.8" || got.User != "deploy" || got.Port != 2222 || got.ProxyJump != "jump@bastion" {
+		t.Fatalf("alias %+v", got)
+	}
+	if _, ok, err := LookupAlias(configPath, "missing"); err != nil || ok {
+		t.Fatalf("missing alias ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := LookupAlias(filepath.Join(dir, "absent"), "dev-host"); err != nil || ok {
+		t.Fatalf("absent file ok=%v err=%v", ok, err)
+	}
+}
+
 func TestLoadImportCandidatesMissingFile(t *testing.T) {
 	_, err := LoadImportCandidates(filepath.Join(t.TempDir(), "missing-config"))
 	if err == nil {

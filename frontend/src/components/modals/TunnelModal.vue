@@ -76,6 +76,10 @@ const props = defineProps({
   aiDebugEnabled: {
     type: Boolean,
     default: false
+  },
+  sshCommandEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -90,7 +94,8 @@ const emit = defineEmits([
   'inline-key-file-change',
   'test-connection',
   'ai-debug',
-  'report-ai-content'
+  'report-ai-content',
+  'from-ssh-command'
 ])
 
 const { t } = useI18n()
@@ -600,6 +605,13 @@ function onPrimaryJumperChange(value) {
     <template #footer>
       <div class="dialog-footer modal-footer">
         <div class="dialog-left-actions">
+          <n-button
+            v-if="sshCommandEnabled && !editingTunnelId"
+            quaternary
+            @click="$emit('from-ssh-command')"
+          >
+            {{ $t('app.header.fromSSHCommand') }}
+          </n-button>
           <n-button
             :disabled="tunnelTest.status === 'testing'"
             @click="$emit('test-connection')"

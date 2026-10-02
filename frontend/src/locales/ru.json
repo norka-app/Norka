@@ -36,7 +36,8 @@
         "header": {
             "newJumper": "Создать jump host",
             "newTunnel": "Создать туннель",
-            "importTunnel": "Импортировать"
+            "importTunnel": "Импортировать",
+            "fromSSHCommand": "Из ssh-команды"
         },
         "overview": {
             "totalTunnels": "Всего туннелей",
@@ -101,6 +102,9 @@
                 "retry": "Повторить",
                 "more": "Ещё",
                 "copy": "Копировать",
+                "copySSH": "Скопировать как ssh-команду",
+                "sshCopied": "Команда ssh скопирована",
+                "sshCopyFailed": "Не удалось скопировать команду ssh",
                 "copyError": "Копировать ошибку",
                 "copied": "Скопировано",
                 "expandError": "Показать полный текст ошибки",
@@ -195,8 +199,35 @@
                 "title": "Импорт туннелей",
                 "source": "Источник",
                 "sshCommand": "Команда SSH",
-                "sshCommandPlaceholder": "Вставьте команду SSH...\nПример: ssh -N -L 3307:remote:3306 -i key.pem user{'@'}host",
-                "parseCmd": "Разобрать команду",
+                "sshCommandPlaceholder": "Вставьте одну или несколько команд ssh...\nssh -N -L 3000:127.0.0.1:3000 -J jump{'@'}bastion user{'@'}dev-host",
+                "hint": "Пароли и другие секреты из командной строки не сохраняются. Алиас из ~/.ssh/config подставляется, если он там есть.",
+                "parseCmd": "Разобрать",
+                "hostsTitle": "Jump host",
+                "hostStatus": "Что будет",
+                "statusReuse": "Уже есть",
+                "statusCreate": "Будет создан",
+                "statusBlocked": "Не хватает пользователя",
+                "chain": "Цепочка",
+                "alias": "Алиас {alias}",
+                "keyPath": "Ключ: {path}",
+                "parseEmpty": "Введите команду ssh.",
+                "parseFailed": "Не удалось разобрать команду.",
+                "nothing": "В команде нет туннелей, которые можно создать.",
+                "nameInvalid": "Имя не длиннее {max} символов и не может быть пустым.",
+                "imported": "Импортировано туннелей: {count}.",
+                "warnings": {
+                    "unknown_option": "Неизвестная опция {option} пропущена.",
+                    "invalid_forward": "Не удалось разобрать {option} {detail}.",
+                    "missing_target": "В команде нет хоста назначения.",
+                    "missing_user": "У хоста {detail} нет пользователя.",
+                    "ignored_secret": "Секрет из командной строки не сохраняется ({option}).",
+                    "extra_identity": "Лишний ключ {option} пропущен.",
+                    "not_ssh": "Строка не похожа на команду ssh и пропущена.",
+                    "no_forward": "В команде нет -L, -R или -D.",
+                    "ssh_config": "Не удалось прочитать SSH config: {detail}.",
+                    "duplicate_existing": "Такой туннель уже есть, он не выбран.",
+                    "duplicate_batch": "В этом разборе туннель повторяется, повтор не выбран."
+                },
                 "parsedTunnels": "Разобранные туннели",
                 "tunnelName": "Имя туннеля",
                 "mode": "Режим",
@@ -548,6 +579,8 @@
         "trafficMonitor": "Мониторинг трафика",
         "trafficMonitorDesc": "Скорость и график трафика в боковой панели.",
         "mascot": "Анимации норки",
-        "mascotDesc": "Движения в простое и спрятанная пасхалка."
+        "mascotDesc": "Движения в простое и спрятанная пасхалка.",
+        "sshCommand": "Команда SSH",
+        "sshCommandDesc": "Вставка команды ssh, чтобы создать туннель, и копирование туннеля обратно в команду."
     }
 }
