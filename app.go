@@ -53,6 +53,7 @@ type App struct {
 	trayMu   sync.Mutex
 	trayShow *systray.MenuItem
 	trayQuit *systray.MenuItem
+	uiLocale string
 
 	allowClose atomic.Bool
 
@@ -171,6 +172,84 @@ func (a *App) SetTrayMenuItems(show, quit *systray.MenuItem) {
 	a.trayQuit = quit
 }
 
+// LanguageSetting is the persisted preference and the locale the UI should show.
+type LanguageSetting struct {
+	Preference string `json:"preference"`
+	Locale     string `json:"locale"`
+}
+
+func (a *App) languageSetting(preference string) LanguageSetting {
+	pref := uilocale.NormalizePreference(preference)
+	return LanguageSetting{Preference: pref, Locale: uilocale.Effective(pref)}
+}
+
+// ResolvedUILocale reads the language preference from config.toml.
+// A missing file or an empty preference follows the system locale.
+func (a *App) ResolvedUILocale() string {
+	if a == nil || a.storage == nil {
+		return uilocale.DetectFromEnv()
+	}
+	data, err := os.ReadFile(a.storage.Path())
+	if err != nil {
+		return uilocale.DetectFromEnv()
+	}
+	cfg, err := conf.ParseConfigTOML(data)
+	if err != nil || cfg == nil {
+		return uilocale.DetectFromEnv()
+	}
+	return uilocale.Effective(cfg.Language)
+}
+
+func (a *App) useUILocale(tag string) {
+	a.trayMu.Lock()
+	a.uiLocale = uilocale.Normalize(tag)
+	a.trayMu.Unlock()
+}
+
+func (a *App) uiLocaleTag() string {
+	a.trayMu.Lock()
+	defer a.trayMu.Unlock()
+	if a.uiLocale == "" {
+		return uilocale.DetectFromEnv()
+	}
+	return a.uiLocale
+}
+
+func (a *App) uiText() traytext.Strings {
+	return traytext.ForLocale(a.uiLocaleTag())
+}
+
+// GetLanguage returns the saved preference and the locale the interface should use.
+func (a *App) GetLanguage() (LanguageSetting, error) {
+	if err := a.ensureReady(); err != nil {
+		return a.languageSetting(""), err
+	}
+	cfg, err := a.storage.Load()
+	if err != nil {
+		return a.languageSetting(""), err
+	}
+	return a.languageSetting(cfg.Language), nil
+}
+
+// SetLanguage stores auto, ru, or en in config.toml, mirrors it to ui.locale, and refreshes the tray.
+func (a *App) SetLanguage(preference string) (LanguageSetting, error) {
+	if err := a.ensureReady(); err != nil {
+		return LanguageSetting{}, err
+	}
+	setting := a.languageSetting(preference)
+	if _, err := a.storage.Update(func(cfg *conf.Config) error {
+		cfg.Language = setting.Preference
+		return nil
+	}); err != nil {
+		return LanguageSetting{}, err
+	}
+	if err := uilocale.WriteFile(filepath.Dir(a.storage.Path()), setting.Preference); err != nil {
+		return LanguageSetting{}, err
+	}
+	a.ApplyTrayLocale(setting.Locale)
+	return setting, nil
+}
+
 func (a *App) applyTrayLocaleUnlocked(tag string) {
 	s := traytext.ForLocale(tag)
 	if a.trayShow != nil {
@@ -193,29 +272,15 @@ func (a *App) ApplyTrayLocale(locale string) {
 	a.trayMu.Lock()
 	defer a.trayMu.Unlock()
 	tag := uilocale.Normalize(locale)
-	if tag == "" {
-		tag = "en"
-	}
+	a.uiLocale = tag
 	a.applyTrayLocaleUnlocked(tag)
 }
 
-// SaveUILocale persists ui.locale beside config.toml and refreshes the tray (call when the UI language changes).
+// SaveUILocale persists the language preference and refreshes the tray.
+// locale may be auto, ru, or en (or a tag such as ru-RU).
 func (a *App) SaveUILocale(locale string) error {
-	if a.storage == nil {
-		return fmt.Errorf("storage unavailable")
-	}
-	dir := filepath.Dir(a.storage.Path())
-	if err := uilocale.WriteFile(dir, locale); err != nil {
-		return err
-	}
-	a.trayMu.Lock()
-	defer a.trayMu.Unlock()
-	tag := uilocale.Normalize(locale)
-	if tag == "" {
-		tag = "en"
-	}
-	a.applyTrayLocaleUnlocked(tag)
-	return nil
+	_, err := a.SetLanguage(locale)
+	return err
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -241,7 +306,6 @@ func (a *App) initNotifier() {
 		return
 	}
 	a.loadNotifySettings()
-	dir := filepath.Dir(a.storage.Path())
 	poster := notify.NewSystemPoster(notify.PosterConfig{
 		AppID:    "Norka",
 		IconPath: a.writeNotifyIcon(),
@@ -253,7 +317,7 @@ func (a *App) initNotifier() {
 		Window:   2 * time.Second,
 		Settings: a.currentNotifySettings,
 		Catalog: func() notify.Catalog {
-			return notify.CatalogFor(uilocale.Resolve(dir))
+			return notify.CatalogFor(a.uiLocaleTag())
 		},
 		Poster: poster,
 	})
@@ -840,10 +904,12 @@ func (a *App) ExportConfigWithDialog(includeSecrets bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
+	text := a.uiText()
 	destPath, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
 		DefaultFilename: "config.toml",
+		Title:           text.ExportConfigTitle,
 		Filters: []wailsruntime.FileFilter{
-			{DisplayName: "TOML Config (*.toml)", Pattern: "*.toml"},
+			{DisplayName: text.TomlFilter, Pattern: "*.toml"},
 		},
 	})
 	if err != nil {
@@ -885,9 +951,11 @@ func (a *App) SelectImportFile() (string, error) {
 	if err := a.ensureReady(); err != nil {
 		return "", err
 	}
+	text := a.uiText()
 	srcPath, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: text.ImportConfigTitle,
 		Filters: []wailsruntime.FileFilter{
-			{DisplayName: "TOML Config (*.toml)", Pattern: "*.toml"},
+			{DisplayName: text.TomlFilter, Pattern: "*.toml"},
 		},
 	})
 	if err != nil {

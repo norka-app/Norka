@@ -705,6 +705,8 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .simple-btn .bi { font-size: 14px; }
 .simple-btn--secondary { flex: none; padding: 0 16px; }

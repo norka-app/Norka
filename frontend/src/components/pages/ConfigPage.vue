@@ -38,6 +38,10 @@ const props = defineProps({
   simpleOnTop: {
     type: Boolean,
     default: false
+  },
+  language: {
+    type: String,
+    default: 'auto'
   }
 })
 
@@ -49,7 +53,8 @@ const emit = defineEmits([
   'traffic-monitor-change',
   'window-mode-change',
   'simple-on-top-change',
-  'update-offer'
+  'update-offer',
+  'language-change'
 ])
 
 const { t } = useI18n()
@@ -351,15 +356,31 @@ async function onOpenConfigDir() {
     <n-gi span="2 l:1">
       <n-card size="small" :title="t('config.general')">
         <n-space vertical :size="16">
-          <n-space justify="space-between" align="center">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
+              <div class="config-name">{{ t('config.language') }}</div>
+              <div class="config-desc">{{ t('config.languageDesc') }}</div>
+            </div>
+            <n-radio-group
+              class="language-options"
+              :value="language"
+              size="small"
+              @update:value="$emit('language-change', $event)"
+            >
+              <n-radio-button value="auto">{{ t('config.languageAuto') }}</n-radio-button>
+              <n-radio-button value="ru">{{ t('config.languageRu') }}</n-radio-button>
+              <n-radio-button value="en">{{ t('config.languageEn') }}</n-radio-button>
+            </n-radio-group>
+          </n-space>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.theme') }}</div>
               <div class="config-desc">{{ t('config.themeDesc') }}</div>
             </div>
             <n-switch :value="theme === 'dark'" @update:value="$emit('theme-change', $event)" />
           </n-space>
-          <n-space justify="space-between" align="center">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.windowMode') }}</div>
               <div class="config-desc">{{ t('config.windowModeDesc') }}</div>
             </div>
@@ -368,29 +389,29 @@ async function onOpenConfigDir() {
               <n-radio-button value="simple">{{ t('config.windowModeSimple') }}</n-radio-button>
             </n-radio-group>
           </n-space>
-          <n-space justify="space-between" align="center">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.simpleOnTop') }}</div>
               <div class="config-desc">{{ t('config.simpleOnTopDesc') }}</div>
             </div>
             <n-switch :value="simpleOnTop" @update:value="$emit('simple-on-top-change', $event)" />
           </n-space>
-          <n-space justify="space-between" align="center">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.autoRun') }}</div>
               <div class="config-desc">{{ t('config.autoRunDesc') }}</div>
             </div>
             <n-switch :value="autoRunEnabled" @update:value="onAutoRunChange" />
           </n-space>
-          <n-space justify="space-between" align="center">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.trafficMonitor') }}</div>
               <div class="config-desc">{{ t('config.trafficMonitorDesc') }}</div>
             </div>
             <n-switch :value="trafficMonitorEnabled" @update:value="onTrafficMonitorChange" />
           </n-space>
-          <n-space justify="space-between" align="center">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.manageConfig') }}</div>
               <div class="config-desc">{{ t('config.manageConfigDesc') }}</div>
             </div>
@@ -407,7 +428,7 @@ async function onOpenConfigDir() {
               </div>
             </n-space>
           </n-space>
-          <div>
+          <div class="settings-row">
             <div class="config-name">{{ t('config.secretsTitle') }}</div>
             <n-alert v-if="secretsStatus.keychainAvailable" class="config-secret-alert" type="success" :show-icon="true">
               {{ t('config.secretsOk') }}
@@ -416,8 +437,8 @@ async function onOpenConfigDir() {
               {{ t('config.secretsUnavailable') }}
             </n-alert>
           </div>
-          <n-space justify="space-between" align="start">
-            <div>
+          <n-space class="settings-row" justify="space-between" align="start" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.configDataDir') }}</div>
               <div class="config-desc">
                 <span v-if="configLocationInfo?.effectiveConfigDir">{{ t('config.configDirCurrentPathPrefix') }}{{ configLocationInfo.effectiveConfigDir }}</span>
@@ -445,43 +466,43 @@ async function onOpenConfigDir() {
         <n-card size="small" :title="t('config.notifications')">
           <n-space vertical :size="16">
             <div class="config-desc">{{ t('config.notificationsDesc') }}</div>
-            <n-space justify="space-between" align="center">
-              <div>
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
                 <div class="config-name">{{ t('config.notificationsMaster') }}</div>
                 <div class="config-desc">{{ t('config.notificationsMasterDesc') }}</div>
               </div>
               <n-switch :value="notifications.enabled" @update:value="(checked) => onNotificationToggle('enabled', checked)" />
             </n-space>
-            <n-space justify="space-between" align="center">
-              <div>
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyDropped') }}</div>
                 <div class="config-desc">{{ t('config.notifyDroppedDesc') }}</div>
               </div>
               <n-switch :value="notifications.dropped" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('dropped', checked)" />
             </n-space>
-            <n-space justify="space-between" align="center">
-              <div>
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyReconnected') }}</div>
                 <div class="config-desc">{{ t('config.notifyReconnectedDesc') }}</div>
               </div>
               <n-switch :value="notifications.reconnected" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('reconnected', checked)" />
             </n-space>
-            <n-space justify="space-between" align="center">
-              <div>
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyGaveUp') }}</div>
                 <div class="config-desc">{{ t('config.notifyGaveUpDesc') }}</div>
               </div>
               <n-switch :value="notifications.gaveUp" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('gaveUp', checked)" />
             </n-space>
-            <n-space justify="space-between" align="center">
-              <div>
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyConnectFailed') }}</div>
                 <div class="config-desc">{{ t('config.notifyConnectFailedDesc') }}</div>
               </div>
               <n-switch :value="notifications.connectFailed" :disabled="!notifications.enabled" @update:value="(checked) => onNotificationToggle('connectFailed', checked)" />
             </n-space>
-            <n-space justify="space-between" align="center">
-              <div>
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
                 <div class="config-name">{{ t('config.notifyConnected') }}</div>
                 <div class="config-desc">{{ t('config.notifyConnectedDesc') }}</div>
               </div>

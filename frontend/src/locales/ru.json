@@ -329,7 +329,16 @@
             "fallbackHint": "Показывается локальная диагностика, потому что AI-анализ сейчас недоступен.",
             "quotaExceeded": "Дневной лимит AI диагностики исчерпан. Free: {freeLimit} в день; Pro: {proLimit} в день.",
             "providerBusy": "AI сервис сейчас занят. Повторите попытку позже.",
-            "unavailable": "Сервис AI диагностики временно недоступен. Повторите попытку позже."
+            "unavailable": "Сервис AI диагностики временно недоступен. Повторите попытку позже.",
+            "reportAction": "Пожаловаться",
+            "reportHint": "Если ответ ИИ неуместен, отправьте его разработчикам.",
+            "reportOpenFailed": "Не удалось открыть почтовый клиент.",
+            "copyReportBody": "Копировать текст",
+            "copyBodyDone": "Текст скопирован",
+            "copyFailed": "Не удалось скопировать",
+            "copySupportEmail": "Копировать адрес",
+            "copyEmailDone": "Адрес скопирован",
+            "reportDraftOpened": "Черновик письма открыт"
         },
         "simple": {
             "selectTunnel": "Туннель",
@@ -399,6 +408,11 @@
     },
     "config": {
         "general": "Общие",
+        "language": "Язык / Language",
+        "languageDesc": "Auto следует языку системы: русский для ru, иначе английский",
+        "languageAuto": "Auto",
+        "languageRu": "Русский",
+        "languageEn": "English",
         "advancedSettings": "Дополнительно",
         "theme": "Тёмная тема",
         "themeDesc": "Переключение светлой и тёмной темы",

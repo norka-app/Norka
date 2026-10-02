@@ -15,7 +15,6 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"norka/internal/notify"
 	"norka/internal/traytext"
-	"norka/internal/uilocale"
 )
 
 //go:embed all:frontend/dist
@@ -33,11 +32,8 @@ var trayIconFallback []byte
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
-	configDir := "."
-	if app.storage != nil {
-		configDir = filepath.Dir(app.storage.Path())
-	}
-	localeTag := uilocale.Resolve(configDir)
+	localeTag := app.ResolvedUILocale()
+	app.useUILocale(localeTag)
 	trayLabels := traytext.ForLocale(localeTag)
 
 	showMainWindow := func() {

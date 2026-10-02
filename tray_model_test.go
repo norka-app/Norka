@@ -5,7 +5,12 @@ import (
 	"time"
 
 	"norka/internal/model"
+	"norka/internal/traytext"
 )
+
+func ruTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Time) trayModel {
+	return buildTrayModel(tunnels, since, now, traytext.ForLocale("ru"))
+}
 
 func TestBuildTrayModel(t *testing.T) {
 	now := time.Date(2026, 10, 1, 20, 0, 0, 0, time.UTC)
@@ -15,7 +20,7 @@ func TestBuildTrayModel(t *testing.T) {
 		{ID: 3, Name: "socks", Mode: "dynamic", LocalPort: 1080, Status: "stopped"},
 	}
 	// без истории переходов (запуск приложения): ошибка важнее подключения, глаза не бывают разными
-	m := buildTrayModel(tunnels, map[int]traySince{}, now)
+	m := ruTrayModel(tunnels, map[int]traySince{}, now)
 	if m.Status != "error" || m.iconKey() != "error" {
 		t.Fatalf("status = %q / icon %q, want error / error", m.Status, m.iconKey())
 	}
@@ -41,17 +46,17 @@ func TestBuildTrayModel(t *testing.T) {
 
 	// ошибка старше 5 минут не красит иконку
 	stale := map[int]traySince{2: {Status: "error", At: now.Add(-6 * time.Minute)}}
-	if got := buildTrayModel(tunnels, stale, now).Status; got != "connected" {
+	if got := ruTrayModel(tunnels, stale, now).Status; got != "connected" {
 		t.Errorf("stale error status = %q, want connected", got)
 	}
 
 	busy := append([]model.Tunnel{}, tunnels...)
 	busy[2].Status = "reconnecting"
-	if got := buildTrayModel(busy, nil, now).Status; got != "connecting" {
+	if got := ruTrayModel(busy, nil, now).Status; got != "connecting" {
 		t.Errorf("reconnecting status = %q, want connecting", got)
 	}
 
-	if got := buildTrayModel(nil, nil, now); got.Status != "stopped" || got.Header != "Norka · нет туннелей" || got.CanStopAll {
+	if got := ruTrayModel(nil, nil, now); got.Status != "stopped" || got.Header != "Norka · нет туннелей" || got.CanStopAll {
 		t.Errorf("empty model = %+v", got)
 	}
 
@@ -59,7 +64,7 @@ func TestBuildTrayModel(t *testing.T) {
 	for i := range many {
 		many[i] = model.Tunnel{ID: i + 1, Name: "t", LocalPort: 1000 + i, Status: "stopped"}
 	}
-	if got := buildTrayModel(many, nil, now); len(got.Items) != trayMaxTunnelItems || got.Hidden != 3 {
+	if got := ruTrayModel(many, nil, now); len(got.Items) != trayMaxTunnelItems || got.Hidden != 3 {
 		t.Errorf("overflow: items=%d hidden=%d", len(got.Items), got.Hidden)
 	}
 }
@@ -73,7 +78,7 @@ func TestBuildTrayModelPortConflict(t *testing.T) {
 		{ID: 4, Name: "db", Mode: "local", LocalPort: 5432, Status: "error"},
 		{ID: 5, Name: "other-ip", Mode: "local", LocalHost: "127.0.0.2", LocalPort: 3000, Status: "stopped"},
 	}
-	m := buildTrayModel(tunnels, nil, now)
+	m := ruTrayModel(tunnels, nil, now)
 	want := []trayTunnelItem{
 		{ID: 1, Title: "user2@10.200.29.191 · 3000", Running: true, ToggleLabel: "Отключить", Address: "localhost:3000", URL: "http://localhost:3000"},
 		{ID: 2, Title: "127.0.0.1-3000 · 3000", ToggleLabel: "Подключить вместо «user2@10.200.29.191»",
@@ -95,7 +100,7 @@ func TestBuildTrayModelPortConflict(t *testing.T) {
 		{ID: 2, Name: "b", LocalPort: 8080, Status: "reconnecting"},
 		{ID: 3, Name: "c", LocalPort: 8080, Status: "stopped"},
 	}
-	if it := buildTrayModel(both, nil, now).Items[2]; it.ToggleLabel != "Подключить вместо «a», «b»" ||
+	if it := ruTrayModel(both, nil, now).Items[2]; it.ToggleLabel != "Подключить вместо «a», «b»" ||
 		it.ToggleTooltip != "Порт 8080 занят: «a», «b» будут отключены" || !it.SwitchPort {
 		t.Errorf("two conflicts item = %+v", it)
 	}
@@ -114,7 +119,7 @@ func TestTrayRetryIDsSkipsPortConflicts(t *testing.T) {
 	if len(got) != 1 || got[0] != 3 {
 		t.Fatalf("trayRetryIDs = %v, want [3]", got)
 	}
-	if !buildTrayModel(tunnels, nil, now).CanRetryAll {
+	if !ruTrayModel(tunnels, nil, now).CanRetryAll {
 		t.Error("CanRetryAll = false, want true (db can be retried)")
 	}
 
@@ -123,7 +128,7 @@ func TestTrayRetryIDsSkipsPortConflicts(t *testing.T) {
 	if ids := trayRetryIDs(blocked); len(ids) != 0 {
 		t.Errorf("blocked trayRetryIDs = %v, want none", ids)
 	}
-	if m := buildTrayModel(blocked, nil, now); m.CanRetryAll {
+	if m := ruTrayModel(blocked, nil, now); m.CanRetryAll {
 		t.Error("CanRetryAll = true for a tunnel whose port is held")
 	}
 }
@@ -149,7 +154,7 @@ func TestTrayStatusLatestEvent(t *testing.T) {
 	since := map[int]traySince{}
 	step := func(at time.Time, tunnels ...model.Tunnel) string {
 		trackTraySince(tunnels, since, at)
-		return buildTrayModel(tunnels, since, at).Status
+		return ruTrayModel(tunnels, since, at).Status
 	}
 	db := model.Tunnel{ID: 1, Name: "db", LocalPort: 5432}
 	web := model.Tunnel{ID: 2, Name: "web", LocalPort: 8080}
@@ -182,5 +187,31 @@ func TestTrayStatusLatestEvent(t *testing.T) {
 	// всё остановлено → закрыты
 	if got := step(t0.Add(8*time.Second), with(db, "stopped"), with(web, "stopped")); got != "stopped" {
 		t.Fatalf("all stopped = %q, want stopped", got)
+	}
+}
+
+func TestBuildTrayModelEnglish(t *testing.T) {
+	now := time.Date(2026, 10, 1, 20, 0, 0, 0, time.UTC)
+	text := traytext.ForLocale("en")
+	empty := buildTrayModel(nil, nil, now, text)
+	if empty.Header != "Norka · no tunnels" || empty.Tooltip != empty.Header {
+		t.Fatalf("empty = %+v", empty)
+	}
+	tunnels := []model.Tunnel{
+		{ID: 1, Name: "dev", Mode: "local", LocalHost: "127.0.0.1", LocalPort: 3000, Status: "running"},
+		{ID: 2, Name: "web", Mode: "local", LocalPort: 3000, Status: "stopped"},
+	}
+	m := buildTrayModel(tunnels, nil, now, text)
+	if m.Header != "Norka · 1 of 2 connected" {
+		t.Fatalf("header = %q", m.Header)
+	}
+	if m.Items[0].ToggleLabel != "Disconnect" {
+		t.Fatalf("running toggle = %q", m.Items[0].ToggleLabel)
+	}
+	if m.Items[1].ToggleLabel != "Connect instead of “dev”" {
+		t.Fatalf("switch toggle = %q", m.Items[1].ToggleLabel)
+	}
+	if m.Items[1].ToggleTooltip != "Port 3000 is in use: “dev” will be disconnected" {
+		t.Fatalf("switch tooltip = %q", m.Items[1].ToggleTooltip)
 	}
 }

@@ -71,6 +71,9 @@ type Config struct {
 	// NotificationsSet is true after defaults have been applied, so an explicit
 	// all-off choice is not replaced by defaults on the next load.
 	NotificationsSet bool `toml:"notifications_set"`
+	// Language is the UI language preference: "auto", "ru", or "en".
+	// Empty means auto (follow the system locale: Russian for ru*, English otherwise).
+	Language string `toml:"language,omitempty"`
 }
 
 // NotificationSettings controls opt-in OS notifications.
@@ -142,6 +145,7 @@ func (c *Config) Clone() *Config {
 		TrafficMonitorEnabled: c.TrafficMonitorEnabled,
 		Notifications:         c.Notifications,
 		NotificationsSet:      c.NotificationsSet,
+		Language:              c.Language,
 	}
 	out.Jumpers = append(out.Jumpers, c.Jumpers...)
 	out.Groups = append(out.Groups, c.Groups...)
@@ -168,6 +172,7 @@ func (c *Config) Normalize() {
 		c.Notifications = DefaultNotificationSettings()
 		c.NotificationsSet = true
 	}
+	c.Language = strings.TrimSpace(c.Language)
 	for i := range c.Tunnels {
 		c.Tunnels[i].JumperIDs = normalizeJumperIDs(c.Tunnels[i].JumperIDs)
 	}

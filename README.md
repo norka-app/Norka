@@ -1,3 +1,5 @@
+[English](README.en.md)
+
 <div align="center">
 
 <picture>
@@ -7,7 +9,7 @@
 
 **SSH-туннели в одном окне: подключил, свернул в трей, забыл.**
 
-<sub>A tiny SSH tunnel manager for Windows, macOS and Linux with a burrow-dwelling mascot. The UI is in Russian.</sub>
+<sub>A tiny SSH tunnel manager for Windows, macOS and Linux with a burrow-dwelling mascot. The UI is in Russian and English.</sub>
 
 <br>
 
@@ -86,6 +88,9 @@ Norka создаёт и держит SSH-туннели из окна, без р
 - 📥 **Импорт.** Туннели из команды `ssh` (`-L`, `-R`, `-D`). Jump host из файла SSH config, включая `ProxyJump`.
 - 🧾 **Журнал** операций с фильтром по уровню.
 - 🎨 **Оформление.** Светлая и тёмная тема, собственная строка заголовка без системной рамки на Windows (на macOS и Linux — нативная рамка).
+- 🌐 **Язык.** В настройках: Auto (язык системы — русский для ru, иначе английский), Русский или English. Окно и меню трея переключаются сразу.
+- 🔔 **Уведомления.** По умолчанию выключены. После включения Norka может сообщить об обрыве, переподключении, отказе от восстановления и ошибке подключения. Успешное подключение остаётся выключенным.
+- 🔑 **Пароли.** Пароли jump host и passphrase ключей хранятся в связке ключей системы. В `config.toml` остаётся ссылка. В экспорт пароли попадают только если это включить.
 - ⚙️ **Настройки.** Запуск при входе в систему, экспорт и импорт `config.toml`, свой каталог конфигурации.
 
 ---
@@ -231,6 +236,7 @@ packaging/linux/package.sh   # AppImage, .deb и tar.gz в build/bin
 version = 1
 auto_run = false
 traffic_monitor_enabled = true
+language = "auto"          # auto | ru | en
 
 [[jumpers]]
 id = 1
@@ -261,7 +267,7 @@ status = "stopped"
 
 </details>
 
-Для `dynamic` поля `remote_host` и `remote_port` не нужны. Пароль jump host хранится в этом файле.
+Для `dynamic` поля `remote_host` и `remote_port` не нужны. Пароль jump host хранится в связке ключей системы, если она доступна. Иначе он остаётся в этом файле.
 
 ---
 
