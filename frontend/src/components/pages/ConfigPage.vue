@@ -467,10 +467,10 @@ async function onOpenConfigDir() {
           <n-space
             v-for="item in featureState.items"
             :key="item.id"
-            class="settings-row"
+            class="settings-row feature-row"
             justify="space-between"
             align="center"
-            :wrap="true"
+            :wrap="false"
           >
             <div class="settings-label">
               <div class="config-name">{{ t(item.titleKey) }}</div>
@@ -671,4 +671,18 @@ async function onOpenConfigDir() {
 
 <style scoped>
 .config-desc--warn { color: var(--lt-warning-ink, #92400e); }
+
+.feature-row {
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.feature-row .settings-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.feature-row :deep(.n-switch) {
+  flex-shrink: 0;
+}
 </style>
