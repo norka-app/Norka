@@ -7,6 +7,7 @@ import { BrowserOpenURL, ClipboardSetText } from '../../../wailsjs/runtime/runti
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
 import { useFeature } from '../../features/feature-store'
 import { findPortConflicts } from '../../utils/port-conflicts'
+import { matchesKey, physicalKey } from '../../utils/keyboard'
 
 const COPIED_FEEDBACK_MS = 1500
 const TYPEAHEAD_RESET_MS = 600
@@ -176,7 +177,7 @@ function cancelPortSwitch() {
 }
 
 function onWindowKeydown(event) {
-  if (event.key !== 'Escape' || !portConflict.value || listOpen.value || profileOpen.value) return
+  if (!matchesKey(event, 'escape') || !portConflict.value || listOpen.value || profileOpen.value) return
   event.preventDefault()
   cancelPortSwitch()
 }
@@ -298,21 +299,21 @@ function chooseProfile(index) {
 }
 
 function onProfileKeydown(event) {
-  switch (event.key) {
-    case 'ArrowDown':
+  switch (physicalKey(event)) {
+    case 'arrowdown':
       profileIndex.value = Math.min(profileOptionCount.value - 1, profileIndex.value + 1)
       break
-    case 'ArrowUp':
+    case 'arrowup':
       profileIndex.value = Math.max(0, profileIndex.value - 1)
       break
-    case 'Enter':
-    case ' ':
+    case 'enter':
+    case 'space':
       chooseProfile(profileIndex.value)
       break
-    case 'Escape':
+    case 'escape':
       closeProfileList()
       break
-    case 'Tab':
+    case 'tab':
       closeProfileList(false)
       return
     default:
@@ -329,7 +330,7 @@ function onProfileFocusOut(event) {
 }
 
 function onTriggerKeydown(event) {
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+  if (matchesKey(event, 'arrowdown') || matchesKey(event, 'arrowup')) {
     event.preventDefault()
     openList()
   }
@@ -355,33 +356,34 @@ function runTypeahead(char) {
 }
 
 function onListKeydown(event) {
-  switch (event.key) {
-    case 'ArrowDown':
+  switch (physicalKey(event)) {
+    case 'arrowdown':
       setActive(activeIndex.value + 1)
       break
-    case 'ArrowUp':
+    case 'arrowup':
       setActive(activeIndex.value - 1)
       break
-    case 'Home':
-    case 'PageUp':
+    case 'home':
+    case 'pageup':
       setActive(0)
       break
-    case 'End':
-    case 'PageDown':
+    case 'end':
+    case 'pagedown':
       setActive(manageIndex.value)
       break
-    case 'Enter':
-    case ' ':
+    case 'enter':
+    case 'space':
       chooseOption(activeIndex.value)
       break
-    case 'Escape':
+    case 'escape':
       closeList()
       break
-    case 'Tab':
+    case 'tab':
       closeList(false)
       return
     default:
-      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      // Сравнение с видимым именем туннеля: нужна буква раскладки (event.key), не физическая клавиша.
+      if (String(event.key || '').length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
         runTypeahead(event.key)
         break
       }

@@ -24,6 +24,20 @@ func TestParseAndDefault(t *testing.T) {
 	if _, err := Parse("ctrl+nope"); err == nil {
 		t.Fatal("unknown key must be rejected")
 	}
+	letter, err := Parse("ctrl+alt+k")
+	if err != nil || letter.String() != "ctrl+alt+k" || letter.Key != "k" {
+		t.Fatalf("letter: %+v %v", letter, err)
+	}
+	shifted, err := Parse("Ctrl+Shift+K")
+	if err != nil || shifted.String() != "ctrl+shift+k" || !shifted.Shift {
+		t.Fatalf("shifted: %+v %v", shifted, err)
+	}
+	if _, err := Parse("ctrl+л"); err == nil {
+		t.Fatal("cyrillic key must be rejected")
+	}
+	if _, err := Parse("f13"); err == nil {
+		t.Fatal("f13 must be rejected")
+	}
 	if PlatformDefault() == "" {
 		t.Fatal("empty default")
 	}

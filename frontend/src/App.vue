@@ -79,6 +79,7 @@ import {
 } from './utils/window-mode'
 import { setWindowShown } from './utils/window-visibility'
 import { findPortConflicts } from './utils/port-conflicts'
+import { isQuickSearchChord, matchesKey } from './utils/keyboard'
 
 const { t, locale } = useI18n()
 const hasWails = typeof window !== 'undefined' && !!window.go?.main?.App
@@ -2239,19 +2240,17 @@ function dismissTopDialog() {
 
 // WebView2 на Windows не ставит event.shiftKey у Ctrl+Shift+буква (Escape при этом приходит
 // как обычно) и может отдать пустой event.code в русской раскладке. Shift держим сами
-// и сверяем с GetAsyncKeyState, буква M — и по code, и по символу (M / ь).
+// и сверяем с GetAsyncKeyState. Буквы (M / ь, K / л) сверяет keyboard.js: сначала code, потом key.
 let shiftDown = false
 let modeShortcutFromKeyDown = false
 let modeShortcutLock = false
 
 function isShiftKey(event) {
-  return event.key === 'Shift' || event.code === 'ShiftLeft' || event.code === 'ShiftRight'
+  return matchesKey(event, 'shift')
 }
 
 function isModeKey(event) {
-  if (event.code === 'KeyM') return true
-  const key = event.key
-  return key === 'M' || key === 'm' || key === 'ь' || key === 'Ь'
+  return matchesKey(event, 'm')
 }
 
 function isModeChord(event) {
@@ -2280,14 +2279,18 @@ async function toggleWindowModeFromShortcut(event) {
 }
 
 function onWindowKeydown(event) {
+  // Слушатель на window в фазе capture, поэтому Ctrl/Cmd+K открывает палитру и когда
+  // фокус в поле ввода, и поверх открытой модалки, и в простом режиме (то же окно).
+  // Намеренно не перехватываем аккорд, если флаг quick_search выключен, и если фокус
+  // в поле захвата горячей клавиши (data-hotkey-capture): иначе туда нельзя записать сам Ctrl+K.
   const hotkeyField = event.target instanceof HTMLElement && event.target.closest('[data-hotkey-capture="1"]')
-  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
+  if (isQuickSearchChord(event)) {
     if (hotkeyField || !quickSearchOn.value) return
     event.preventDefault()
     toggleQuickSearch()
     return
   }
-  if (quickSearchOpen.value && event.key === 'Escape') {
+  if (quickSearchOpen.value && matchesKey(event, 'escape')) {
     event.preventDefault()
     void closeQuickSearch()
     return
@@ -2302,7 +2305,7 @@ function onWindowKeydown(event) {
     void toggleWindowModeFromShortcut(event)
     return
   }
-  if (event.key !== 'Escape' || !dialogOpen.value) return
+  if (!matchesKey(event, 'escape') || !dialogOpen.value) return
   if (event.target instanceof HTMLSelectElement) return
   event.preventDefault()
   dismissTopDialog()
