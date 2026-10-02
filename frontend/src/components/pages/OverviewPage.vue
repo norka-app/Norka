@@ -2,6 +2,7 @@
 import { computed, h, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NTag } from 'naive-ui'
+import { reconnectCountLabel } from '../../utils/tunnel-stats'
 
 const props = defineProps({
   totalTunnels: {
@@ -35,11 +36,23 @@ const props = defineProps({
   getTunnelJumperLabel: {
     type: Function,
     required: true
+  },
+  statsEnabled: {
+    type: Boolean,
+    default: false
+  },
+  tunnelStats: {
+    type: Array,
+    default: () => []
+  },
+  tunnels: {
+    type: Array,
+    default: () => []
   }
 })
 
 const emit = defineEmits(['toggle-overview-active', 'toggle-overview-activity', 'toggle-tunnel'])
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 function logTagType(level) {
   if (level === 'error') return 'error'
@@ -124,6 +137,21 @@ function goNextActiveTunnelsPage() {
 function getOverviewRoute(tunnel) {
   return `${tunnel.localHost}:${tunnel.localPort} -> ${tunnel.remoteHost}:${tunnel.remotePort}`
 }
+
+const reconnectLeaders = computed(() => {
+  if (!props.statsEnabled) return []
+  const named = props.tunnels.length ? props.tunnels : props.runningTunnels.concat(props.stoppedTunnels)
+  const names = new Map(named.map((tunnel) => [tunnel.id, tunnel.name]))
+  return (props.tunnelStats || [])
+    .filter((row) => Number(row?.reconnectsToday) > 0 && names.has(row.id))
+    .map((row) => ({
+      id: row.id,
+      name: names.get(row.id),
+      reconnectsToday: Number(row.reconnectsToday) || 0,
+    }))
+    .sort((a, b) => b.reconnectsToday - a.reconnectsToday || String(a.name).localeCompare(String(b.name)))
+    .slice(0, 5)
+})
 </script>
 
 <template>
@@ -150,6 +178,19 @@ function getOverviewRoute(tunnel) {
         </n-card>
       </n-gi>
     </n-grid>
+
+    <n-card
+      v-if="reconnectLeaders.length > 0"
+      size="small"
+      :title="$t('app.overview.reconnectsToday')"
+    >
+      <div class="reconnect-list">
+        <div v-for="row in reconnectLeaders" :key="row.id" class="reconnect-row">
+          <span class="reconnect-name">{{ row.name }}</span>
+          <span class="reconnect-count">{{ reconnectCountLabel(row.reconnectsToday, t, locale) }}</span>
+        </div>
+      </div>
+    </n-card>
 
     <n-grid :cols="12" :x-gap="12" :y-gap="12" responsive="screen" item-responsive>
       <n-gi span="12 l:7">
@@ -220,3 +261,31 @@ function getOverviewRoute(tunnel) {
     </n-grid>
   </n-space>
 </template>
+
+<style scoped>
+.reconnect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reconnect-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reconnect-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reconnect-count {
+  flex: none;
+  color: var(--lt-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+</style>

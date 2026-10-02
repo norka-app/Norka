@@ -25,6 +25,7 @@ import (
 	"norka/internal/secrets"
 	"norka/internal/sshconfig"
 	"norka/internal/traytext"
+	"norka/internal/tunnelstats"
 	"norka/internal/uilocale"
 	"norka/internal/update"
 
@@ -118,6 +119,7 @@ func NewApp() *App {
 	jumper.SetSecrets(vault)
 	tunnel := biz.NewTunnelBiz(storage)
 	tunnel.SetSecrets(vault)
+	tunnel.SetStats(tunnelstats.Open(tunnelstats.PathBeside(storage.Path())))
 
 	app := &App{
 		storage: storage,

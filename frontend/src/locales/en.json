@@ -62,7 +62,11 @@
                 "prev": "Previous page",
                 "next": "Next page",
                 "pageInfo": "{current}/{total}"
-            }
+            },
+            "reconnectsToday": "Reconnects today",
+            "reconnectsOne": "{count} reconnect",
+            "reconnectsFew": "{count} reconnects",
+            "reconnectsMany": "{count} reconnects"
         },
         "jumpers": {
             "title": "All jump hosts",
@@ -113,7 +117,30 @@
                 "expandError": "Show full error",
                 "collapseError": "Hide full error",
                 "edit": "Edit",
-                "delete": "Delete"
+                "delete": "Delete",
+                "stats": "Statistics"
+            },
+            "stats": {
+                "title": "Statistics · {name}",
+                "reset": "Reset",
+                "resetDone": "Statistics for “{name}” cleared",
+                "session": "Session",
+                "today": "Today",
+                "total": "Total",
+                "uptime": "Uptime",
+                "connected": "Connected",
+                "reconnects": "Reconnects",
+                "sent": "Sent",
+                "received": "Received",
+                "lastError": "Last error",
+                "noError": "No errors yet",
+                "sec": "{n} sec",
+                "min": "{m} min",
+                "minSec": "{m} min {s} sec",
+                "hour": "{h} h",
+                "hourMin": "{h} h {m} min",
+                "day": "{d} d",
+                "dayHour": "{d} d {h} h"
             },
             "status": {
                 "running": "Running",
@@ -603,6 +630,8 @@
         "wakeReconnect": "Reconnect after sleep",
         "wakeReconnectDesc": "After wake or a network change, probe SSH immediately and restore tunnels without waiting for keepalive.",
         "automation": "Automation",
-        "automationDesc": "Terminal commands and norka:// links. Off by default: this is a local control surface for tunnels."
+        "automationDesc": "Terminal commands and norka:// links. Off by default: this is a local control surface for tunnels.",
+        "tunnelStats": "Tunnel statistics",
+        "tunnelStatsDesc": "Connected time, reconnects, the last error, and traffic for each tunnel."
     }
 }

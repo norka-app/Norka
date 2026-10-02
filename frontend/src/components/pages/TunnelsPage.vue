@@ -2,6 +2,7 @@
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NDropdown, NTag } from 'naive-ui'
+import { formatDuration, sessionUptimeSeconds } from '../../utils/tunnel-stats'
 
 const props = defineProps({
   tunnels: {
@@ -47,6 +48,18 @@ const props = defineProps({
   automationEnabled: {
     type: Boolean,
     default: false
+  },
+  statsEnabled: {
+    type: Boolean,
+    default: false
+  },
+  tunnelStats: {
+    type: Array,
+    default: () => []
+  },
+  statsNow: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -62,9 +75,26 @@ const emit = defineEmits([
   'delete-group',
   'move-tunnel-to-group',
   'copy-ssh-command',
-  'copy-link'
+  'copy-link',
+  'show-stats'
 ])
 const { t } = useI18n()
+
+const statsById = computed(() => {
+  const map = new Map()
+  for (const row of props.tunnelStats || []) {
+    if (row?.id) map.set(row.id, row)
+  }
+  return map
+})
+
+function uptimeLabel(row, now) {
+  if (!props.statsEnabled || row.status !== 'running') return ''
+  const stat = statsById.value.get(row.id)
+  const seconds = sessionUptimeSeconds(stat, now)
+  if (!stat?.connected || !stat.sessionStartedUnix) return ''
+  return formatDuration(seconds, t)
+}
 
 const UNGROUPED_SECTION_KEY = 'ungrouped'
 const COLLAPSED_GROUPS_STORAGE_KEY = 'lt.tunnel-groups.collapsed'
@@ -535,6 +565,9 @@ function tunnelMenuOptions(tunnel) {
   if (props.automationEnabled) {
     options.push({ label: t('app.tunnels.actions.copyLink'), key: 'copy-link' })
   }
+  if (props.statsEnabled) {
+    options.push({ label: t('app.tunnels.actions.stats'), key: 'stats' })
+  }
   const moves = showGroupedView.value ? getMoveGroupOptions(tunnel) : []
   if (moves.length > 0) {
     options.push({ type: 'divider', key: 'move-divider' })
@@ -571,6 +604,10 @@ function onTunnelMenu(key, tunnel) {
     emit('copy-link', tunnel)
     return
   }
+  if (key === 'stats') {
+    emit('show-stats', tunnel)
+    return
+  }
   if (key === 'delete') {
     emit('delete-tunnel', tunnel)
     return
@@ -598,7 +635,9 @@ function onExpandedSections(names) {
   persistCollapsedSections()
 }
 
-const tunnelColumns = computed(() => [
+const tunnelColumns = computed(() => {
+  const clock = props.statsNow
+  return [
   {
     type: 'expand',
     expandable: (row) => canToggleErrorDetails(row),
@@ -651,7 +690,7 @@ const tunnelColumns = computed(() => [
   {
     title: t('app.tunnels.table.status'),
     key: 'status',
-    width: 140,
+    width: props.statsEnabled ? 210 : 140,
     render: (row) => {
       const tag = h(NTag, {
         size: 'small',
@@ -659,11 +698,18 @@ const tunnelColumns = computed(() => [
         style: canToggleErrorDetails(row) ? 'cursor: pointer' : undefined,
         onClick: () => toggleErrorDetails(row),
       }, { default: () => (getStatusLabelKey(row.status) ? t(getStatusLabelKey(row.status)) : row.status) })
-      if (!compactTable.value || row.status !== 'running') return tag
+      const uptime = uptimeLabel(row, clock)
+      const showLatency = compactTable.value && row.status === 'running'
+      if (!uptime && !showLatency) return tag
       return h('div', { class: 'tunnel-status-cell' }, [
         tag,
-        h('span', { class: 'tunnel-status-latency', title: t('app.tunnels.table.latency') }, getTunnelLatencyLabel(row)),
-      ])
+        uptime
+          ? h('span', { class: 'tunnel-status-uptime', title: t('app.tunnels.stats.uptime') }, uptime)
+          : null,
+        showLatency
+          ? h('span', { class: 'tunnel-status-latency', title: t('app.tunnels.table.latency') }, getTunnelLatencyLabel(row))
+          : null,
+      ].filter(Boolean))
     },
   },
   ...(compactTable.value ? [] : [{
@@ -698,7 +744,8 @@ const tunnelColumns = computed(() => [
       }),
     ]),
   },
-])
+  ]
+})
 
 // ниже этой ширины таблица прокручивается по горизонтали, а не сжимает колонки
 const tableMinWidth = computed(() => tunnelColumns.value
@@ -792,7 +839,8 @@ const tableMinWidth = computed(() => tunnelColumns.value
   white-space: nowrap;
 }
 
-:deep(.tunnel-status-latency) {
+:deep(.tunnel-status-latency),
+:deep(.tunnel-status-uptime) {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -18,6 +18,8 @@ import {
   GetFeatures,
   GetState,
   GetTrafficStats,
+  GetTunnelStats,
+  ResetTunnelStats,
   LoadSSHConfigJumpersByPath,
   MoveTunnelToGroup,
   OpenReportEmail,
@@ -52,6 +54,7 @@ import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTitleBar from './components/layout/AppTitleBar.vue'
 import AppTopHeader from './components/layout/AppTopHeader.vue'
 import OverviewPage from './components/pages/OverviewPage.vue'
+import TunnelStatsModal from './components/modals/TunnelStatsModal.vue'
 import JumpersPage from './components/pages/JumpersPage.vue'
 import TunnelsPage from './components/pages/TunnelsPage.vue'
 import LogsPage from './components/pages/LogsPage.vue'
@@ -97,6 +100,7 @@ const trafficOn = useFeature('traffic_monitor')
 const autoUpdateOn = useFeature('auto_update')
 const sshCommandOn = useFeature('ssh_command')
 const automationOn = useFeature('automation')
+const tunnelStatsOn = useFeature('tunnel_stats')
 
 const pages = computed(() => {
   const all = [
@@ -366,6 +370,10 @@ let stateSyncTimer = null
 let trafficSyncTimer = null
 let stateSyncInFlight = false
 const trafficMonitorEnabled = ref(true)
+const tunnelStats = ref([])
+const statsNow = ref(Date.now())
+const statsTunnel = ref(null)
+let statsClock = null
 const traffic = ref({ upBps: 0, downBps: 0 })
 const trafficHistoryUp = ref([])
 const trafficHistoryDown = ref([])
@@ -930,6 +938,7 @@ async function loadStateFromBackend(options = {}) {
 
     if (pendingToggleTunnelIds.size === 0) {
       tunnels.value = backendTunnels
+      void loadTunnelStats()
       return
     }
 
@@ -943,6 +952,7 @@ async function loadStateFromBackend(options = {}) {
       if (!localBusyTunnelIds.has(item.id)) return item
       return { ...item, status: 'busy', lastError: '', latencyMs: 0 }
     })
+    void loadTunnelStats()
   } catch (err) {
     if (silent) return
     const message = errorMessage(err, 'Failed to load config from backend.')
@@ -1019,8 +1029,72 @@ async function loadFeatures() {
   }
 }
 
+async function loadTunnelStats() {
+  if (!tunnelStatsOn.value || typeof window === 'undefined' || !window.go?.main?.App) {
+    tunnelStats.value = []
+    return
+  }
+  try {
+    const rows = await GetTunnelStats()
+    tunnelStats.value = Array.isArray(rows) ? rows : []
+  } catch (_) {
+    /* оставляем последний снимок */
+  }
+}
+
+function startStatsClock() {
+  if (statsClock !== null) return
+  statsNow.value = Date.now()
+  statsClock = window.setInterval(() => {
+    statsNow.value = Date.now()
+  }, 1000)
+}
+
+function stopStatsClock() {
+  if (statsClock !== null) {
+    window.clearInterval(statsClock)
+    statsClock = null
+  }
+}
+
+function openTunnelStats(tunnel) {
+  if (!tunnelStatsOn.value || !tunnel) return
+  statsTunnel.value = tunnel
+  void loadTunnelStats()
+}
+
+function closeTunnelStats() {
+  statsTunnel.value = null
+}
+
+const statsTunnelStat = computed(() => {
+  const id = statsTunnel.value?.id
+  if (!id) return null
+  return tunnelStats.value.find((row) => row.id === id) || null
+})
+
+async function resetOpenTunnelStats() {
+  const tunnel = statsTunnel.value
+  if (!tunnel || typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    await ResetTunnelStats(tunnel.id)
+    await loadTunnelStats()
+    setConfigMessage(t('app.tunnels.stats.resetDone', { name: tunnel.name }))
+  } catch (err) {
+    setConfigMessage(errorMessage(err, 'Failed to reset tunnel statistics.'))
+  }
+}
+
 function syncFeatureEffects() {
   trafficMonitorEnabled.value = featureEnabled('traffic_monitor')
+  if (tunnelStatsOn.value) {
+    startStatsClock()
+    void loadTunnelStats()
+  } else {
+    stopStatsClock()
+    tunnelStats.value = []
+    statsTunnel.value = null
+  }
   if (trafficMonitorEnabled.value) startTrafficSync()
   else stopTrafficSync()
   if (featureEnabled('auto_update')) startUpdateChecks()
@@ -1029,7 +1103,7 @@ function syncFeatureEffects() {
   if (!quickSearchOn.value && quickSearchOpen.value) void closeQuickSearch()
 }
 
-watch([profilesOn, quickSearchOn, trafficOn, autoUpdateOn], () => {
+watch([profilesOn, quickSearchOn, trafficOn, autoUpdateOn, tunnelStatsOn], () => {
   syncFeatureEffects()
 })
 
@@ -2668,6 +2742,7 @@ onBeforeUnmount(() => {
     stateSyncTimer = null
   }
   stopTrafficSync()
+  stopStatsClock()
   if (configToastTimer !== null) {
     window.clearTimeout(configToastTimer)
     configToastTimer = null
@@ -2776,6 +2851,9 @@ watch(
           :show-overview-activity="showOverviewActivity"
           :logs="logs"
           :get-tunnel-jumper-label="getTunnelJumperLabel"
+          :stats-enabled="tunnelStatsOn"
+          :tunnel-stats="tunnelStats"
+          :tunnels="tunnels"
           @toggle-overview-active="showOverviewActive = !showOverviewActive"
           @toggle-overview-activity="showOverviewActivity = !showOverviewActivity"
           @toggle-tunnel="toggleTunnel"
@@ -2805,6 +2883,10 @@ watch(
           :get-tunnel-jumper-label="getTunnelJumperLabel"
           :ssh-command-enabled="sshCommandOn"
           :automation-enabled="automationOn"
+          :stats-enabled="tunnelStatsOn"
+          :tunnel-stats="tunnelStats"
+          :stats-now="statsNow"
+          @show-stats="openTunnelStats"
           @update-search-query="tunnelSearchQuery = $event"
           @toggle-tunnel="toggleTunnel"
           @copy-tunnel="copyTunnel"
@@ -2934,6 +3016,16 @@ watch(
     @retry-debug="retrySavedTunnelAIDebug"
     @test-again="retestSavedTunnelFromAIDebug"
     @report-content="reportAIDebugContent('saved_tunnel', selectedAIDebugTunnelState)"
+  />
+
+  <TunnelStatsModal
+    v-if="tunnelStatsOn"
+    :show="!!statsTunnel"
+    :tunnel="statsTunnel"
+    :stat="statsTunnelStat"
+    :now="statsNow"
+    @close="closeTunnelStats"
+    @reset="resetOpenTunnelStats"
   />
 
   <JumperModal
