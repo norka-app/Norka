@@ -340,12 +340,25 @@ jobs:
           name: norka-linux
           path: artifacts/linux
 
+      # sha256 всех файлов релиза. Приложение сверяет digest GitHub, а если его нет — этот список.
+      - name: Write SHA256SUMS
+        run: |
+          cd artifacts
+          find windows macos linux -type f -print0 | sort -z | xargs -0 -r sha256sum | while read -r sum path; do
+            printf '%s  %s\n' "$sum" "$(basename "$path")"
+          done > SHA256SUMS
+          cat SHA256SUMS
+
       # Шаг 3. Официальным действием GitHub создать страницу Release.
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           # Все файлы из artifacts прикрепить к странице Release
-          files: artifacts/**/*
+          files: |
+            artifacts/windows/*
+            artifacts/macos/*
+            artifacts/linux/*
+            artifacts/SHA256SUMS
           draft: false           # false — опубликовать сразу, без черновика
           prerelease: false      # false — это стабильный выпуск, не предварительный
         env:
