@@ -1,10 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   GetAutoRunEnabled,
+  GetQuickSearchSettings,
   GetTrafficMonitorEnabled,
   SetAutoRunEnabled,
+  SetQuickSearchSettings,
   SetTrafficMonitorEnabled,
   ExportConfigWithDialog,
   SelectImportFile,
@@ -74,6 +76,9 @@ const notifications = ref({
 })
 const updateChecking = ref(false)
 const updateStatus = ref('')
+const quickSearch = ref(null)
+const capturingHotkey = ref(false)
+const hotkeyButtonRef = ref(null)
 
 onMounted(async () => {
   try {
@@ -89,6 +94,7 @@ onMounted(async () => {
   await loadConfigLocation()
   await loadNotificationSettings()
   await loadSecretsStatus()
+  await loadQuickSearch()
 })
 
 async function loadNotificationSettings() {
@@ -122,6 +128,92 @@ async function saveNotifications(next) {
 
 function onNotificationToggle(key, checked) {
   void saveNotifications({ ...notifications.value, [key]: !!checked })
+}
+
+function formatHotkey(spec, platform) {
+  if (!spec) return ''
+  const alt = platform === 'darwin' ? 'Option' : 'Alt'
+  const meta = platform === 'darwin' ? 'Cmd' : 'Win'
+  const names = { ctrl: 'Ctrl', alt, option: 'Option', shift: 'Shift', meta, space: 'Space', escape: 'Esc', enter: 'Enter', tab: 'Tab' }
+  return String(spec).split('+').filter(Boolean).map((part) => names[part] || part.toUpperCase()).join('+')
+}
+
+const quickSearchLabel = computed(() => formatHotkey(quickSearch.value?.effectiveHotkey || quickSearch.value?.hotkey, quickSearch.value?.platform))
+
+const quickSearchStatus = computed(() => {
+  const settings = quickSearch.value
+  if (!settings) return ''
+  if (!settings.enabled) return t('config.quickSearchDisabled')
+  if (settings.errorCode === 'unsupported') return t('config.quickSearchUnsupported')
+  if (settings.errorCode === 'invalid') return t('config.quickSearchInvalid')
+  if (settings.errorCode === 'register_failed') {
+    return t('config.quickSearchFailed', { detail: settings.errorDetail || quickSearchLabel.value })
+  }
+  if (settings.registered) return t('config.quickSearchRegistered', { hotkey: quickSearchLabel.value })
+  return t('config.quickSearchDefault', { hotkey: quickSearchLabel.value })
+})
+
+async function loadQuickSearch() {
+  try {
+    quickSearch.value = await GetQuickSearchSettings()
+  } catch (_) {
+    quickSearch.value = {
+      enabled: true,
+      effectiveHotkey: 'ctrl+alt+space',
+      platform: 'linux',
+      registered: false,
+      errorCode: 'unsupported',
+      errorDetail: ''
+    }
+  }
+}
+
+async function saveQuickSearch(patch) {
+  const current = quickSearch.value || { enabled: true, hotkey: '' }
+  try {
+    quickSearch.value = await SetQuickSearchSettings({ ...current, ...patch })
+  } catch (err) {
+    emit('set-config-message', String(err))
+    await loadQuickSearch()
+  }
+}
+
+async function beginHotkeyCapture() {
+  capturingHotkey.value = true
+  await nextTick()
+  const el = hotkeyButtonRef.value?.$el || hotkeyButtonRef.value
+  el?.focus?.()
+}
+
+function chordFromEvent(event) {
+  const parts = []
+  if (event.ctrlKey) parts.push('ctrl')
+  if (event.altKey) parts.push(quickSearch.value?.platform === 'darwin' ? 'option' : 'alt')
+  if (event.shiftKey) parts.push('shift')
+  if (event.metaKey) parts.push('meta')
+  let key = String(event.key || '').toLowerCase()
+  if (key === ' ') key = 'space'
+  if (['control', 'alt', 'shift', 'meta'].includes(key)) return ''
+  if (key === 'esc') key = 'escape'
+  const allowed = key.length === 1 || ['space', 'escape', 'tab', 'enter'].includes(key) || /^f([1-9]|1[0-2])$/.test(key)
+  if (!allowed) return ''
+  parts.push(key)
+  if (parts.length < 2) return ''
+  return parts.join('+')
+}
+
+function onHotkeyKeydown(event) {
+  if (!capturingHotkey.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+    capturingHotkey.value = false
+    return
+  }
+  const chord = chordFromEvent(event)
+  if (!chord) return
+  capturingHotkey.value = false
+  void saveQuickSearch({ hotkey: chord, enabled: true })
 }
 
 async function loadConfigLocation() {
@@ -412,6 +504,29 @@ async function onOpenConfigDir() {
           </n-space>
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
             <div class="settings-label">
+              <div class="config-name">{{ t('config.quickSearch') }}</div>
+              <div class="config-desc">{{ t('config.quickSearchDesc') }}</div>
+              <div class="config-desc" :class="{ 'config-desc--warn': quickSearch?.errorCode && quickSearch?.enabled }" role="status">
+                {{ quickSearchStatus }}
+              </div>
+            </div>
+            <n-space align="center">
+              <n-switch :value="!!quickSearch?.enabled" @update:value="(value) => saveQuickSearch({ enabled: value, hotkey: quickSearch?.hotkey || '' })" />
+              <n-button
+                ref="hotkeyButtonRef"
+                size="small"
+                :data-hotkey-capture="capturingHotkey ? '1' : undefined"
+                :type="capturingHotkey ? 'primary' : 'default'"
+                @click="beginHotkeyCapture"
+                @keydown="onHotkeyKeydown"
+              >
+                {{ capturingHotkey ? t('config.quickSearchPress') : (quickSearchLabel || t('config.quickSearchCapture')) }}
+              </n-button>
+              <n-button size="small" quaternary @click="saveQuickSearch({ enabled: true, hotkey: '' })">{{ t('config.quickSearchReset') }}</n-button>
+            </n-space>
+          </n-space>
+          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+            <div class="settings-label">
               <div class="config-name">{{ t('config.manageConfig') }}</div>
               <div class="config-desc">{{ t('config.manageConfigDesc') }}</div>
             </div>
@@ -527,3 +642,7 @@ async function onOpenConfigDir() {
     </n-gi>
   </n-grid>
 </template>
+
+<style scoped>
+.config-desc--warn { color: var(--lt-warning-ink, #92400e); }
+</style>

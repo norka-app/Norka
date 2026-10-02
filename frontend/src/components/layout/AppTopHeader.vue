@@ -8,9 +8,13 @@ defineProps({
     type: String,
     required: true,
   },
+  activeProfile: {
+    type: Object,
+    default: null,
+  },
 })
 
-defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper'])
+defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper', 'open-profiles'])
 </script>
 
 <template>
@@ -19,6 +23,17 @@ defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper'])
       <h1 class="page-title">{{ currentPage?.title }}</h1>
       <p class="page-subtitle">{{ currentPage?.subtitle }}</p>
     </div>
+    <button
+      v-if="activeProfile"
+      type="button"
+      class="profile-chip"
+      @click="$emit('open-profiles')"
+    >
+      <span class="profile-chip__mark" :style="{ background: activeProfile.color || 'var(--lt-brand)' }" />
+      <span v-if="activeProfile.emoji">{{ activeProfile.emoji }}</span>
+      <span>{{ activeProfile.name }}</span>
+      <span class="profile-chip__state">{{ $t('app.profiles.active') }}</span>
+    </button>
     <div class="header-actions">
       <div v-if="activePage === 'jumpers'" class="header-actions-group">
         <n-button secondary @click="$emit('import-jumper')">
@@ -45,3 +60,23 @@ defineEmits(['new-jumper', 'new-tunnel', 'import-tunnel', 'import-jumper'])
     </div>
   </n-layout-header>
 </template>
+
+<style scoped>
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  margin-left: auto;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--lt-border);
+  border-radius: 999px;
+  background: var(--lt-surface);
+  color: var(--lt-ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.profile-chip__mark { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.profile-chip__state { color: var(--lt-brand); font-size: 12px; }
+</style>

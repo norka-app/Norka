@@ -46,6 +46,7 @@ type App struct {
 	storage *conf.Storage
 	jumper  *biz.JumperBiz
 	group   *biz.GroupBiz
+	profile *biz.ProfileBiz
 	tunnel  *biz.TunnelBiz
 	aiDebug *aidebug.Service
 	initErr error
@@ -70,6 +71,11 @@ type App struct {
 
 	notifyMu       sync.Mutex
 	notifySettings notify.Settings
+
+	windowVisible          atomic.Bool
+	quickSearchHotkey      quickSearchHotkey
+	quickSearchOpen        atomic.Bool
+	quickSearchRestoreHide atomic.Bool
 }
 
 // SecretsStatus tells Settings whether jumper passwords live in the OS keychain.
@@ -103,14 +109,17 @@ func NewApp() *App {
 	tunnel := biz.NewTunnelBiz(storage)
 	tunnel.SetSecrets(vault)
 
-	return &App{
+	app := &App{
 		storage: storage,
 		jumper:  jumper,
 		group:   biz.NewGroupBiz(storage),
+		profile: biz.NewProfileBiz(storage),
 		tunnel:  tunnel,
 		aiDebug: aidebug.NewService("", ""),
 		vault:   vault,
 	}
+	app.windowVisible.Store(true)
+	return app
 }
 
 func detectLogLevel() slog.Level {
@@ -287,6 +296,8 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	slog.Info("app startup")
 	update.CleanupBackup()
+	a.windowVisible.Store(true)
+	a.bindQuickSearchHotkey()
 	if err := a.ensureReady(); err == nil {
 		a.initNotifier()
 		a.syncAutoRunWithConfig()
@@ -449,6 +460,7 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	slog.Info("app shutdown")
+	a.unbindQuickSearchHotkey()
 	if a.tunnel != nil {
 		a.tunnel.Shutdown()
 	}
@@ -458,7 +470,7 @@ func (a *App) ensureReady() error {
 	if a.initErr != nil {
 		return a.initErr
 	}
-	if a.storage == nil || a.jumper == nil || a.group == nil || a.tunnel == nil {
+	if a.storage == nil || a.jumper == nil || a.group == nil || a.profile == nil || a.tunnel == nil {
 		return fmt.Errorf("app is not initialized")
 	}
 	return nil
@@ -480,10 +492,17 @@ func (a *App) GetState() (model.State, error) {
 	if err != nil {
 		return model.State{}, err
 	}
+	profiles, activeID, stopOthers, err := a.profileSnapshot()
+	if err != nil {
+		return model.State{}, err
+	}
 	return model.State{
-		Jumpers: append([]model.Jumper{}, jumpers...),
-		Groups:  append([]model.TunnelGroup{}, groups...),
-		Tunnels: append([]model.Tunnel{}, tunnels...),
+		Jumpers:           append([]model.Jumper{}, jumpers...),
+		Groups:            append([]model.TunnelGroup{}, groups...),
+		Tunnels:           append([]model.Tunnel{}, tunnels...),
+		Profiles:          profiles,
+		ActiveProfileID:   activeID,
+		ProfileStopOthers: stopOthers,
 	}, nil
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/energye/systray"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"norka/internal/model"
 	"norka/internal/traytext"
 )
 
@@ -23,6 +24,7 @@ const (
 	// события для фронтенда (App.vue подписывается через EventsOn)
 	eventTunnelsChanged = "tunnels:changed"
 	eventWindowMode     = "window:mode"
+	eventWindowPage     = "window:page"
 )
 
 // traySlot — заранее созданный пункт туннеля с подменю. Пункты не пересоздаются:
@@ -35,19 +37,28 @@ type traySlot struct {
 	switchPort                   bool // «Подключить вместо «…»»: сначала отключить туннель на этом порту
 }
 
+type trayProfileSlot struct {
+	item *systray.MenuItem
+	id   int
+	more bool
+}
+
 type trayMenu struct {
-	mu          sync.Mutex
-	header      *systray.MenuItem
-	slots       []*traySlot
-	more        *systray.MenuItem
-	stopAll     *systray.MenuItem
-	retryAll    *systray.MenuItem
-	simple      *systray.MenuItem
-	advanced    *systray.MenuItem
-	signature   string
-	iconKey     string
-	statusSince map[int]traySince
-	refreshOnce sync.Once
+	mu           sync.Mutex
+	header       *systray.MenuItem
+	slots        []*traySlot
+	more         *systray.MenuItem
+	stopAll      *systray.MenuItem
+	retryAll     *systray.MenuItem
+	simple       *systray.MenuItem
+	advanced     *systray.MenuItem
+	profiles     *systray.MenuItem
+	profileNone  *systray.MenuItem
+	profileSlots []*trayProfileSlot
+	signature    string
+	iconKey      string
+	statusSince  map[int]traySince
+	refreshOnce  sync.Once
 }
 
 // buildTrayMenu добавляет в меню трея статус, туннели и действия. Вызывается из onReady
@@ -90,6 +101,17 @@ func (a *App) buildTrayMenu(showWindow func()) {
 	m.retryAll.Hide()
 
 	systray.AddSeparator()
+	m.profiles = systray.AddMenuItem(text.Profiles, text.ProfilesTooltip)
+	m.profileNone = m.profiles.AddSubMenuItem(text.ProfileNone, text.ProfileNoneTooltip)
+	m.profileNone.Click(func() { go a.trayActivateProfile(0) })
+	for i := 0; i < trayMaxProfileItems; i++ {
+		slot := &trayProfileSlot{item: m.profiles.AddSubMenuItem("", "")}
+		slot.item.Click(func() { a.trayUseProfileSlot(slot, showWindow) })
+		slot.item.Hide()
+		m.profileSlots = append(m.profileSlots, slot)
+	}
+
+	systray.AddSeparator()
 	m.simple = systray.AddMenuItem(text.SimpleMode, text.SimpleModeTooltip)
 	m.simple.Click(func() { a.trayShowMode(showWindow, "simple") })
 	m.advanced = systray.AddMenuItem(text.AdvancedMode, text.AdvancedModeTooltip)
@@ -123,6 +145,12 @@ func (a *App) refreshTrayMenu() {
 		return
 	}
 	text := traytext.ForLocale(a.uiLocaleTag())
+	var profiles []model.Profile
+	var activeProfileID int
+	if cfg, cfgErr := a.storage.Load(); cfgErr == nil {
+		profiles = cfg.Profiles
+		activeProfileID = cfg.ActiveProfileID
+	}
 	m := &a.trayMenu
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -133,11 +161,16 @@ func (a *App) refreshTrayMenu() {
 	trackTraySince(tunnels, m.statusSince, now)
 	state := buildTrayModel(tunnels, m.statusSince, now, text)
 	a.applyTrayStaticLabels(m, text)
+	profileState := buildTrayProfiles(profiles, activeProfileID, text.MoreProfiles)
+	if profileState.ActiveName != "" {
+		state.Header = insertTrayProfile(state.Header, profileState.ActiveName)
+		state.Tooltip = insertTrayProfile(state.Tooltip, profileState.ActiveName)
+	}
 	if key := state.iconKey(); key != m.iconKey {
 		m.iconKey = key
 		setTrayStatusIcon(key)
 	}
-	sig := state.signature()
+	sig := state.signature() + "§" + profileState.signature()
 	if sig == m.signature {
 		return
 	}
@@ -187,6 +220,62 @@ func (a *App) refreshTrayMenu() {
 	} else {
 		m.retryAll.Hide()
 	}
+	a.paintTrayProfiles(m, profileState, text.NoProfiles)
+}
+
+func (a *App) paintTrayProfiles(m *trayMenu, state trayProfileModel, emptyTitle string) {
+	if m.profiles == nil || m.profileNone == nil || len(m.profileSlots) == 0 {
+		return
+	}
+	if state.ActiveID == 0 {
+		m.profileNone.Check()
+	} else {
+		m.profileNone.Uncheck()
+	}
+	if state.Empty {
+		slot := m.profileSlots[0]
+		slot.id, slot.more = 0, false
+		slot.item.SetTitle(emptyTitle)
+		slot.item.Disable()
+		slot.item.Uncheck()
+		slot.item.Show()
+		for _, extra := range m.profileSlots[1:] {
+			extra.id, extra.more = 0, false
+			extra.item.Hide()
+		}
+		return
+	}
+	for i, slot := range m.profileSlots {
+		if i >= len(state.Items) {
+			slot.id, slot.more = 0, false
+			slot.item.Hide()
+			continue
+		}
+		item := state.Items[i]
+		slot.id, slot.more = item.ID, item.More
+		slot.item.SetTitle(item.Title)
+		slot.item.Enable()
+		if item.Active {
+			slot.item.Check()
+		} else {
+			slot.item.Uncheck()
+		}
+		slot.item.Show()
+	}
+}
+
+func (a *App) trayUseProfileSlot(slot *trayProfileSlot, showWindow func()) {
+	a.trayMenu.mu.Lock()
+	id, more := slot.id, slot.more
+	a.trayMenu.mu.Unlock()
+	if more {
+		a.trayShowProfiles(showWindow)
+		return
+	}
+	if id == 0 {
+		return
+	}
+	go a.trayActivateProfile(id)
 }
 
 // applyTrayStaticLabels updates menu items whose titles do not depend on a tunnel.
@@ -207,6 +296,14 @@ func (a *App) applyTrayStaticLabels(m *trayMenu, text traytext.Strings) {
 	if m.advanced != nil {
 		m.advanced.SetTitle(text.AdvancedMode)
 		m.advanced.SetTooltip(text.AdvancedModeTooltip)
+	}
+	if m.profiles != nil {
+		m.profiles.SetTitle(text.Profiles)
+		m.profiles.SetTooltip(text.ProfilesTooltip)
+	}
+	if m.profileNone != nil {
+		m.profileNone.SetTitle(text.ProfileNone)
+		m.profileNone.SetTooltip(text.ProfileNoneTooltip)
 	}
 }
 

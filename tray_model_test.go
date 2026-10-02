@@ -69,6 +69,32 @@ func TestBuildTrayModel(t *testing.T) {
 	}
 }
 
+func TestBuildTrayProfiles(t *testing.T) {
+	profiles := []model.Profile{
+		{ID: 1, Name: "staging", Emoji: "🌱"},
+		{ID: 2, Name: "дом", Emoji: "🏠"},
+	}
+	got := buildTrayProfiles(profiles, 2, "Ещё профилей: %d…")
+	if got.ActiveName != "🏠 дом" || len(got.Items) != 2 || got.Items[0].ID != 2 || !got.Items[0].Active {
+		t.Fatalf("active first: %+v", got)
+	}
+	if insertTrayProfile("Norka · 1 из 2 подключено", got.ActiveName) != "Norka · 🏠 дом · 1 из 2 подключено" {
+		t.Fatal(insertTrayProfile("Norka · 1 из 2 подключено", got.ActiveName))
+	}
+	empty := buildTrayProfiles(nil, 0, "Ещё профилей: %d…")
+	if !empty.Empty {
+		t.Fatal("expected empty")
+	}
+	many := make([]model.Profile, trayMaxProfileItems+2)
+	for i := range many {
+		many[i] = model.Profile{ID: i + 1, Name: "p"}
+	}
+	overflow := buildTrayProfiles(many, 0, "Ещё профилей: %d…")
+	if len(overflow.Items) != trayMaxProfileItems || !overflow.Items[len(overflow.Items)-1].More {
+		t.Fatalf("overflow: %+v", overflow.Items)
+	}
+}
+
 func TestBuildTrayModelPortConflict(t *testing.T) {
 	now := time.Date(2026, 10, 1, 20, 0, 0, 0, time.UTC)
 	tunnels := []model.Tunnel{

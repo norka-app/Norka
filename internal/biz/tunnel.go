@@ -249,6 +249,7 @@ func (b *TunnelBiz) Delete(id int) error {
 		}
 
 		cfg.Tunnels = append(cfg.Tunnels[:idx], cfg.Tunnels[idx+1:]...)
+		detachTunnelFromProfiles(cfg, id)
 		return nil
 	})
 	return err
