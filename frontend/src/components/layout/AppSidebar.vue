@@ -45,7 +45,7 @@ const props = defineProps({
     type: String,
     default: 'light'
   },
-  // сводный статус туннелей: connected | connecting | error | partial | stopped (null — ещё не загружен)
+  // сводный статус туннелей: connected | connecting | error | stopped (null — ещё не загружен)
   tunnelStatus: {
     type: String,
     default: null

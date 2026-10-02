@@ -9,7 +9,7 @@ import { useNorkaIdle } from './useNorkaIdle'
 import { useNorkaKnockout } from './useNorkaKnockout'
 
 const props = defineProps({
-  // connected | connecting | error | partial | stopped; null — состояние ещё не загружено
+  // connected | connecting | error | stopped; null — состояние ещё не загружено
   status: {
     type: String,
     default: null

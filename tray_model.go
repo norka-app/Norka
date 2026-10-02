@@ -11,8 +11,10 @@ import (
 
 // Пункты меню трея строятся из живого состояния туннелей (internal/biz → List()).
 // Агрегированный статус совпадает с иконкой Norka в боковой панели
-// (frontend/src/utils/norka-status.js): connecting > partial > error > connected > stopped,
-// ошибки старше trayStaleErrorAfter для иконки не считаются.
+// (frontend/src/utils/norka-status.js): глаза одного цвета и показывают последнее событие —
+// ошибка подключения → error, успешное подключение или остановка туннеля → connected
+// (если что-то работает); без свежего события — connecting > error > connected > stopped.
+// Ошибки старше trayStaleErrorAfter для иконки не считаются.
 const (
 	trayMaxTunnelItems  = 10
 	trayStaleErrorAfter = 5 * time.Minute
@@ -32,7 +34,7 @@ type trayTunnelItem struct {
 }
 
 type trayModel struct {
-	Status      string // connected | connecting | partial | error | stopped
+	Status      string // connected | connecting | error | stopped
 	Header      string
 	Tooltip     string
 	Items       []trayTunnelItem
@@ -42,9 +44,6 @@ type trayModel struct {
 }
 
 func (m trayModel) iconKey() string {
-	if m.Status == "partial" {
-		return "error"
-	}
 	return m.Status
 }
 
@@ -67,42 +66,64 @@ func trayDisplayHost(host string) string {
 	}
 }
 
-// trackTrayErrorSince запоминает, когда туннель перешёл в 'error'.
-func trackTrayErrorSince(tunnels []model.Tunnel, since map[int]time.Time, now time.Time) {
-	inError := make(map[int]bool, len(tunnels))
+// traySince — текущий статус туннеля и момент, когда трей увидел переход в него.
+type traySince struct {
+	Status string
+	At     time.Time
+}
+
+// trackTraySince запоминает, когда каждый туннель перешёл в свой текущий статус: по этому
+// времени считаются устаревшие ошибки и выбирается последнее событие для иконки.
+func trackTraySince(tunnels []model.Tunnel, since map[int]traySince, now time.Time) {
+	seen := make(map[int]bool, len(tunnels))
 	for _, t := range tunnels {
-		if t.Status != "error" {
-			continue
-		}
-		inError[t.ID] = true
-		if _, ok := since[t.ID]; !ok {
-			since[t.ID] = now
+		seen[t.ID] = true
+		if prev, ok := since[t.ID]; !ok || prev.Status != t.Status {
+			since[t.ID] = traySince{Status: t.Status, At: now}
 		}
 	}
 	for id := range since {
-		if !inError[id] {
+		if !seen[id] {
 			delete(since, id)
 		}
 	}
 }
 
-func buildTrayModel(tunnels []model.Tunnel, errorSince map[int]time.Time, now time.Time) trayModel {
-	var running, busy, failed, stale int
+func buildTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Time) trayModel {
+	var running, busy, failed int
+	// последнее событие: время и было ли среди одновременных событий ошибка
+	var lastAt time.Time
+	var hasLast, lastError bool
+	note := func(t model.Tunnel, isError bool) {
+		s, ok := since[t.ID]
+		if !ok || s.Status != t.Status {
+			return
+		}
+		switch {
+		case !hasLast || s.At.After(lastAt):
+			lastAt, hasLast, lastError = s.At, true, isError
+		case s.At.Equal(lastAt):
+			lastError = lastError || isError
+		}
+	}
 	m := trayModel{}
 	for _, t := range tunnels {
 		switch t.Status {
 		case "running":
 			running++
 			m.CanStopAll = true
+			note(t, false)
 		case "busy", "reconnecting":
 			busy++
 			m.CanStopAll = true
 		case "error":
-			if since, ok := errorSince[t.ID]; ok && now.Sub(since) > trayStaleErrorAfter {
-				stale++
-			} else {
-				failed++
+			if s, ok := since[t.ID]; ok && s.Status == "error" && now.Sub(s.At) > trayStaleErrorAfter {
+				continue // устаревшая ошибка иконку не красит
 			}
+			failed++
+			note(t, true)
+		case "stopped":
+			note(t, false)
 		}
 	}
 	m.CanRetryAll = len(trayRetryIDs(tunnels)) > 0
@@ -110,7 +131,13 @@ func buildTrayModel(tunnels []model.Tunnel, errorSince map[int]time.Time, now ti
 	case busy > 0:
 		m.Status = "connecting"
 	case failed > 0 && running > 0:
-		m.Status = "partial"
+		// глаза не бывают разными: ошибка — последнее событие (или событий нет) → error,
+		// успешное подключение или остановка туннеля после ошибки → connected
+		if !hasLast || lastError {
+			m.Status = "error"
+		} else {
+			m.Status = "connected"
+		}
 	case failed > 0:
 		m.Status = "error"
 	case running > 0:
@@ -126,10 +153,10 @@ func buildTrayModel(tunnels []model.Tunnel, errorSince map[int]time.Time, now ti
 		m.Header = fmt.Sprintf("Norka · %d из %d подключено", running, len(tunnels))
 	}
 	m.Tooltip = m.Header
-	switch m.Status {
-	case "connecting":
+	switch {
+	case m.Status == "connecting":
 		m.Tooltip += " · подключение…"
-	case "partial", "error":
+	case failed > 0:
 		m.Tooltip += fmt.Sprintf(" · ошибок: %d", failed)
 	}
 

@@ -30,7 +30,7 @@ export function useReducedMotion() {
 
 /**
  * @param host    ref на элемент, внутри которого лежит SVG NorkaIcon
- * @param status  функция/ref со статусом иконки (connected | connecting | error | partial | stopped)
+ * @param status  функция/ref со статусом иконки (connected | connecting | error | stopped)
  * @param enabled функция/ref: включено ли поведение для этого экземпляра (и не идёт ли подмигивание)
  */
 export function useNorkaIdle(host, status, enabled) {

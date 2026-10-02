@@ -19,9 +19,8 @@
             "upload": "Upload",
             "download": "Download",
             "norkaStatus": {
-                "connected": "все туннели подключены",
+                "connected": "есть подключённые туннели",
                 "connecting": "подключение…",
-                "partial": "часть туннелей с ошибкой",
                 "error": "ошибка туннеля",
                 "stopped": "нет активных туннелей"
             }

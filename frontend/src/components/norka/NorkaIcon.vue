@@ -5,7 +5,7 @@
   <NorkaIcon status="connecting" variant="B" theme="light" :size="32" />
 
   status  : 'connected' (green) | 'connecting' (amber + CSS blink) | 'error' (red) | 'stopped' (eyes closed, asleep)
-            | 'partial' (left eye green, right eye red: some tunnels up, some failed)  [ssh-client addition]
+            both eyes always share one status (the latest tunnel event, see utils/norka-status.js)  [ssh-client]
   variant : 'A' (tall arch) | 'B' (flat mound)
   theme   : 'dark' | 'light'
   statusLabel : optional text for the tooltip/aria-label instead of the raw status  [ssh-client addition]
@@ -29,8 +29,8 @@
 import { computed, useId } from 'vue'
 import { KNOCKOUT_VARIANTS } from './norka-knockout'
 
-type Status = 'connected' | 'connecting' | 'error' | 'stopped' | 'partial'
-type EyeStatus = Exclude<Status, 'partial'>
+type Status = 'connected' | 'connecting' | 'error' | 'stopped'
+type EyeStatus = Status
 type Side = 'left' | 'right'
 const props = withDefaults(defineProps<{
   status?: Status
@@ -133,9 +133,8 @@ const uid = useId()
 const g = computed(() => GEOMETRY[props.variant])
 const t = computed(() => THEME[props.theme])
 const asleep = computed(() => props.status === 'stopped')
-// 'partial' = left eye connected (green), right eye error (red); every other status drives both eyes
-const eyeStatus = (side: Side): EyeStatus =>
-  props.status === 'partial' ? (side === 'left' ? 'connected' : 'error') : props.status
+// both eyes always show the same status — there is no mixed (green + red) state
+const eyeStatus = (_side: Side): EyeStatus => props.status
 const eyeLid = (s: EyeStatus) => s === 'connected' ? t.value.lid : (props.theme === 'dark' ? '#30343B' : '#C9CCD1')
 // per-eye resolved colours (also written as presentation attributes, so the SVG is correct even without CSS)
 const eyeColors = computed(() => Object.fromEntries((['left', 'right'] as Side[]).map((side) => {
@@ -273,7 +272,7 @@ const eyeStyle = (side: Side) => ({
 .norka-eye { transform-box: fill-box; transform-origin: 50% 70%; transition: transform .15s ease, opacity .3s ease; }
 .norka-closed { transition: opacity .3s ease; }
 .norka--connecting .norka-eye { animation: norka-blink 1.6s ease-in-out infinite; }
-/* error (and the red eye of 'partial'): a nervous little glow pulse */
+/* error: a nervous little glow pulse */
 .norka-eye--error ellipse { animation: norka-pulse 0.9s ease-in-out infinite; }
 @keyframes norka-blink {
   0%, 38%, 62%, 100% { transform: scaleY(1); }

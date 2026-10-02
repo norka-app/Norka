@@ -370,14 +370,19 @@ const runningTunnels = computed(() => tunnels.value.filter((tunnel) => tunnel.st
 const stoppedTunnels = computed(() => tunnels.value.filter((tunnel) => tunnel.status === 'stopped' || tunnel.status === 'error'))
 const autoStartTunnels = computed(() => tunnels.value.filter((tunnel) => tunnel.autoStart))
 // когда туннель перешёл в 'error' — для «устаревших» ошибок в иконке Norka;
-// когда в 'running' — для аптайма в простом режиме (считается с момента, как приложение увидело запуск)
+// когда в 'running' — для аптайма в простом режиме (считается с момента, как приложение увидело запуск);
+// 'error' / 'running' / 'stopped' вместе — последнее событие для глаз Norka (utils/norka-status.js)
 const tunnelErrorSince = new Map()
 const tunnelRunningSince = new Map()
+const tunnelStoppedSince = new Map()
 watch(
   () => tunnels.value.map((tunnel) => `${tunnel.id}:${tunnel.status}`).join('|'),
   () => {
-    trackTunnelErrorSince(tunnels.value, tunnelErrorSince)
-    trackTunnelStatusSince(tunnels.value, 'running', tunnelRunningSince)
+    // одно время на опрос: переходы, увиденные вместе, считаются одновременными
+    const now = Date.now()
+    trackTunnelErrorSince(tunnels.value, tunnelErrorSince, now)
+    trackTunnelStatusSince(tunnels.value, 'running', tunnelRunningSince, now)
+    trackTunnelStatusSince(tunnels.value, 'stopped', tunnelStoppedSince, now)
   },
   { flush: 'sync' }
 )
@@ -393,7 +398,12 @@ const simpleTunnel = computed(() => (
 // Пересчитывается при каждом опросе бэкенда (tunnels.value заменяется каждые STATE_SYNC_INTERVAL_MS),
 // поэтому устаревание ошибки подхватывается без отдельного таймера.
 const norkaStatus = computed(() => (tunnelsLoaded.value
-  ? aggregateNorkaStatus(tunnels.value, { errorSince: tunnelErrorSince, now: Date.now() })
+  ? aggregateNorkaStatus(tunnels.value, {
+    errorSince: tunnelErrorSince,
+    runningSince: tunnelRunningSince,
+    stoppedSince: tunnelStoppedSince,
+    now: Date.now()
+  })
   : null))
 const filteredLogs = computed(() => {
   if (selectedLogLevel.value === 'all') return logs.value

@@ -14,9 +14,13 @@ func TestBuildTrayModel(t *testing.T) {
 		{ID: 2, Name: "db", Mode: "local", LocalPort: 5432, Status: "error"},
 		{ID: 3, Name: "socks", Mode: "dynamic", LocalPort: 1080, Status: "stopped"},
 	}
-	m := buildTrayModel(tunnels, map[int]time.Time{}, now)
-	if m.Status != "partial" || m.iconKey() != "error" {
-		t.Fatalf("status = %q / icon %q, want partial / error", m.Status, m.iconKey())
+	// без истории переходов (запуск приложения): ошибка важнее подключения, глаза не бывают разными
+	m := buildTrayModel(tunnels, map[int]traySince{}, now)
+	if m.Status != "error" || m.iconKey() != "error" {
+		t.Fatalf("status = %q / icon %q, want error / error", m.Status, m.iconKey())
+	}
+	if m.Tooltip != "Norka · 1 из 3 подключено · ошибок: 1" {
+		t.Fatalf("tooltip = %q", m.Tooltip)
 	}
 	if m.Header != "Norka · 1 из 3 подключено" {
 		t.Fatalf("header = %q", m.Header)
@@ -36,7 +40,7 @@ func TestBuildTrayModel(t *testing.T) {
 	}
 
 	// ошибка старше 5 минут не красит иконку
-	stale := map[int]time.Time{2: now.Add(-6 * time.Minute)}
+	stale := map[int]traySince{2: {Status: "error", At: now.Add(-6 * time.Minute)}}
 	if got := buildTrayModel(tunnels, stale, now).Status; got != "connected" {
 		t.Errorf("stale error status = %q, want connected", got)
 	}
@@ -124,14 +128,59 @@ func TestTrayRetryIDsSkipsPortConflicts(t *testing.T) {
 	}
 }
 
-func TestTrackTrayErrorSince(t *testing.T) {
+func TestTrackTraySince(t *testing.T) {
 	now := time.Now()
-	since := map[int]time.Time{9: now}
-	trackTrayErrorSince([]model.Tunnel{{ID: 1, Status: "error"}, {ID: 2, Status: "running"}}, since, now)
-	if _, ok := since[1]; !ok {
-		t.Error("error tunnel not tracked")
+	since := map[int]traySince{9: {Status: "error", At: now}, 2: {Status: "running", At: now.Add(-time.Hour)}}
+	trackTraySince([]model.Tunnel{{ID: 1, Status: "error"}, {ID: 2, Status: "running"}}, since, now)
+	if s, ok := since[1]; !ok || s.Status != "error" || !s.At.Equal(now) {
+		t.Errorf("error tunnel tracked as %+v", s)
+	}
+	if s := since[2]; !s.At.Equal(now.Add(-time.Hour)) {
+		t.Error("unchanged status must keep its time")
 	}
 	if _, ok := since[9]; ok {
 		t.Error("vanished tunnel not cleared")
+	}
+}
+
+// Глаза показывают последнее событие и никогда не бывают разными.
+func TestTrayStatusLatestEvent(t *testing.T) {
+	t0 := time.Date(2026, 10, 2, 13, 0, 0, 0, time.UTC)
+	since := map[int]traySince{}
+	step := func(at time.Time, tunnels ...model.Tunnel) string {
+		trackTraySince(tunnels, since, at)
+		return buildTrayModel(tunnels, since, at).Status
+	}
+	db := model.Tunnel{ID: 1, Name: "db", LocalPort: 5432}
+	web := model.Tunnel{ID: 2, Name: "web", LocalPort: 8080}
+	with := func(t model.Tunnel, status string) model.Tunnel { t.Status = status; return t }
+
+	if got := step(t0, with(db, "running"), with(web, "stopped")); got != "connected" {
+		t.Fatalf("start = %q, want connected", got)
+	}
+	if got := step(t0.Add(time.Second), with(db, "running"), with(web, "busy")); got != "connecting" {
+		t.Fatalf("connecting = %q", got)
+	}
+	// подключение web упало, db работает → красные
+	if got := step(t0.Add(2*time.Second), with(db, "running"), with(web, "error")); got != "error" {
+		t.Fatalf("failed connect = %q, want error", got)
+	}
+	// ошибочный web остановлен → снова зелёные
+	if got := step(t0.Add(3*time.Second), with(db, "running"), with(web, "stopped")); got != "connected" {
+		t.Fatalf("after stopping errored = %q, want connected", got)
+	}
+	// снова ошибка web, затем db переподключился успешно → зелёные при оставшейся ошибке
+	step(t0.Add(4*time.Second), with(db, "running"), with(web, "error"))
+	step(t0.Add(5*time.Second), with(db, "reconnecting"), with(web, "error"))
+	if got := step(t0.Add(6*time.Second), with(db, "running"), with(web, "error")); got != "connected" {
+		t.Fatalf("successful connect after error = %q, want connected", got)
+	}
+	// db остановлен, работающих нет, ошибка web осталась → красные
+	if got := step(t0.Add(7*time.Second), with(db, "stopped"), with(web, "error")); got != "error" {
+		t.Fatalf("only errors left = %q, want error", got)
+	}
+	// всё остановлено → закрыты
+	if got := step(t0.Add(8*time.Second), with(db, "stopped"), with(web, "stopped")); got != "stopped" {
+		t.Fatalf("all stopped = %q, want stopped", got)
 	}
 }

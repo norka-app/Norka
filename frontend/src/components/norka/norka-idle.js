@@ -96,10 +96,10 @@ export const WAKE_UP = [
   K(0, DOZED), K(120, { s: 1.06, x: -0.4, y: 0 }, 'out'), K(350, { s: 1, x: 0.35 }, 'out'), K(600, { s: 1, x: 0 }, 'out')
 ]
 
-// 'partial' (часть туннелей с ошибкой) ведёт себя как ошибка; 'connecting' — своя CSS-анимация.
+// 'connecting' — своя CSS-анимация.
 export function idleStateFor(status) {
   if (status === 'connected') return 'connected'
-  if (status === 'error' || status === 'partial') return 'error'
+  if (status === 'error') return 'error'
   if (status === 'stopped' || !status) return 'stopped'
   return null
 }

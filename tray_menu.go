@@ -43,7 +43,7 @@ type trayMenu struct {
 	retryAll    *systray.MenuItem
 	signature   string
 	iconKey     string
-	errorSince  map[int]time.Time
+	statusSince map[int]traySince
 	refreshOnce sync.Once
 }
 
@@ -53,7 +53,7 @@ func (a *App) buildTrayMenu(showWindow func()) {
 	m := &a.trayMenu
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.errorSince = map[int]time.Time{}
+	m.statusSince = map[int]traySince{}
 
 	m.header = systray.AddMenuItem("Norka", "")
 	m.header.Disable()
@@ -125,8 +125,8 @@ func (a *App) refreshTrayMenu() {
 		return // меню трея ещё не создано
 	}
 	now := time.Now()
-	trackTrayErrorSince(tunnels, m.errorSince, now)
-	state := buildTrayModel(tunnels, m.errorSince, now)
+	trackTraySince(tunnels, m.statusSince, now)
+	state := buildTrayModel(tunnels, m.statusSince, now)
 	if key := state.iconKey(); key != m.iconKey {
 		m.iconKey = key
 		setTrayStatusIcon(key)
