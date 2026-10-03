@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconActionButton from '../common/IconActionButton.vue'
+import { OptionsOutline, TrashOutline } from '../../icons'
 import { BUTTON_GAP, plainInputProps } from '../../theme/form-layout'
 
 const props = defineProps({
@@ -292,14 +293,14 @@ function onDragEnd() {
                   button-class="btn-outline-secondary"
                   :title="$t('app.tunnels.groups.rename')"
                   :aria-label="$t('app.tunnels.groups.rename')"
-                  icon-class="bi-sliders"
+                  :icon="OptionsOutline"
                   @click="startRename(group)"
                 />
                 <IconActionButton
                   button-class="btn-outline-danger"
                   :title="$t('app.tunnels.groups.delete')"
                   :aria-label="$t('app.tunnels.groups.delete')"
-                  icon-class="bi-trash3"
+                  :icon="TrashOutline"
                   @click="emit('delete-group', group)"
                 />
               </n-space>

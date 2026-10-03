@@ -12,8 +12,8 @@ defineProps({
     type: String,
     required: true,
   },
-  iconClass: {
-    type: String,
+  icon: {
+    type: Object,
     required: true,
   },
   disabled: {
@@ -45,7 +45,7 @@ function buttonType(buttonClass) {
         @click="$emit('click')"
       >
         <template #icon>
-          <i class="bi action-icon" :class="iconClass" />
+          <n-icon aria-hidden="true" :component="icon" />
         </template>
       </n-button>
     </template>

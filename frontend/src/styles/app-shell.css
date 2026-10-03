@@ -610,13 +610,6 @@
   color: var(--lt-muted);
 }
 
-.sidebar-panel .sidebar-collapse-btn .bi {
-  font-family: "bootstrap-icons";
-  font-size: 16px;
-  line-height: 1;
-  font-style: normal;
-}
-
 .sidebar-panel.collapsed .traffic-rates,
 .sidebar-panel.collapsed .sidebar-footer,
 .sidebar-panel.collapsed .sidebar-version,
@@ -1580,12 +1573,6 @@
 
 .action-icon.spin {
   animation: statusSpin 1s linear infinite;
-}
-
-/* У глифа pause в Bootstrap Icons оптический центр чуть правее, слегка сдвигаем влево */
-.action-icon.bi-pause-fill::before {
-  display: inline-block;
-  transform: translateX(-0.08em);
 }
 
 .action-btn-group>.btn:not(:last-of-type) {

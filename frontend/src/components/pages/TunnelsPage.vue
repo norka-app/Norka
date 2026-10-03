@@ -2,6 +2,17 @@
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NDropdown, NTag } from 'naive-ui'
+import {
+  Checkmark,
+  CopyOutline,
+  EllipsisHorizontal,
+  FolderOutline,
+  Pause,
+  Power,
+  Search,
+  SyncOutline,
+  renderIcon,
+} from '../../icons'
 import { formatDuration, sessionUptimeSeconds } from '../../utils/tunnel-stats'
 
 const props = defineProps({
@@ -375,9 +386,9 @@ function getPrimaryActionTitle(status) {
 }
 
 function getPrimaryActionIcon(status) {
-  if (status === 'running' || status === 'busy' || status === 'reconnecting') return 'bi-pause-fill'
-  if (status === 'error') return 'bi-arrow-repeat'
-  return 'bi-power'
+  if (status === 'running' || status === 'busy' || status === 'reconnecting') return Pause
+  if (status === 'error') return SyncOutline
+  return Power
 }
 
 function getMenuToggleButtonClass(status) {
@@ -663,7 +674,7 @@ const tunnelColumns = computed(() => {
         quaternary: true,
         title: t(getErrorCopyLabelKey(row.id)),
         onClick: () => copyErrorDetails(row),
-      }, { icon: () => h('i', { class: isErrorCopied(row.id) ? 'bi bi-check2' : 'bi bi-copy' }) }),
+      }, { icon: renderIcon(isErrorCopied(row.id) ? Checkmark : CopyOutline) }),
     ]),
   },
   compactTable.value
@@ -742,7 +753,7 @@ const tunnelColumns = computed(() => {
         type: actionButtonType(row.status),
         title: t(getPrimaryActionTitle(row.status)),
         onClick: () => emit('toggle-tunnel', row),
-      }, { icon: () => h('i', { class: ['bi', getPrimaryActionIcon(row.status)] }) }),
+      }, { icon: renderIcon(getPrimaryActionIcon(row.status)) }),
       h(NDropdown, {
         trigger: 'click',
         options: tunnelMenuOptions(row),
@@ -752,7 +763,7 @@ const tunnelColumns = computed(() => {
           size: 'small',
           quaternary: true,
           title: t('app.tunnels.actions.more'),
-        }, { icon: () => h('i', { class: 'bi bi-three-dots' }) }),
+        }, { icon: renderIcon(EllipsisHorizontal) }),
       }),
     ]),
   },
@@ -769,7 +780,7 @@ const tableMinWidth = computed(() => tunnelColumns.value
     <template #header-extra>
       <div class="tunnel-card-toolbar">
         <n-button size="small" secondary @click="emit('manage-groups')">
-          <template #icon><i class="bi bi-folder2" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="FolderOutline" /></template>
           {{$t('app.tunnels.groups.manage')}}
         </n-button>
         <n-input
@@ -779,7 +790,7 @@ const tableMinWidth = computed(() => tunnelColumns.value
           :placeholder="$t('app.common.searchPlaceholder')"
           :aria-label="$t('app.common.searchTunnels')"
         >
-          <template #prefix><i class="bi bi-search" /></template>
+          <template #prefix><n-icon aria-hidden="true" :component="Search" /></template>
         </n-input>
       </div>
     </template>
@@ -816,7 +827,7 @@ const tableMinWidth = computed(() => tunnelColumns.value
             @click.stop
           >
             <n-button size="tiny" quaternary @click.stop>
-              <template #icon><i class="bi bi-three-dots" /></template>
+              <template #icon><n-icon aria-hidden="true" :component="EllipsisHorizontal" /></template>
             </n-button>
           </n-dropdown>
         </template>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { CheckmarkCircle, CloseCircle, RemoveCircleOutline } from '../../icons'
 
 const props = defineProps({
   show: {
@@ -65,10 +66,10 @@ const tone = computed(() => {
   return 'neutral'
 })
 
-function iconClass(status) {
-  if (status === 'ok') return 'bi-check-circle-fill'
-  if (status === 'error') return 'bi-x-circle-fill'
-  return 'bi-dash-circle'
+function statusIcon(status) {
+  if (status === 'ok') return CheckmarkCircle
+  if (status === 'error') return CloseCircle
+  return RemoveCircleOutline
 }
 
 function toggleDetail(id) {
@@ -97,7 +98,7 @@ function toggleDetail(id) {
         <p class="diag-summary" :class="`diag-summary--${tone}`" role="status">{{ summary }}</p>
         <ul class="diag-list">
           <li v-for="check in checks" :key="check.id" class="diag-row" :class="`diag-row--${check.status}`">
-            <i class="bi diag-icon" :class="iconClass(check.status)" aria-hidden="true" />
+            <n-icon aria-hidden="true" class="diag-icon" :component="statusIcon(check.status)" />
             <div class="diag-copy">
               <div class="diag-title">{{ titleOf(check) }}</div>
               <p class="diag-sentence">{{ sentence(check) }}</p>

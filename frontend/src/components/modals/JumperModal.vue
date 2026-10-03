@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import AIDebugResultCard from '../common/AIDebugResultCard.vue'
 import JumperFields from './JumperFields.vue'
 import { BUTTON_GAP, FIELD_GAP } from '../../theme/form-layout'
+import { ChevronForward, ColorWandOutline, HourglassOutline } from '../../icons'
 
 const props = defineProps({
   show: {
@@ -98,7 +99,7 @@ const passwordPlaceholder = computed(() => {
       <div class="kit-section">
         <n-button text class="kit-disclosure" :aria-expanded="showJumperBasic" @click="$emit('toggle-basic')">
           <template #icon>
-            <i class="bi bi-chevron-right kit-chevron" :class="{ 'is-open': showJumperBasic }" aria-hidden="true" />
+            <n-icon aria-hidden="true" class="kit-chevron" :class="{ 'is-open': showJumperBasic }" :component="ChevronForward" />
           </template>
           {{ $t('app.modals.jumper.basicSettings') }}
         </n-button>
@@ -133,7 +134,7 @@ const passwordPlaceholder = computed(() => {
       <div class="kit-section">
         <n-button text class="kit-disclosure" :aria-expanded="showJumperAdvanced" @click="$emit('toggle-advanced')">
           <template #icon>
-            <i class="bi bi-chevron-right kit-chevron" :class="{ 'is-open': showJumperAdvanced }" aria-hidden="true" />
+            <n-icon aria-hidden="true" class="kit-chevron" :class="{ 'is-open': showJumperAdvanced }" :component="ChevronForward" />
           </template>
           {{ $t('app.modals.jumper.advancedOptions') }}
         </n-button>
@@ -192,7 +193,7 @@ const passwordPlaceholder = computed(() => {
             @click="$emit('ai-debug')"
           >
             <template #icon>
-              <i class="bi" :class="jumperAiDebug.status === 'analyzing' ? 'bi-hourglass-split' : 'bi-magic'" />
+              <n-icon aria-hidden="true" :component="jumperAiDebug.status === 'analyzing' ? HourglassOutline : ColorWandOutline" />
             </template>
             {{ jumperAiDebug.status === 'analyzing' ? $t('app.aiDebug.analyzing') : $t('app.aiDebug.action') }}
           </n-button>

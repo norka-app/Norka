@@ -2,6 +2,7 @@
 import { computed, h, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NTag } from 'naive-ui'
+import { ChevronBack, ChevronDown, ChevronForward, ChevronUp, PauseOutline, renderIcon } from '../../icons'
 import { reconnectCountLabel } from '../../utils/tunnel-stats'
 
 const props = defineProps({
@@ -93,7 +94,7 @@ const activeColumns = computed(() => [
       type: 'error',
       title: t('app.overview.actions.stopTunnel'),
       onClick: () => emit('toggle-tunnel', row),
-    }, { icon: () => h('i', { class: 'bi bi-pause' }) }),
+    }, { icon: renderIcon(PauseOutline) }),
   },
 ])
 
@@ -204,7 +205,7 @@ const reconnectLeaders = computed(() => {
               @click="$emit('toggle-overview-active')"
             >
               <template #icon>
-                <i class="bi" :class="showOverviewActive ? 'bi-chevron-up' : 'bi-chevron-down'" />
+                <n-icon aria-hidden="true" :component="showOverviewActive ? ChevronUp : ChevronDown" />
               </template>
             </n-button>
           </template>
@@ -220,13 +221,13 @@ const reconnectLeaders = computed(() => {
             <n-empty v-else :description="$t('app.overview.noRunningTunnels')" />
             <n-space v-if="showActiveTunnelsPagination" justify="end" align="center" class="overview-pagination">
               <n-button size="small" :disabled="activeTunnelsPage === 1" :aria-label="$t('app.overview.pagination.prev')" @click="goPrevActiveTunnelsPage">
-                <template #icon><i class="bi bi-chevron-left" /></template>
+                <template #icon><n-icon aria-hidden="true" :component="ChevronBack" /></template>
               </n-button>
               <span>
                 {{ $t('app.overview.pagination.pageInfo', { current: activeTunnelsPage, total: activeTunnelsTotalPages }) }}
               </span>
               <n-button size="small" :disabled="activeTunnelsPage === activeTunnelsTotalPages" :aria-label="$t('app.overview.pagination.next')" @click="goNextActiveTunnelsPage">
-                <template #icon><i class="bi bi-chevron-right" /></template>
+                <template #icon><n-icon aria-hidden="true" :component="ChevronForward" /></template>
               </n-button>
             </n-space>
           </template>
@@ -243,7 +244,7 @@ const reconnectLeaders = computed(() => {
               @click="$emit('toggle-overview-activity')"
             >
               <template #icon>
-                <i class="bi" :class="showOverviewActivity ? 'bi-chevron-up' : 'bi-chevron-down'" />
+                <n-icon aria-hidden="true" :component="showOverviewActivity ? ChevronUp : ChevronDown" />
               </template>
             </n-button>
           </template>

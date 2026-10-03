@@ -2,6 +2,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { darkTheme, dateEnUS, dateRuRU, enUS, ruRU } from 'naive-ui'
+import {
+  AlbumsOutline,
+  GitNetworkOutline,
+  OptionsOutline,
+  ReaderOutline,
+  ServerOutline,
+  SpeedometerOutline,
+} from './icons'
 import { guessLocale, LOCALE_STORAGE_KEY, LANGUAGE_STORAGE_KEY, readStoredPreference } from './i18n'
 import { naiveThemeOverrides } from './theme/naive-theme'
 import {
@@ -118,12 +126,12 @@ const onboardingRun = ref(0)
 
 const pages = computed(() => {
   const all = [
-    { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: 'bi-speedometer2' },
-    { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: 'bi-hdd-network' },
-    { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: 'bi-diagram-3' },
-    { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: 'bi-collection' },
-    { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: 'bi-journal-text' },
-    { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: 'bi-sliders2' },
+    { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: SpeedometerOutline },
+    { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: ServerOutline },
+    { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: GitNetworkOutline },
+    { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: AlbumsOutline },
+    { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: ReaderOutline },
+    { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: OptionsOutline },
   ]
   if (profilesOn.value) return all
   return all.filter((page) => page.key !== 'profiles')

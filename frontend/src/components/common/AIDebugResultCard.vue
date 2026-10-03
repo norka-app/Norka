@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { BUTTON_GAP, FIELD_GAP } from '../../theme/form-layout'
+import { FlagOutline, Refresh, SyncOutline } from '../../icons'
 
 const props = defineProps({
   state: {
@@ -63,7 +64,7 @@ const confidenceBadgeLabel = computed(() => {
     </div>
     <n-space v-if="showActions" :size="BUTTON_GAP" :style="{ marginTop: FIELD_GAP + 'px' }">
       <n-button @click="emit('retry-debug')">
-        <template #icon><i class="bi bi-arrow-repeat" /></template>
+        <template #icon><n-icon aria-hidden="true" :component="SyncOutline" /></template>
         {{ $t('app.aiDebug.retryDebug') }}
       </n-button>
     </n-space>
@@ -93,16 +94,16 @@ const confidenceBadgeLabel = computed(() => {
       <n-space justify="space-between" align="center" :size="BUTTON_GAP" :wrap="true">
         <n-space :size="BUTTON_GAP" :wrap="true">
           <n-button type="primary" @click="emit('test-again')">
-            <template #icon><i class="bi bi-arrow-clockwise" /></template>
+            <template #icon><n-icon aria-hidden="true" :component="Refresh" /></template>
             {{ $t('app.aiDebug.testAgain') }}
           </n-button>
           <n-button @click="emit('retry-debug')">
-            <template #icon><i class="bi bi-arrow-repeat" /></template>
+            <template #icon><n-icon aria-hidden="true" :component="SyncOutline" /></template>
             {{ $t('app.aiDebug.retryDebug') }}
           </n-button>
         </n-space>
         <n-button type="error" quaternary @click="emit('report-content')">
-          <template #icon><i class="bi bi-flag" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="FlagOutline" /></template>
           {{ $t('app.aiDebug.reportAction') }}
         </n-button>
       </n-space>

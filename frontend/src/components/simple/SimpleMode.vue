@@ -8,6 +8,20 @@ import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
 import { useFeature } from '../../features/feature-store'
 import { findPortConflicts } from '../../utils/port-conflicts'
 import { matchesKey, physicalKey } from '../../utils/keyboard'
+import {
+  Checkmark,
+  ChevronDown,
+  Close,
+  CopyOutline,
+  GitNetworkOutline,
+  OpenOutline,
+  OptionsOutline,
+  Power,
+  Pulse,
+  Refresh,
+  SwapHorizontal,
+  Warning,
+} from '../../icons'
 
 const COPIED_FEEDBACK_MS = 1500
 const TYPEAHEAD_RESET_MS = 600
@@ -132,13 +146,13 @@ const primary = computed(() => {
   switch (rawStatus.value) {
     case 'running':
     case 'reconnecting':
-      return { label: t('app.simple.actions.disconnect'), icon: 'bi-power', variant: 'outline' }
+      return { label: t('app.simple.actions.disconnect'), icon: Power, variant: 'outline' }
     case 'busy':
-      return { label: t('app.simple.actions.cancel'), icon: 'bi-x-lg', variant: 'outline' }
+      return { label: t('app.simple.actions.cancel'), icon: Close, variant: 'outline' }
     case 'error':
-      return { label: t('app.simple.actions.retry'), icon: 'bi-arrow-clockwise', variant: 'primary' }
+      return { label: t('app.simple.actions.retry'), icon: Refresh, variant: 'primary' }
     default:
-      return { label: t('app.simple.actions.connect'), icon: 'bi-power', variant: 'primary' }
+      return { label: t('app.simple.actions.connect'), icon: Power, variant: 'primary' }
   }
 })
 
@@ -495,7 +509,7 @@ onBeforeUnmount(() => {
       >
         <span class="simple-select__emoji" aria-hidden="true">{{ activeProfile?.emoji || '•' }}</span>
         <span class="simple-select__name">{{ activeProfile ? activeProfile.name : $t('app.simple.noProfile') }}</span>
-        <i class="bi bi-chevron-down simple-select__chev" aria-hidden="true" />
+        <n-icon aria-hidden="true" class="simple-select__chev" :component="ChevronDown" />
       </button>
       <button
         ref="triggerRef"
@@ -508,16 +522,16 @@ onBeforeUnmount(() => {
         @click="listOpen ? closeList() : openList()"
         @keydown="onTriggerKeydown"
       >
-        <i class="bi bi-diagram-3 simple-select__lead" aria-hidden="true" />
+        <n-icon aria-hidden="true" class="simple-select__lead" :component="GitNetworkOutline" />
         <span class="simple-select__name">{{ tunnel ? tunnel.name : $t('app.simple.noTunnels') }}</span>
         <span v-if="tunnel" class="simple-select__port">· {{ tunnel.localPort }}</span>
-        <i class="bi bi-chevron-down simple-select__chev" aria-hidden="true" />
+        <n-icon aria-hidden="true" class="simple-select__chev" :component="ChevronDown" />
       </button>
 
       <div v-if="!tunnel" class="simple-info simple-empty">{{ $t('app.simple.noTunnelsHint') }}</div>
       <div v-else-if="portConflict" class="simple-info">
         <div class="simple-status s-warning" role="alert">
-          <i class="bi bi-exclamation-triangle-fill simple-warn-icon" aria-hidden="true" />
+          <n-icon aria-hidden="true" class="simple-warn-icon" :component="Warning" />
           <span class="simple-detail simple-warn-text" :title="portConflict">{{ portConflict }}</span>
         </div>
         <n-checkbox v-model:checked="dontAsk" size="small">{{ $t('app.tunnels.portSwitch.dontAsk') }}</n-checkbox>
@@ -539,7 +553,7 @@ onBeforeUnmount(() => {
 
       <n-space v-if="portConflict" class="simple-acts" :size="8" :wrap="false">
         <n-button ref="switchBtnRef" size="small" type="primary" class="simple-main-btn" @click="confirmPortSwitch">
-          <template #icon><i class="bi bi-arrow-left-right" aria-hidden="true" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="SwapHorizontal" /></template>
           {{ $t('app.tunnels.portSwitch.confirm') }}
         </n-button>
         <n-button size="small" @click="cancelPortSwitch">
@@ -554,7 +568,7 @@ onBeforeUnmount(() => {
           :disabled="!tunnel"
           @click="toggle"
         >
-          <template #icon><i class="bi" :class="primary.icon" aria-hidden="true" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="primary.icon" /></template>
           {{ primary.label }}
         </n-button>
         <n-button
@@ -565,7 +579,7 @@ onBeforeUnmount(() => {
           :aria-label="$t('app.simple.diagnostics')"
           @click="emit('diagnose', tunnel)"
         >
-          <template #icon><i class="bi bi-activity" aria-hidden="true" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="Pulse" /></template>
         </n-button>
         <n-button
           size="small"
@@ -574,7 +588,7 @@ onBeforeUnmount(() => {
           :aria-label="$t('app.simple.copyAddress')"
           @click="copyAddress"
         >
-          <template #icon><i class="bi" :class="copied ? 'bi-check2' : 'bi-copy'" aria-hidden="true" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="copied ? Checkmark : CopyOutline" /></template>
         </n-button>
         <n-button
           size="small"
@@ -583,7 +597,7 @@ onBeforeUnmount(() => {
           :aria-label="$t('app.simple.openBrowser')"
           @click="openInBrowser"
         >
-          <template #icon><i class="bi bi-box-arrow-up-right" aria-hidden="true" /></template>
+          <template #icon><n-icon aria-hidden="true" :component="OpenOutline" /></template>
         </n-button>
       </n-space>
     </div>
@@ -674,7 +688,7 @@ onBeforeUnmount(() => {
             @mousemove="activeIndex = manageIndex"
             @click="chooseOption(manageIndex)"
           >
-            <i class="bi bi-sliders2" aria-hidden="true" />
+            <n-icon aria-hidden="true" :component="OptionsOutline" />
             <span class="simple-option__name">{{ $t('app.simple.manageTunnels') }}</span>
           </li>
         </ul>
@@ -910,7 +924,7 @@ onBeforeUnmount(() => {
   color: var(--s-accent);
 }
 .simple-option--manage.is-active { background: var(--s-ctrl-h); }
-.simple-option--manage .bi { font-size: 14px; }
+.simple-option--manage .n-icon { font-size: 14px; }
 .visually-hidden {
   position: absolute;
   width: 1px;

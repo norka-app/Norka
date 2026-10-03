@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import AIDebugResultCard from '../common/AIDebugResultCard.vue'
 import AppSelect from '../common/AppSelect.vue'
 import JumperFields from './JumperFields.vue'
+import { Add, ArrowDown, ArrowUp, ColorWandOutline, HourglassOutline, TrashOutline } from '../../icons'
 import {
   BUTTON_GAP,
   FIELD_GAP,
@@ -347,7 +348,7 @@ function onPrimaryJumperChange(value) {
                 @click="$emit('add-jumper', tunnelForm.nextJumperId)"
               >
                 <template #icon>
-                  <i class="bi bi-plus-lg" />
+                  <n-icon aria-hidden="true" :component="Add" />
                 </template>
               </n-button>
             </n-input-group>
@@ -377,14 +378,14 @@ function onPrimaryJumperChange(value) {
                       :aria-label="$t('app.modals.tunnel.moveJumperUp')"
                       @click="$emit('move-jumper', index, -1)"
                     >
-                      <template #icon><i class="bi bi-arrow-up" /></template>
+                      <template #icon><n-icon aria-hidden="true" :component="ArrowUp" /></template>
                     </n-button>
                     <n-button
                       :disabled="index === selectedJumperIds.length - 1"
                       :aria-label="$t('app.modals.tunnel.moveJumperDown')"
                       @click="$emit('move-jumper', index, 1)"
                     >
-                      <template #icon><i class="bi bi-arrow-down" /></template>
+                      <template #icon><n-icon aria-hidden="true" :component="ArrowDown" /></template>
                     </n-button>
                     <n-button
                       type="error"
@@ -392,7 +393,7 @@ function onPrimaryJumperChange(value) {
                       :aria-label="$t('app.modals.tunnel.removeJumper')"
                       @click="$emit('remove-jumper', index)"
                     >
-                      <template #icon><i class="bi bi-trash3" /></template>
+                      <template #icon><n-icon aria-hidden="true" :component="TrashOutline" /></template>
                     </n-button>
                   </n-button-group>
                 </template>
@@ -460,7 +461,7 @@ function onPrimaryJumperChange(value) {
             @click="$emit('ai-debug')"
           >
             <template #icon>
-              <i class="bi" :class="tunnelAiDebug.status === 'analyzing' ? 'bi-hourglass-split' : 'bi-magic'" />
+              <n-icon aria-hidden="true" :component="tunnelAiDebug.status === 'analyzing' ? HourglassOutline : ColorWandOutline" />
             </template>
             {{ tunnelAiDebug.status === 'analyzing' ? $t('app.aiDebug.analyzing') : $t('app.aiDebug.action') }}
           </n-button>

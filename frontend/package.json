@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "bootstrap-icons": "^1.13.1",
+    "@vicons/ionicons5": "^0.13.0",
     "lottie-web": "^5.13.0",
     "naive-ui": "^2.45.3",
     "vue": "^3.5.0",

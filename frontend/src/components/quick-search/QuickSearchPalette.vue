@@ -5,6 +5,7 @@ import { findPortConflicts } from '../../utils/port-conflicts'
 import { bestFuzzyScore } from '../../utils/fuzzy'
 import { matchesKey } from '../../utils/keyboard'
 import { plainInputProps } from '../../theme/form-layout'
+import { Search } from '../../icons'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -170,7 +171,7 @@ function onKeydown(event) {
           @keydown="onKeydown"
         >
           <template #prefix>
-            <i class="bi bi-search" aria-hidden="true" />
+            <n-icon aria-hidden="true" :component="Search" />
           </template>
           <template #suffix>
             <n-tag size="small" :bordered="true">esc</n-tag>

@@ -306,14 +306,6 @@ body {
   overflow-x: auto;
 }
 
-.n-button .bi {
-  font-family: "bootstrap-icons";
-  font-style: normal;
-  font-weight: normal;
-  line-height: 1;
-  font-size: 16px;
-}
-
 * {
   scrollbar-color: var(--lt-scroll-thumb) var(--lt-scroll-track);
 }

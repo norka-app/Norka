@@ -1,6 +1,8 @@
 <script setup>
 import { computed, h, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { NIcon } from 'naive-ui'
+import { ArrowDown, ArrowUp, ChevronBack, ChevronForward } from '../../icons'
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
 import { useFeature } from '../../features/feature-store'
 
@@ -67,7 +69,7 @@ const norkaStatusLabel = computed(() => t(`app.sidebar.norkaStatus.${props.tunne
 const menuOptions = computed(() => props.pages.map((page) => ({
   key: page.key,
   label: page.title,
-  icon: () => h('i', { class: ['bi', 'nav-item-icon', page.icon], 'aria-hidden': 'true' }),
+  icon: () => h(NIcon, { class: 'nav-item-icon', component: page.icon, 'aria-hidden': 'true' }),
 })))
 
 const sparkId = useId()
@@ -192,7 +194,7 @@ const downloadSpark = computed(() => buildSparklinePath(
           :aria-label="collapsed ? $t('app.sidebar.expand') : $t('app.sidebar.collapse')"
           @click="emit('toggle-collapse')"
         >
-          <i class="bi" :class="collapsed ? 'bi-chevron-right' : 'bi-chevron-left'" aria-hidden="true" />
+          <n-icon aria-hidden="true" :component="collapsed ? ChevronForward : ChevronBack" />
         </n-button>
       </div>
 
@@ -258,13 +260,13 @@ const downloadSpark = computed(() => buildSparklinePath(
           :aria-label="$t('app.sidebar.traffic')"
         >
           <div class="traffic-rate-row traffic-rate-up">
-            <i class="bi bi-arrow-up-short traffic-rate-icon" aria-hidden="true" />
+            <n-icon aria-hidden="true" class="traffic-rate-icon" :component="ArrowUp" />
             <span class="traffic-rate-current" :title="$t('app.sidebar.upload')">
               {{ formatBytesRate(traffic.upBps) }}
             </span>
           </div>
           <div class="traffic-rate-row traffic-rate-down">
-            <i class="bi bi-arrow-down-short traffic-rate-icon" aria-hidden="true" />
+            <n-icon aria-hidden="true" class="traffic-rate-icon" :component="ArrowDown" />
             <span class="traffic-rate-current" :title="$t('app.sidebar.download')">
               {{ formatBytesRate(traffic.downBps) }}
             </span>

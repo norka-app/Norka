@@ -2,7 +2,6 @@ import { createApp } from 'vue'
 import naive from 'naive-ui'
 import App from './App.vue'
 import i18n from './i18n'
-import 'bootstrap-icons/font/bootstrap-icons.css'
 import './style.css';
 import './styles/form-kit.css';
 import { LogError } from '../wailsjs/runtime/runtime'

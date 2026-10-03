@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import AppSelect from '../common/AppSelect.vue'
 import { BUTTON_GAP, plainInputProps } from '../../theme/form-layout'
+import { ChevronDown, ChevronUp } from '../../icons'
 
 const props = defineProps({
   show: {
@@ -352,10 +353,10 @@ watch(
                           @keydown.space.prevent="toggleDetails(row)"
                         >
                           <span>{{ $t(getImportStatusLabelKey(row)) }}</span>
-                          <i
+                          <n-icon aria-hidden="true"
                             v-if="canToggleDetails(row)"
-                            class="bi status-badge-toggle-icon"
-                            :class="isDetailExpanded(row.id) ? 'bi-chevron-up' : 'bi-chevron-down'"
+                            class="status-badge-toggle-icon"
+                            :component="isDetailExpanded(row.id) ? ChevronUp : ChevronDown"
                           />
                         </span>
                       </div>
