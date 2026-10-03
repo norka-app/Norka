@@ -56,17 +56,26 @@ type GroupInfo struct {
 	Name string `json:"name"`
 }
 
+// HopSecret is a password or key passphrase for one start or restart.
+// The owner uses it in memory for that dial. It is not stored, logged, or returned.
+type HopSecret struct {
+	JumperID int    `json:"jumperId"`
+	Secret   string `json:"secret,omitempty"`
+}
+
 // Control asks the owner to change a tunnel, jumper, or group.
 // Start, stop and restart apply only to a tunnel.
 // Save with ID 0 creates; a positive ID updates.
 // Payloads match the GUI shapes. The owner writes them through conf.Storage.
+// Secrets is only for start and restart. It is not a config write.
 type Control struct {
-	Action string                    `json:"action"`
-	Kind   string                    `json:"kind"`
-	ID     int                       `json:"id,omitempty"`
-	Tunnel *model.TunnelPayload      `json:"tunnel,omitempty"`
-	Jumper *model.JumperPayload      `json:"jumper,omitempty"`
-	Group  *model.TunnelGroupPayload `json:"group,omitempty"`
+	Action  string                    `json:"action"`
+	Kind    string                    `json:"kind"`
+	ID      int                       `json:"id,omitempty"`
+	Tunnel  *model.TunnelPayload      `json:"tunnel,omitempty"`
+	Jumper  *model.JumperPayload      `json:"jumper,omitempty"`
+	Group   *model.TunnelGroupPayload `json:"group,omitempty"`
+	Secrets []HopSecret               `json:"secrets,omitempty"`
 }
 
 // Event is one line on a subscribe connection after the opening snapshot.

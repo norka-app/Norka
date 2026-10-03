@@ -76,7 +76,9 @@ func (e *Engine) SyncAutomation() {
 	if err := sync(on); err != nil {
 		slog.Warn("url scheme sync failed", "error", err)
 	}
-	if !on || !e.hosting() {
+	// A daemon with background mode on keeps the channel open for the window
+	// even when the Automation feature is off. Legacy commands still require it.
+	if !e.hosting() || (!on && !e.windowIPC()) {
 		e.stopAutomationIPC()
 		return
 	}
@@ -140,15 +142,15 @@ func (e *Engine) stopAutomationIPC() {
 
 func (e *Engine) handleAutomation(req ipc.Request) ipc.Response {
 	locale := e.localeTag()
+	if req.V >= 2 && ipc.IsV2Op(req.Op) && (e.FeatureOn(features.Automation) || e.windowIPC()) {
+		return e.handleV2(req)
+	}
 	if !e.FeatureOn(features.Automation) {
 		return ipc.Response{
 			Code:     ipc.CodeDisabled,
 			ExitCode: ipc.ExitDisabled,
 			Message:  automation.Message(locale, ipc.CodeDisabled, "", "", nil),
 		}
-	}
-	if req.V >= 2 && ipc.IsV2Op(req.Op) {
-		return e.handleV2(req)
 	}
 	switch req.Op {
 	case ipc.OpStatus, ipc.OpList:
@@ -238,7 +240,24 @@ func (e *Engine) automationTunnel(locale, op, target string) ipc.Response {
 	}
 }
 
+// SetTunnelRunner sends automation connect, disconnect and toggle to another owner.
+// The window sets it while attached to norkad. Nil uses the in-process runtime.
+func (e *Engine) SetTunnelRunner(fn func(op string, id int) (model.Tunnel, error)) {
+	if e == nil {
+		return
+	}
+	e.ownerMu.Lock()
+	e.runner = fn
+	e.ownerMu.Unlock()
+}
+
 func (e *Engine) runAutomation(op string, id int) (model.Tunnel, error) {
+	e.ownerMu.Lock()
+	runner := e.runner
+	e.ownerMu.Unlock()
+	if runner != nil {
+		return runner(op, id)
+	}
 	rt := e.active()
 	if rt == nil {
 		return model.Tunnel{}, errors.New("app is not initialized")

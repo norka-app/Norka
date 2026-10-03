@@ -11,6 +11,7 @@ import (
 
 	"github.com/norka-app/Norka/internal/conf"
 	"github.com/norka-app/Norka/internal/forward"
+	"github.com/norka-app/Norka/internal/hopsecret"
 	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/secrets"
 	"github.com/norka-app/Norka/internal/tunneldiag"
@@ -375,7 +376,14 @@ func (b *TunnelBiz) Toggle(id int, maxRunning int) (model.Tunnel, error) {
 		return b.updateStatus(id, "stopped", "")
 	}
 
-	return b.startTunnel(tunnel, maxRunning)
+	return b.startTunnel(tunnel, maxRunning, nil, false)
+}
+
+// DialSecret is a password or key passphrase for one dial.
+// It is not written to config.
+type DialSecret struct {
+	JumperID int
+	Secret   string
 }
 
 // Start connects a tunnel. A tunnel that is already running is returned as it is.
@@ -387,7 +395,28 @@ func (b *TunnelBiz) Start(id int, maxRunning int) (model.Tunnel, error) {
 	if b.isRunning(id) || b.isStarting(id) {
 		return tunnel, nil
 	}
-	return b.startTunnel(tunnel, maxRunning)
+	return b.startTunnel(tunnel, maxRunning, nil, false)
+}
+
+// StartWithSecrets connects a tunnel using secrets supplied for this dial only.
+// Hops that need a password or passphrase are not read from the keychain.
+// The secrets are cleared before return. A running tunnel is left as it is.
+func (b *TunnelBiz) StartWithSecrets(id int, maxRunning int, secrets []DialSecret) (model.Tunnel, error) {
+	defer wipeDialSecrets(secrets)
+	tunnel, err := b.tunnelByID(id)
+	if err != nil {
+		return model.Tunnel{}, err
+	}
+	if b.isRunning(id) || b.isStarting(id) {
+		return tunnel, nil
+	}
+	return b.startTunnel(tunnel, maxRunning, secrets, true)
+}
+
+func wipeDialSecrets(secrets []DialSecret) {
+	for i := range secrets {
+		secrets[i].Secret = ""
+	}
 }
 
 func (b *TunnelBiz) tunnelByID(id int) (model.Tunnel, error) {
@@ -412,7 +441,7 @@ func (b *TunnelBiz) stopTunnel(id int) (model.Tunnel, error) {
 	return b.updateStatus(id, "stopped", "")
 }
 
-func (b *TunnelBiz) startTunnel(tunnel model.Tunnel, maxRunning int) (model.Tunnel, error) {
+func (b *TunnelBiz) startTunnel(tunnel model.Tunnel, maxRunning int, secrets []DialSecret, explicit bool) (model.Tunnel, error) {
 	id := tunnel.ID
 	if maxRunning > 0 && b.RunningCount() >= maxRunning {
 		return model.Tunnel{}, fmt.Errorf("%w: limit %d", ErrFreePlanRunningLimit, maxRunning)
@@ -441,7 +470,8 @@ func (b *TunnelBiz) startTunnel(tunnel model.Tunnel, maxRunning int) (model.Tunn
 		return updated, nil
 	}
 
-	if err := b.startRuntime(tunnel, b.hydrateJumpers(jumpers)); err != nil {
+	prepared := b.prepareJumpers(jumpers, secrets, explicit)
+	if err := b.startRuntime(tunnel, prepared); err != nil {
 		if errors.Is(err, context.Canceled) {
 			_ = b.stopRuntime(id)
 			return b.updateStatus(id, "stopped", "")
@@ -1033,6 +1063,37 @@ func (b *TunnelBiz) hydrateJumpers(jumpers []model.Jumper) []model.Jumper {
 		b.secrets.Open(&jumpers[i])
 	}
 	return jumpers
+}
+
+// prepareJumpers hydrates secrets for a dial.
+// explicit is the IPC path: a supplied secret is used as-is, and a hop that
+// still needs a password is not read from the keychain, so norkad cannot block
+// on the GUI prompt. The ordinary Start path passes explicit false and opens
+// the keychain the way it always has.
+func (b *TunnelBiz) prepareJumpers(jumpers []model.Jumper, secrets []DialSecret, explicit bool) []model.Jumper {
+	if !explicit {
+		return b.hydrateJumpers(jumpers)
+	}
+	out := append([]model.Jumper(nil), jumpers...)
+	supplied := map[int]string{}
+	for _, item := range secrets {
+		if item.JumperID > 0 && strings.TrimSpace(item.Secret) != "" {
+			supplied[item.JumperID] = item.Secret
+		}
+	}
+	for i := range out {
+		if secret, ok := supplied[out[i].ID]; ok {
+			out[i].Password = secret
+			continue
+		}
+		if hopsecret.Reason([]model.Jumper{out[i]}) != "" {
+			continue
+		}
+		if b != nil && b.secrets != nil {
+			b.secrets.Open(&out[i])
+		}
+	}
+	return out
 }
 
 func (b *TunnelBiz) tunnelName(id int) string {

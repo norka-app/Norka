@@ -27,7 +27,10 @@ import {
 import { applyFeatureViews, featureEnabled, featureState, setFeatureEnabled, useFeature } from '../../features/feature-store'
 import { isLinuxChrome, windowChrome } from '../../features/window-chrome'
 import FlSettingsTabs from '../frameless/FlSettingsTabs.vue'
+import BackgroundModeSection from './BackgroundModeSection.vue'
 import { hotkeyChord, matchesKey } from '../../utils/keyboard'
+
+const backgroundOn = useFeature('background_mode')
 
 const props = defineProps({
   theme: {
@@ -534,6 +537,7 @@ async function onCollectDiagnostics() {
     <n-gi span="2 l:1" :class="{ 'fl-sec': framelessLook, 'fl-sec--off': framelessLook && flSection !== 'general' }">
       <n-card size="small" :title="framelessLook ? undefined : t('config.general')">
         <n-space vertical :size="16">
+          <BackgroundModeSection v-if="backgroundOn" />
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
             <div class="settings-label">
               <div class="config-name">{{ t('config.language') }}</div>

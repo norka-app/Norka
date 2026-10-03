@@ -22,7 +22,7 @@ const (
 	exitBackgroundOff = 10
 )
 
-const backgroundOffMessage = "norkad: background mode is off. Turn on «Фоновый режим» (Background mode) in Settings → Features. Until a later update the window itself does not stay in the background; this switch only lets norkad run. Pass --force to start anyway."
+const backgroundOffMessage = "norkad: background mode is off. Turn on «Фоновый режим» (Background mode) in Settings → Features. With the switch on, the window attaches to norkad and leaves tunnels running when it closes. Pass --force to start anyway."
 
 // env is the process surface tests replace. Wait blocks until norkad should stop.
 type env struct {
@@ -206,8 +206,9 @@ func usageText() string {
 
 It reads the same config.toml as the Norka window, takes the engine lock
 as kind daemon, and starts autostart tunnels, wake reconnect, and automation
-IPC. Keys and ssh-agent only: a tunnel that needs a password from the GUI
-keychain prompt is logged and skipped.
+IPC. Keys and ssh-agent only on autostart: a tunnel that needs a password
+or key passphrase is logged and skipped. The window can pass that secret
+over IPC for one explicit connect. It is not stored and not logged.
 
 A dialect 2 client can ask this process to stop, or to drop the engine lock
 after the tunnels stop so the caller can take it. The wire format is docs/IPC.md.

@@ -11,6 +11,7 @@ import (
 	"github.com/norka-app/Norka/internal/automation"
 	"github.com/norka-app/Norka/internal/biz"
 	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/hopsecret"
 	"github.com/norka-app/Norka/internal/ipc"
 	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/tunnelstats"
@@ -67,7 +68,7 @@ func (e *Engine) handleState() ipc.Response {
 }
 
 func (e *Engine) handleSubscribe(ctx context.Context, req ipc.Request, send func(ipc.Response) error) error {
-	if !e.FeatureOn(features.Automation) {
+	if !e.FeatureOn(features.Automation) && !e.windowIPC() {
 		return send(ipc.Response{
 			Code:     ipc.CodeDisabled,
 			ExitCode: ipc.ExitDisabled,
@@ -142,14 +143,15 @@ func (e *Engine) controlTunnelRun(req ipc.Request) ipc.Response {
 	)
 	switch ctrl.Action {
 	case ipc.ActionStart:
-		tunnel, err = rt.Start(id, e.TunnelStartLimit())
+		tunnel, err = e.startOwned(rt, id, ctrl.Secrets)
 	case ipc.ActionStop:
 		tunnel, err = rt.Stop(id)
 	case ipc.ActionRestart:
 		if _, err = rt.Stop(id); err == nil {
-			tunnel, err = rt.Start(id, e.TunnelStartLimit())
+			tunnel, err = e.startOwned(rt, id, ctrl.Secrets)
 		}
 	}
+	wipeHopSecrets(ctrl.Secrets)
 	if err != nil {
 		return ipcTunnelErr(err)
 	}
@@ -437,6 +439,90 @@ func groupInfos(items []model.TunnelGroup) []ipc.GroupInfo {
 		out = append(out, ipc.GroupInfo{ID: item.ID, Name: item.Name})
 	}
 	return out
+}
+
+// windowIPC is the channel the GUI uses while norkad holds the engine.
+// Automation may be off; legacy commands still refuse that case.
+func (e *Engine) windowIPC() bool {
+	return e != nil && e.ownerKind() == KindDaemon && e.FeatureOn(features.BackgroundMode)
+}
+
+type secretStarter interface {
+	StartWithSecrets(id int, maxRunning int, secrets []biz.DialSecret) (model.Tunnel, error)
+}
+
+func (e *Engine) startOwned(rt Runtime, id int, secrets []ipc.HopSecret) (model.Tunnel, error) {
+	defer wipeHopSecrets(secrets)
+	reason, found := e.secretBlock(id, secrets)
+	if found && reason != "" {
+		return model.Tunnel{}, errors.New(reason)
+	}
+	if starter, ok := rt.(secretStarter); ok && len(secrets) > 0 {
+		return starter.StartWithSecrets(id, e.TunnelStartLimit(), dialSecrets(secrets))
+	}
+	if rt == nil {
+		return model.Tunnel{}, errors.New("app is not initialized")
+	}
+	return rt.Start(id, e.TunnelStartLimit())
+}
+
+func (e *Engine) secretBlock(id int, secrets []ipc.HopSecret) (string, bool) {
+	if e == nil || e.tunnel == nil || e.jumper == nil || id <= 0 {
+		return "", false
+	}
+	tunnels, err := e.tunnel.List()
+	if err != nil {
+		return "", false
+	}
+	var tunnel model.Tunnel
+	found := false
+	for _, item := range tunnels {
+		if item.ID == id {
+			tunnel = item
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", false
+	}
+	jumpers, err := e.jumper.List()
+	if err != nil {
+		return "", false
+	}
+	index := map[int]model.Jumper{}
+	for _, item := range jumpers {
+		index[item.ID] = item
+	}
+	hops := make([]model.Jumper, 0, len(tunnel.JumperIDs))
+	for _, jumperID := range tunnel.JumperIDs {
+		hop, ok := index[jumperID]
+		if !ok {
+			continue
+		}
+		hops = append(hops, hop)
+	}
+	covered := map[int]bool{}
+	for _, item := range secrets {
+		if strings.TrimSpace(item.Secret) != "" {
+			covered[item.JumperID] = true
+		}
+	}
+	return hopsecret.Uncovered(hops, func(jumperID int) bool { return covered[jumperID] }), true
+}
+
+func dialSecrets(items []ipc.HopSecret) []biz.DialSecret {
+	out := make([]biz.DialSecret, 0, len(items))
+	for _, item := range items {
+		out = append(out, biz.DialSecret{JumperID: item.JumperID, Secret: item.Secret})
+	}
+	return out
+}
+
+func wipeHopSecrets(items []ipc.HopSecret) {
+	for i := range items {
+		items[i].Secret = ""
+	}
 }
 
 func notOwnerResponse() ipc.Response {

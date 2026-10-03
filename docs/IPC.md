@@ -6,7 +6,9 @@
 - Linux и macOS: unix-сокет с правами `0600`. Это `$XDG_RUNTIME_DIR/norka/norka.sock`, если каталог времени выполнения задан, иначе `norka.sock` рядом с `config.toml`.
 - Рядом с конфигом лежит `automation.token` (права `0600`). Клиент читает его и кладёт в поле `token` каждого запроса. Сервер сравнивает токен и не пишет его в журнал. Чужой пользователь файл не прочитает.
 
-Канал открывается, только когда в **Настройки → Функции** включена автоматизация. Иначе `norka-cli` завершается с кодом 1 и никуда не подключается.
+Канал открывается, когда в **Настройки → Функции** включена автоматизация. Иначе старые команды `norka-cli` завершаются с кодом 1 и никуда не подключаются.
+
+Исключение — окно при включённом **фоновом режиме**. `norkad` слушает канал даже без автоматизации, но только для диалекта 2 (`hello`, `state`, `subscribe`, `control`, `shutdown`, `handover`). Команды первой версии по-прежнему получают `disabled`. Окно при старте делает `hello` и `subscribe` и не берёт `engine.lock`, пока демон жив. Закрытие окна демон не останавливает. Пункт трея «Выйти и остановить туннели» шлёт `shutdown`. Перед импортом конфигурации или остановкой демона окно шлёт `handover`, дожидается свободной блокировки и только потом делает `Acquire`.
 
 ## Кадр
 
@@ -144,6 +146,12 @@
 
 Пароль джампера в запросе `save` допустим: его забирает связка ключей, в снимок и в ответ он не попадает.
 
+`start` и `restart` принимают `secrets`: массив `{ "jumperId", "secret" }`. Это пароль или passphrase одного прыжка только на этот запуск. Демон сам пароль не спрашивает и при автозапуске такой туннель пропускает. Окно, уже подключённое к демону, читает секрет из связки ключей и кладёт его в `control` на один `start` или `restart`. Сервер передаёт значение в набор туннеля и тут же затирает поле в запросе. Секрет не пишется в `config.toml`, не попадает в ответ, снимок и журнал. Пустой `secrets` оставляет прежнюю проверку: туннель с паролем не стартует.
+
+```json
+{"v":2,"token":"…","op":"control","control":{"action":"start","kind":"tunnel","id":1,"secrets":[{"jumperId":4,"secret":"…"}]}}
+```
+
 ## shutdown
 
 Владелец останавливает свои туннели и завершает процесс.
@@ -200,7 +208,9 @@ The channel is not TCP. The process that holds the engine listens: the window, o
 - Linux and macOS: a unix socket with mode `0600`. That is `$XDG_RUNTIME_DIR/norka/norka.sock` when the runtime directory is set, otherwise `norka.sock` next to `config.toml`.
 - `automation.token` sits next to the config (mode `0600`). The client reads it and puts it in `token` on every request. The server compares the token and never logs it. Another user cannot read the file.
 
-The channel is open only while Automation is on in **Settings → Features**. Otherwise `norka-cli` exits 1 and does not connect.
+The channel is open while Automation is on in **Settings → Features**. Otherwise the older `norka-cli` commands exit 1 and do not connect.
+
+The window is the exception while **background mode** is on. `norkad` listens even when automation is off, but only for dialect 2 (`hello`, `state`, `subscribe`, `control`, `shutdown`, `handover`). Dialect 1 commands still get `disabled`. On startup the window sends `hello` and `subscribe` and does not take `engine.lock` while the daemon is alive. Closing the window does not stop the daemon. The tray item "Quit and stop tunnels" sends `shutdown`. Before a config import or before stopping the daemon, the window sends `handover`, waits until the lock is free, and only then calls `Acquire`.
 
 ## Framing
 
@@ -337,6 +347,12 @@ Only the `engine.lock` owner writes or starts tunnels. A process that does not h
 A successful `save` or `delete` returns the new `state` and emits a `config` event to subscribers. `start`, `stop`, and `restart` return `tunnels` with that one tunnel; the status change is also a `status` event on `subscribe`.
 
 A jumper password is allowed on `save`. The keychain takes it. It is not in the snapshot or the response.
+
+`start` and `restart` accept `secrets`: an array of `{ "jumperId", "secret" }`. That is a password or key passphrase for one hop, and only for this dial. The daemon never prompts, and it skips such a tunnel on autostart. A window that is already attached reads the secret from the keychain and puts it on `control` for one `start` or `restart`. The server hands the value to the tunnel runtime and then wipes the field on the request. The secret is not written to `config.toml`, and it is not in the response, the snapshot, or the log. An empty `secrets` keeps the old check: a password tunnel does not start.
+
+```json
+{"v":2,"token":"…","op":"control","control":{"action":"start","kind":"tunnel","id":1,"secrets":[{"jumperId":4,"secret":"…"}]}}
+```
 
 ## shutdown
 

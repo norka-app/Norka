@@ -90,10 +90,10 @@ func (a *App) ActivateProfile(id int) (model.ProfileActivationResult, error) {
 		return model.ProfileActivationResult{}, fmt.Errorf("profiles are disabled")
 	}
 	result, err := a.profile().Activate(id, func(tunnelID int) error {
-		_, stopErr := a.tunnel().Stop(tunnelID)
+		_, stopErr := a.stopTunnelID(tunnelID)
 		return stopErr
 	}, func(tunnelID int) error {
-		updated, startErr := a.tunnel().Toggle(tunnelID, a.tunnelStartLimit())
+		updated, startErr := a.ToggleTunnel(tunnelID)
 		if startErr != nil {
 			return startErr
 		}
