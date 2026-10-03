@@ -6,6 +6,9 @@ func TestGateVersion(t *testing.T) {
 	if got := GateVersion(0); got.Reject {
 		t.Fatal("legacy client must be accepted")
 	}
+	if got := GateVersion(1); got.Reject {
+		t.Fatal("v1 client must keep working without hello")
+	}
 	if got := GateVersion(ProtocolVersion); got.Reject {
 		t.Fatal("current client must be accepted")
 	}

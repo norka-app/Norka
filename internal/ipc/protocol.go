@@ -19,8 +19,11 @@ const maxMessage = 1 << 20
 // MinClientVersion is the oldest numbered dialect still accepted.
 // A request that omits v (decoded as 0) is a legacy client and stays accepted,
 // so an older norka binary keeps working with a newer app.
+// Dialect 1 is the original connect/disconnect/toggle/status/list set.
+// Dialect 2 adds hello, state, subscribe, control, shutdown and handover.
+// A v1 request does not send hello and is handled exactly as before.
 const (
-	ProtocolVersion  = 1
+	ProtocolVersion  = 2
 	MinClientVersion = 1
 )
 
@@ -31,6 +34,38 @@ const (
 	OpToggle     = "toggle"
 	OpStatus     = "status"
 	OpList       = "list"
+
+	// Dialect 2. A client that speaks v1 never sends these.
+	OpHello     = "hello"
+	OpState     = "state"
+	OpSubscribe = "subscribe"
+	OpControl   = "control"
+	OpShutdown  = "shutdown"
+	OpHandover  = "handover"
+)
+
+// How long handover waits for tunnels to stop when the request omits timeout_ms.
+const DefaultHandoverTimeout = 10 * time.Second
+
+// Control actions and object kinds for op=control.
+const (
+	ActionStart   = "start"
+	ActionStop    = "stop"
+	ActionRestart = "restart"
+	ActionSave    = "save"
+	ActionDelete  = "delete"
+
+	KindTunnel = "tunnel"
+	KindJumper = "jumper"
+	KindGroup  = "group"
+)
+
+// Event types a subscriber receives after the opening snapshot.
+const (
+	EventStatus       = "status"
+	EventLog          = "log"
+	EventNotification = "notification"
+	EventConfig       = "config"
 )
 
 // Result codes. Exit codes are stable and documented in docs/CLI.md.
@@ -43,6 +78,10 @@ const (
 	CodeUnauthorized = "unauthorized"
 	CodeBadRequest   = "bad_request"
 	CodeFailed       = "failed"
+	// CodeIgnored means a GUI owner refused shutdown because force was not set.
+	CodeIgnored = "ignored"
+	// CodeTimeout means handover did not finish and the owner still holds the lock.
+	CodeTimeout = "timeout"
 	// CodeUpdateApp means the client speaks a newer dialect than this app.
 	CodeUpdateApp = "update_app"
 	// CodeUpdateCLI means the client is newer than the legacy dialect but older
@@ -75,10 +114,14 @@ var ErrNotRunning = errors.New("norka is not running")
 // V is the dialect the client speaks. Omit it (or send 0) for the legacy
 // dialect, which this server still accepts.
 type Request struct {
-	V      int    `json:"v,omitempty"`
-	Token  string `json:"token"`
-	Op     string `json:"op"`
-	Target string `json:"target,omitempty"`
+	V         int         `json:"v,omitempty"`
+	Token     string      `json:"token"`
+	Op        string      `json:"op"`
+	Target    string      `json:"target,omitempty"`
+	Client    *ClientInfo `json:"client,omitempty"`
+	Force     bool        `json:"force,omitempty"`
+	TimeoutMS int         `json:"timeout_ms,omitempty"`
+	Control   *Control    `json:"control,omitempty"`
 }
 
 // TunnelInfo is the public view of one tunnel. It has no secrets.
@@ -105,14 +148,32 @@ type Response struct {
 	Running  bool         `json:"running"`
 	Tunnels  []TunnelInfo `json:"tunnels,omitempty"`
 	Names    []string     `json:"names,omitempty"`
+	Hello    *Hello       `json:"hello,omitempty"`
+	State    *State       `json:"state,omitempty"`
+	Event    *Event       `json:"event,omitempty"`
+	// After runs once the response line has been written.
+	// Shutdown and handover use it to leave the process after the client
+	// has the reply. It is not part of the wire format.
+	After func() `json:"-"`
 }
 
 // Handler runs one authenticated request.
 type Handler func(Request) Response
 
+// SubscribeFunc serves op=subscribe. send writes one JSON line.
+// It returns when the client disconnects or ctx is cancelled.
+// The server calls it only for dialect 2.
+type SubscribeFunc func(ctx context.Context, req Request, send func(Response) error) error
+
 // Serve accepts connections until ctx is cancelled or ln is closed.
 // It refuses any listener that is not a unix socket or a Windows named pipe.
 func Serve(ctx context.Context, ln net.Listener, token string, handle Handler) error {
+	return ServeStream(ctx, ln, token, handle, nil)
+}
+
+// ServeStream is Serve plus a long-lived handler for op=subscribe.
+// subscribe may be nil; a subscribe request is then a normal one-shot call.
+func ServeStream(ctx context.Context, ln net.Listener, token string, handle Handler, subscribe SubscribeFunc) error {
 	if ln == nil {
 		return errors.New("listener is nil")
 	}
@@ -138,11 +199,11 @@ func Serve(ctx context.Context, ln net.Listener, token string, handle Handler) e
 			}
 			return err
 		}
-		go serveConn(conn, token, handle)
+		go serveConn(ctx, conn, token, handle, subscribe)
 	}
 }
 
-func serveConn(conn net.Conn, token string, handle Handler) {
+func serveConn(ctx context.Context, conn net.Conn, token string, handle Handler, subscribe SubscribeFunc) {
 	defer conn.Close()
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	var req Request
@@ -157,13 +218,46 @@ func serveConn(conn net.Conn, token string, handle Handler) {
 		resp = Response{Code: CodeUnauthorized, ExitCode: ExitIPC, Message: "unauthorized"}
 	case version.Reject:
 		resp = version.Response
+	case req.Op == OpSubscribe && req.V >= 2 && subscribe != nil:
+		serveSubscribe(ctx, conn, req, subscribe)
+		return
 	case handle != nil:
 		resp = handle(req)
 	}
 	resp.V = ProtocolVersion
 	resp.Running = true
+	after := resp.After
+	resp.After = nil
 	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	_ = writeJSON(conn, resp)
+	if after != nil {
+		after()
+	}
+}
+
+func serveSubscribe(parent context.Context, conn net.Conn, req Request, subscribe SubscribeFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	go func() {
+		select {
+		case <-parent.Done():
+			_ = conn.Close()
+		case <-ctx.Done():
+		}
+	}()
+	go func() {
+		buf := make([]byte, 1)
+		_, _ = conn.Read(buf)
+		cancel()
+	}()
+	send := func(resp Response) error {
+		resp.V = ProtocolVersion
+		resp.Running = true
+		resp.After = nil
+		_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		return writeJSON(conn, resp)
+	}
+	_ = subscribe(ctx, req, send)
 }
 
 func tokenEqual(got, want string) bool {

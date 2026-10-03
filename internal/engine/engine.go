@@ -66,6 +66,12 @@ type Engine struct {
 	version         string
 	owner           *Owner
 	hostWithoutLock bool
+
+	subMu sync.Mutex
+	subs  []*sub
+
+	stopOnce sync.Once
+	stopCh   chan struct{}
 }
 
 // Open loads the default config, the OS keychain, and the tunnel services.
@@ -108,7 +114,7 @@ func New(opts Options) *Engine {
 	if opts.Runtime != nil {
 		runtime = opts.Runtime
 	}
-	return &Engine{
+	eng := &Engine{
 		storage:    opts.Storage,
 		vault:      vault,
 		jumper:     jumper,
@@ -124,7 +130,10 @@ func New(opts Options) *Engine {
 		syncLogin:  opts.SyncLogin,
 		syncScheme: opts.SyncScheme,
 		poster:     opts.Poster,
+		stopCh:     make(chan struct{}),
 	}
+	eng.bindTunnel()
+	return eng
 }
 
 // SetHost installs the GUI callbacks. NewApp calls it after the App exists
@@ -315,6 +324,7 @@ func (e *Engine) RebindAfterImport() {
 	if sameRuntime(e.runtime, old) {
 		e.runtime = e.tunnel
 	}
+	e.bindTunnel()
 }
 
 func sameRuntime(rt Runtime, tunnel *biz.TunnelBiz) bool {
@@ -352,6 +362,7 @@ func (e *Engine) initNotifier() {
 	} else {
 		poster = notify.NewSystemPoster(posterCfg)
 	}
+	poster = publishingPoster{next: poster, emit: e.publishNotification}
 	e.notifier = notify.NewService(notify.ServiceConfig{
 		Window:   2 * time.Second,
 		Settings: e.currentNotifySettings,

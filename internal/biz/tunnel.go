@@ -45,6 +45,7 @@ type TunnelBiz struct {
 	storage       *conf.Storage
 	secrets       *secrets.Vault
 	events        TunnelEvents
+	statusWatch   func(model.Tunnel)
 	mu            sync.Mutex
 	runs          map[int]*forward.LocalForward
 	starting      map[int]context.CancelFunc
@@ -134,6 +135,29 @@ func (b *TunnelBiz) SetEvents(events TunnelEvents) {
 		return
 	}
 	b.events = events
+}
+
+// SetStatusWatch reports each persisted status change. The callback must not
+// block. Nil disables it. The engine uses it for IPC status events.
+func (b *TunnelBiz) SetStatusWatch(fn func(model.Tunnel)) {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	b.statusWatch = fn
+	b.mu.Unlock()
+}
+
+func (b *TunnelBiz) notifyStatus(tunnel model.Tunnel) {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	fn := b.statusWatch
+	b.mu.Unlock()
+	if fn != nil {
+		fn(tunnel)
+	}
 }
 
 func (b *TunnelBiz) List() ([]model.Tunnel, error) {
@@ -895,6 +919,7 @@ func (b *TunnelBiz) updateStatus(id int, status, lastError string) (model.Tunnel
 	} else {
 		slog.Info("tunnel status updated", "tunnel_id", updated.ID, "name", updated.Name, "status", updated.Status)
 	}
+	b.notifyStatus(updated)
 	return updated, nil
 }
 

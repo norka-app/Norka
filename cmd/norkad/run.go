@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -124,9 +125,17 @@ func serve(e env, storage *conf.Storage) int {
 
 	eng.Start()
 	eng.StartAutoStart()
+	slog.SetDefault(slog.New(eng.LogHandler(slog.Default().Handler())))
 	logReady(storage.Path())
 
-	e.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	eng.NotifyStop(cancel)
+	go func() {
+		e.Wait()
+		cancel()
+	}()
+	<-ctx.Done()
 	defer finishStop()
 	logStopping()
 	eng.Shutdown()
@@ -199,6 +208,9 @@ It reads the same config.toml as the Norka window, takes the engine lock
 as kind daemon, and starts autostart tunnels, wake reconnect, and automation
 IPC. Keys and ssh-agent only: a tunnel that needs a password from the GUI
 keychain prompt is logged and skipped.
+
+A dialect 2 client can ask this process to stop, or to drop the engine lock
+after the tunnels stop so the caller can take it. The wire format is docs/IPC.md.
 
   norkad [--config PATH] [--foreground] [--force] [--version]
 

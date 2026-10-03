@@ -57,10 +57,14 @@ norka-cli disconnect <имя|id>
 norka-cli toggle <имя|id>
 norka-cli status [--json]
 norka-cli list [--json]
+norka-cli daemon stop [--force]
+norka-cli daemon handover
 norka-cli --version
 ```
 
-`connect`, если Norka не запущена, стартует её в трее без окна и затем подключает туннель. Встроенная команда запускает свой же файл. `norka-cli` запускает путь из `app-path`. `status` и `list` в этом случае пишут, что программа не запущена, и завершаются с кодом 2. `disconnect` и `toggle` сами программу не запускают.
+`connect`, если Norka не запущена, стартует её в трее без окна и затем подключает туннель. Встроенная команда запускает свой же файл. `norka-cli` запускает путь из `app-path`. `status` и `list` в этом случае пишут, что программа не запущена, и завершаются с кодом 2. `disconnect`, `toggle` и `daemon` сами программу не запускают.
+
+`norka-cli status --json` говорит на протоколе 2: в ответе есть приветствие (`owner` — `gui` или `daemon`, pid и версия приложения) и полный снимок туннелей, джамперов, групп и статистики. Обычный `status` без `--json` по-прежнему короткий текст. `daemon stop` просит владельца остановить туннели и выйти; окно это игнорирует, пока не передан `--force`. `daemon handover` просит остановить туннели и отпустить `engine.lock`, чтобы следующий процесс мог его занять. Формат канала — в [IPC.md](IPC.md).
 
 ```text
 $ norka status
@@ -189,10 +193,14 @@ norka-cli disconnect <name|id>
 norka-cli toggle <name|id>
 norka-cli status [--json]
 norka-cli list [--json]
+norka-cli daemon stop [--force]
+norka-cli daemon handover
 norka-cli --version
 ```
 
-If Norka is not running, `connect` starts it hidden in the tray and then connects the tunnel. The built-in command starts its own executable. `norka-cli` starts the path stored in `app-path`. `status` and `list` say that it is not running and exit with code 2. `disconnect` and `toggle` do not start the app.
+`norka-cli status --json` speaks protocol 2: the reply has a hello (`owner` is `gui` or `daemon`, plus pid and the app version) and a full snapshot of tunnels, jumpers, groups, and stats. Plain `status` stays the short text. `daemon stop` asks the owner to stop its tunnels and exit; a window ignores that unless `--force` is set. `daemon handover` asks the owner to stop its tunnels and release `engine.lock` so the next process can take it. The wire format is [IPC.md](IPC.md).
+
+If Norka is not running, `connect` starts it hidden in the tray and then connects the tunnel. The built-in command starts its own executable. `norka-cli` starts the path stored in `app-path`. `status` and `list` say that it is not running and exit with code 2. `disconnect`, `toggle`, and `daemon` do not start the app.
 
 ```text
 $ norka status
