@@ -59,6 +59,9 @@ func TestLifecycleStartAutoStartAndShutdown(t *testing.T) {
 		},
 	})
 
+	if _, err := eng.Acquire(KindGUI); err != nil {
+		t.Fatal(err)
+	}
 	eng.Start()
 	if watched != 0 {
 		t.Fatalf("wake watch started while the flag is off: %d", watched)

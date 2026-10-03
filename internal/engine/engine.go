@@ -60,6 +60,11 @@ type Engine struct {
 
 	automationMu     sync.Mutex
 	automationPrompt AutomationPrompt
+
+	ownerMu         sync.Mutex
+	version         string
+	owner           *Owner
+	hostWithoutLock bool
 }
 
 // Open loads the default config, the OS keychain, and the tunnel services.
@@ -206,9 +211,10 @@ func (e *Engine) FeatureOn(id features.ID) bool {
 	return cfg.Features.Enabled(id)
 }
 
-// Start brings up notifications, launch-at-login, the wake watcher, and the
-// automation listener. It does not start tunnels: the GUI handles a deep
-// link first, then calls StartAutoStart, matching the previous startup order.
+// Start brings up notifications, launch-at-login, and, when this process
+// hosts the engine, the wake watcher and the automation listener.
+// It does not start tunnels: the GUI handles a deep link first, then calls
+// StartAutoStart, matching the previous startup order.
 func (e *Engine) Start() {
 	if e == nil || e.Ready() != nil {
 		return
@@ -223,8 +229,9 @@ func (e *Engine) Start() {
 
 // StartAutoStart launches tunnels marked autoStart. The call returns before
 // the tunnels finish dialing, as startup did.
+// A process that does not host the engine leaves them to the owner.
 func (e *Engine) StartAutoStart() {
-	if e == nil {
+	if e == nil || !e.hosting() {
 		return
 	}
 	rt := e.active()
@@ -239,7 +246,8 @@ func (e *Engine) StartAutoStart() {
 	}()
 }
 
-// Shutdown stops the automation listener and then the tunnels.
+// Shutdown stops the automation listener and then the tunnels, and drops
+// engine.lock when this process holds it.
 // The wake watcher is left to process exit, as the GUI shutdown did.
 func (e *Engine) Shutdown() {
 	if e == nil {
@@ -247,6 +255,7 @@ func (e *Engine) Shutdown() {
 	}
 	e.StopAutomation()
 	e.ShutdownTunnels()
+	e.Release()
 }
 
 // StopAutomation closes the automation listener.
@@ -258,8 +267,9 @@ func (e *Engine) StopAutomation() {
 }
 
 // ShutdownTunnels stops running forwards and flushes tunnel stats.
+// A process that does not host the engine leaves them running.
 func (e *Engine) ShutdownTunnels() {
-	if e == nil {
+	if e == nil || !e.hosting() {
 		return
 	}
 	if rt := e.active(); rt != nil {

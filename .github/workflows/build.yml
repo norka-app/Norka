@@ -66,6 +66,12 @@ jobs:
           go-version: "1.26" # та же версия Go, что и локально
           cache: true        # кэш скачанных зависимостей Go, следующие запуски быстрее
 
+      # Блокировка конфига и engine.lock проверяются на этой ОС, не только на Linux.
+      - name: Test cross-process locks
+        run: |
+          go test ./internal/filelock ./internal/conf -count=1 -timeout 180s -run "TestFileLock|TestStorage"
+          go test ./internal/engine -count=1 -timeout 180s -run "TestAcquire|TestNonOwner|TestHostWithoutLock"
+
       # Шаг 3. Установить Node.js (нужен фронтенду Wails, версия 24).
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -177,6 +183,13 @@ jobs:
         with:
           go-version: "1.26"
           cache: true
+
+      # Блокировка конфига и engine.lock проверяются на этой ОС, не только на Linux.
+      - name: Test cross-process locks
+        shell: bash
+        run: |
+          go test ./internal/filelock ./internal/conf -count=1 -timeout 180s -run "TestFileLock|TestStorage"
+          go test ./internal/engine -count=1 -timeout 180s -run "TestAcquire|TestNonOwner|TestHostWithoutLock"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
