@@ -19,6 +19,7 @@ import (
 	"github.com/norka-app/Norka/internal/biz"
 	"github.com/norka-app/Norka/internal/conf"
 	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/netwatch"
 	"github.com/norka-app/Norka/internal/notify"
 	"github.com/norka-app/Norka/internal/secrets"
@@ -225,6 +226,17 @@ func (e *Engine) Start() {
 		e.SyncWakeWatch(cfg.Features.Enabled(features.WakeReconnect))
 	}
 	e.SyncAutomation()
+}
+
+// SetAutoStartSkip installs a filter on the concrete tunnel service.
+// Jumpers are passed as stored, before the keychain is read. A non-empty
+// reason skips that tunnel. norkad uses this so a password the GUI would
+// prompt for is logged and not dialed. The GUI leaves the filter unset.
+func (e *Engine) SetAutoStartSkip(skip func(model.Tunnel, []model.Jumper) string) {
+	if e == nil || e.tunnel == nil {
+		return
+	}
+	e.tunnel.SetAutoStartSkip(skip)
 }
 
 // StartAutoStart launches tunnels marked autoStart. The call returns before

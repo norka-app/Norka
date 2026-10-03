@@ -172,7 +172,7 @@ jobs:
 
 Отдельный клиент собирает GoReleaser (`.goreleaser.yaml`) в workflow `Release norka-cli` (`.github/workflows/release-cli.yml`). На теге `v*` его вызывает задача `release-cli` в `build.yml`, после `release`. Файлы дописываются в уже созданный выпуск (`release.mode: keep-existing`). Повторный запуск заменяет файлы клиента с теми же именами (`release.replace_existing_artifacts`). Общий `SHA256SUMS` эта задача не создаёт и не перезаписывает: его по-прежнему пишет `release`, а `update-manifests` и автообновление читают только его. `norka.exe`, `norka.dmg`, AppImage, deb и tar.gz приложения тоже не трогаются. Хеши клиента лежат в `norka-cli_SHA256SUMS`. После выкладки workflow аттестует архивы, zip, deb и rpm клиента.
 
-Платформы: linux, windows и darwin, amd64 и arm64. Архивы `tar.gz`, для Windows `zip`. Плюс пакеты deb и rpm. Имя бинарника `norka-cli`.
+Платформы: linux, windows и darwin, amd64 и arm64. Архивы `tar.gz`, для Windows `zip`. Плюс пакеты deb и rpm. В каждом архиве и пакете два бинарника: `norka-cli` и `norkad`.
 
 Публикация cask и манифеста Scoop идёт в чужие репозитории и требует секрет `TAP_GITHUB_TOKEN` (право писать в `norka-app/homebrew-tap` и `norka-app/scoop-bucket`). В конфиге токен записан только как `{{ .Env.TAP_GITHUB_TOKEN }}`: другую подстановку GoReleaser отклоняет при публикации. Нет секрета — в Actions приходит пустая строка, `skip_upload` пропускает tap и bucket, а сам выпуск с архивами и пакетами собирается. Отсутствующая переменная для `skip_upload` тоже означает пропуск: шаблон смотрит через `index`, а не через `.Env.ИМЯ`.
 
@@ -180,8 +180,8 @@ jobs:
 
 Если публикация клиента на уже стоящем теге упала, тег не переставляют. После правки в `main` откройте Actions → Release norka-cli → Run workflow. Ветку оставьте `main`: шаги и `.goreleaser.yaml` берутся из неё. В поле tag укажите тег, например `v1.5.0`: с него берутся только исходники. Уже загруженные архивы, пакеты и `norka-cli_SHA256SUMS` заменяются новыми. Аттестация и хеши в cask и Scoop считаются от этой же сборки. Файлы GUI и общий `SHA256SUMS` остаются как были.
 
-- Cask `norka-cli` в `norka-app/homebrew-tap`, каталог `Casks`. В cask один бинарник `norka-cli` и хук, который снимает `com.apple.quarantine`. Секция `brews` не используется.
-- Манифест Scoop `bucket/norka-cli.json` в `norka-app/scoop-bucket`.
+- Cask `norka-cli` в `norka-app/homebrew-tap`, каталог `Casks`. Cask ставит `norka-cli` и `norkad` и снимает `com.apple.quarantine` с обоих. Секция `brews` не используется.
+- Манифест Scoop `bucket/norka-cli.json` в `norka-app/scoop-bucket`. В `bin` два shim: `norka-cli.exe` и `norkad.exe`, потому что оба файла лежат в том же zip.
 
 Пользователь, когда tap и bucket уже обновлены этим выпуском:
 

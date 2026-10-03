@@ -15,6 +15,9 @@ func TestCatalogDefaults(t *testing.T) {
 	if Default(Automation) {
 		t.Fatal("automation default must be off")
 	}
+	if Default(BackgroundMode) {
+		t.Fatal("background mode default must be off")
+	}
 	if Default(ID("language")) {
 		t.Fatal("unknown flag must be off")
 	}

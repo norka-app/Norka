@@ -16,6 +16,24 @@ var envOnlyRe = regexp.MustCompile(`^{{\s*\.Env\.[^.\s}]+\s*}}$`)
 
 const skipUploadTpl = `{{ if eq (index .Env "TAP_GITHUB_TOKEN") "" }}true{{ else }}false{{ end }}`
 
+func TestNorkadShipsWithCLI(t *testing.T) {
+	body := readGoreleaser(t)
+	for _, want := range []string{
+		"main: ./cmd/norkad",
+		"binary: norkad",
+		"- norkad",
+		"#{staged_path}/norkad",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf(".goreleaser.yaml missing %q", want)
+		}
+	}
+	archive := topLevel(body)["archives"]
+	if !strings.Contains(archive, "- norkad") {
+		t.Fatal("archive norka-cli must include the norkad build")
+	}
+}
+
 func TestIndexTokenIsRejected(t *testing.T) {
 	bad := `{{ index .Env "TAP_GITHUB_TOKEN" }}`
 	if envOnlyRe.MatchString(bad) {

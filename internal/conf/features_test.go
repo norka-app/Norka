@@ -38,6 +38,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	if _, ok := cfg.Features.Explicit(features.AutostartHidden); ok {
 		t.Fatal("autostart hidden key must stay missing when the default applies")
 	}
+	assertFeature(t, cfg, features.BackgroundMode, false)
+	if _, ok := cfg.Features.Explicit(features.BackgroundMode); ok {
+		t.Fatal("background mode key must stay missing when the default applies")
+	}
 	if _, ok := cfg.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay missing on a fresh config")
 	}
@@ -77,6 +81,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, loaded, features.AutostartHidden, true)
 	if _, ok := loaded.Features.Explicit(features.AutostartHidden); ok {
 		t.Fatal("autostart hidden key must stay absent so the default stays on")
+	}
+	assertFeature(t, loaded, features.BackgroundMode, false)
+	if _, ok := loaded.Features.Explicit(features.BackgroundMode); ok {
+		t.Fatal("background mode key must stay absent so the default stays off")
 	}
 	if _, ok := loaded.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay absent so the default can change later")
@@ -150,6 +158,7 @@ onboarding = false
 diagnostics = false
 tunnel_diagnostics = false
 autostart_hidden = false
+background_mode = false
 `)
 	cfg, err := ParseConfigTOML(raw)
 	if err != nil {
@@ -187,7 +196,7 @@ autostart_hidden = false
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false", "tunnel_stats = false", "onboarding = false", "diagnostics = false", "tunnel_diagnostics = false", "autostart_hidden = false"} {
+	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false", "tunnel_stats = false", "onboarding = false", "diagnostics = false", "tunnel_diagnostics = false", "autostart_hidden = false", "background_mode = false"} {
 		if !strings.Contains(text, key) {
 			t.Fatalf("saved config missing %q:\n%s", key, text)
 		}
@@ -245,6 +254,10 @@ status = "running"
 	assertFeature(t, cfg, features.AutostartHidden, true)
 	if _, ok := cfg.Features.Explicit(features.AutostartHidden); ok {
 		t.Fatal("legacy config must not invent an autostart hidden key")
+	}
+	assertFeature(t, cfg, features.BackgroundMode, false)
+	if _, ok := cfg.Features.Explicit(features.BackgroundMode); ok {
+		t.Fatal("legacy config must not invent a background mode key")
 	}
 	if cfg.QuickSearchHotkey != "ctrl+shift+k" {
 		t.Fatalf("hotkey lost: %q", cfg.QuickSearchHotkey)

@@ -35,6 +35,9 @@ const (
 	// stays in the tray. Off restores the previous behavior: the window opens.
 	// Default is on. An existing entry is rewritten on the next start.
 	AutostartHidden ID = "autostart_hidden"
+	// BackgroundMode lets norkad keep tunnels up without the window.
+	// Off by default. The window itself does not move to the background yet.
+	BackgroundMode ID = "background_mode"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -84,6 +87,7 @@ func All() []Flag {
 		{ID: Diagnostics, Default: true, TitleKey: "features.diagnostics", DescriptionKey: "features.diagnosticsDesc"},
 		{ID: TunnelDiagnostics, Default: true, TitleKey: "features.tunnelDiagnostics", DescriptionKey: "features.tunnelDiagnosticsDesc"},
 		{ID: AutostartHidden, Default: true, TitleKey: "features.autostartHidden", DescriptionKey: "features.autostartHiddenDesc"},
+		{ID: BackgroundMode, Default: false, TitleKey: "features.backgroundMode", DescriptionKey: "features.backgroundModeDesc"},
 	}
 }
 
@@ -127,6 +131,7 @@ type Flags struct {
 	Diagnostics       *bool `toml:"diagnostics,omitempty" json:"diagnostics,omitempty"`
 	TunnelDiagnostics *bool `toml:"tunnel_diagnostics,omitempty" json:"tunnelDiagnostics,omitempty"`
 	AutostartHidden   *bool `toml:"autostart_hidden,omitempty" json:"autostartHidden,omitempty"`
+	BackgroundMode    *bool `toml:"background_mode,omitempty" json:"backgroundMode,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -175,6 +180,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.TunnelDiagnostics = &value
 	case AutostartHidden:
 		f.AutostartHidden = &value
+	case BackgroundMode:
+		f.BackgroundMode = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -214,6 +221,7 @@ func (f Flags) Clone() Flags {
 		Diagnostics:       cloneBool(f.Diagnostics),
 		TunnelDiagnostics: cloneBool(f.TunnelDiagnostics),
 		AutostartHidden:   cloneBool(f.AutostartHidden),
+		BackgroundMode:    cloneBool(f.BackgroundMode),
 	}
 }
 
@@ -276,6 +284,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.TunnelDiagnostics
 	case AutostartHidden:
 		return f.AutostartHidden
+	case BackgroundMode:
+		return f.BackgroundMode
 	default:
 		return nil
 	}

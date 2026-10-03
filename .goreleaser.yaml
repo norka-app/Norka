@@ -1,4 +1,4 @@
-# Сборка отдельного клиента norka-cli.
+# Сборка norka-cli и norkad. Оба бинарника лежат в одних архивах norka-cli.
 # Общий SHA256SUMS приложения сюда не входит: его читают update-manifests
 # и автообновление. У клиента свой файл norka-cli_SHA256SUMS.
 # release.mode: keep-existing дописывает файлы в уже созданный выпуск GUI.
@@ -23,11 +23,28 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -X main.version={{ .Version }}
+  - id: norkad
+    main: ./cmd/norkad
+    binary: norkad
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
 
 archives:
   - id: norka-cli
     ids:
       - norka-cli
+      - norkad
     formats: [tar.gz]
     format_overrides:
       - goos: windows
@@ -53,10 +70,11 @@ nfpms:
     package_name: norka-cli
     ids:
       - norka-cli
+      - norkad
     vendor: Norka
     homepage: https://github.com/norka-app/Norka
     maintainer: Norka
-    description: Command-line client for the Norka tunnel app.
+    description: Command-line client and background daemon for the Norka tunnel app.
     license: MIT
     formats:
       - deb
@@ -76,14 +94,16 @@ homebrew_casks:
       # отклоняет на публикации.
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/norka-app/Norka
-    description: Command-line client for the Norka tunnel app.
+    description: Command-line client and background daemon for the Norka tunnel app.
     binaries:
       - norka-cli
+      - norkad
     hooks:
       post:
         install: |
           if OS.mac?
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/norka-cli"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/norkad"]
           end
     commit_msg_template: "norka-cli {{ .Tag }}"
     # index, а не .Env.ИМЯ: пустая строка из Actions и отсутствующая
@@ -99,7 +119,7 @@ scoops:
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: bucket
     homepage: https://github.com/norka-app/Norka
-    description: Command-line client for the Norka tunnel app.
+    description: Command-line client and background daemon for the Norka tunnel app.
     license: MIT
     commit_msg_template: "norka-cli {{ .Tag }}"
     skip_upload: '{{ if eq (index .Env "TAP_GITHUB_TOKEN") "" }}true{{ else }}false{{ end }}'

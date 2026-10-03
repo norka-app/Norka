@@ -17,6 +17,7 @@ const DEFAULTS = {
   diagnostics: true,
   tunnel_diagnostics: true,
   autostart_hidden: true,
+  background_mode: false,
 }
 
 const COPY = {
@@ -34,6 +35,7 @@ const COPY = {
   diagnostics: ['features.diagnostics', 'features.diagnosticsDesc'],
   tunnel_diagnostics: ['features.tunnelDiagnostics', 'features.tunnelDiagnosticsDesc'],
   autostart_hidden: ['features.autostartHidden', 'features.autostartHiddenDesc'],
+  background_mode: ['features.backgroundMode', 'features.backgroundModeDesc'],
 }
 
 function fallbackItems() {
