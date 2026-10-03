@@ -2663,8 +2663,8 @@ watch(dialogOpen, (open) => {
 watch(dialogOpen, (open) => {
   if (!open || typeof document === 'undefined') return
   requestAnimationFrame(() => {
-    const dialog = document.querySelector('.overlay .dialog-card')
-    const field = dialog?.querySelector('input:not([type="hidden"]):not([type="file"]), select, textarea, .app-select-trigger')
+    const dialog = document.querySelector('.n-modal-body-wrapper:not([style*="display: none"]) .n-card, .overlay .dialog-card')
+    const field = dialog?.querySelector('input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea')
     if (field instanceof HTMLElement) {
       field.focus()
       return
@@ -3157,12 +3157,14 @@ watch(
     :mask-closable="true"
     @update:show="(open) => { if (!open) closeActionDialog() }"
   >
-    <p class="action-dialog-message">{{ actionDialog.message }}</p>
-    <n-checkbox v-if="actionDialog.rememberLabel" v-model:checked="actionDialog.remember">
-      {{ actionDialog.rememberLabel }}
-    </n-checkbox>
+    <n-space vertical :size="16">
+      <p class="action-dialog-message">{{ actionDialog.message }}</p>
+      <n-checkbox v-if="actionDialog.rememberLabel" v-model:checked="actionDialog.remember">
+        {{ actionDialog.rememberLabel }}
+      </n-checkbox>
+    </n-space>
     <template #footer>
-      <n-space justify="end">
+      <n-space justify="end" :size="8" :wrap="true">
         <n-button v-if="actionDialog.mode === 'confirm'" @click="closeActionDialog">
           {{ $t('app.common.cancel') }}
         </n-button>

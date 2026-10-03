@@ -165,11 +165,16 @@ const portConflict = computed(() => (
 const dontAsk = ref(false)
 const switchBtnRef = ref(null)
 
+function focusKitControl(target) {
+  const el = target?.$el ?? target
+  if (el instanceof HTMLElement) el.focus({ preventScroll: true })
+}
+
 watch(portConflict, async (text, previous) => {
   if (!text || previous) return
   dontAsk.value = false
   await nextTick()
-  if (!listOpen.value) switchBtnRef.value?.focus({ preventScroll: true })
+  if (!listOpen.value) focusKitControl(switchBtnRef.value)
 })
 
 function confirmPortSwitch() {
@@ -515,9 +520,7 @@ onBeforeUnmount(() => {
           <i class="bi bi-exclamation-triangle-fill simple-warn-icon" aria-hidden="true" />
           <span class="simple-detail simple-warn-text" :title="portConflict">{{ portConflict }}</span>
         </div>
-        <label class="simple-dontask">
-          <input v-model="dontAsk" type="checkbox">{{ $t('app.tunnels.portSwitch.dontAsk') }}
-        </label>
+        <n-checkbox v-model:checked="dontAsk" size="small">{{ $t('app.tunnels.portSwitch.dontAsk') }}</n-checkbox>
       </div>
       <div v-else class="simple-info">
         <div class="simple-status" :class="`s-${state}`" role="status">
@@ -534,56 +537,55 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-if="portConflict" class="simple-acts">
-        <button ref="switchBtnRef" type="button" class="simple-btn simple-btn--primary" @click="confirmPortSwitch">
-          <i class="bi bi-arrow-left-right" aria-hidden="true" />{{ $t('app.tunnels.portSwitch.confirm') }}
-        </button>
-        <button type="button" class="simple-btn simple-btn--outline simple-btn--secondary" @click="cancelPortSwitch">
+      <n-space v-if="portConflict" class="simple-acts" :size="8" :wrap="false">
+        <n-button ref="switchBtnRef" size="small" type="primary" class="simple-main-btn" @click="confirmPortSwitch">
+          <template #icon><i class="bi bi-arrow-left-right" aria-hidden="true" /></template>
+          {{ $t('app.tunnels.portSwitch.confirm') }}
+        </n-button>
+        <n-button size="small" @click="cancelPortSwitch">
           {{ $t('app.common.cancel') }}
-        </button>
-      </div>
-      <div v-else class="simple-acts">
-        <button
-          type="button"
-          class="simple-btn"
-          :class="`simple-btn--${primary.variant}`"
+        </n-button>
+      </n-space>
+      <n-space v-else class="simple-acts" :size="8" :wrap="false">
+        <n-button
+          size="small"
+          class="simple-main-btn"
+          :type="primary.variant === 'primary' ? 'primary' : 'default'"
           :disabled="!tunnel"
           @click="toggle"
         >
-          <i class="bi" :class="primary.icon" aria-hidden="true" />{{ primary.label }}
-        </button>
-        <button
+          <template #icon><i class="bi" :class="primary.icon" aria-hidden="true" /></template>
+          {{ primary.label }}
+        </n-button>
+        <n-button
           v-if="diagnosticsEnabled"
-          type="button"
-          class="simple-ibtn"
+          size="small"
           :disabled="!tunnel"
           :title="$t('app.simple.diagnostics')"
           :aria-label="$t('app.simple.diagnostics')"
           @click="emit('diagnose', tunnel)"
         >
-          <i class="bi bi-activity" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="simple-ibtn"
+          <template #icon><i class="bi bi-activity" aria-hidden="true" /></template>
+        </n-button>
+        <n-button
+          size="small"
           :disabled="!canCopy"
           :title="copied ? $t('app.simple.copied') : $t('app.simple.copyAddress')"
           :aria-label="$t('app.simple.copyAddress')"
           @click="copyAddress"
         >
-          <i class="bi" :class="copied ? 'bi-check2' : 'bi-copy'" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="simple-ibtn"
+          <template #icon><i class="bi" :class="copied ? 'bi-check2' : 'bi-copy'" aria-hidden="true" /></template>
+        </n-button>
+        <n-button
+          size="small"
           :disabled="!canOpen"
           :title="$t('app.simple.openBrowser')"
           :aria-label="$t('app.simple.openBrowser')"
           @click="openInBrowser"
         >
-          <i class="bi bi-box-arrow-up-right" aria-hidden="true" />
-        </button>
-      </div>
+          <template #icon><i class="bi bi-box-arrow-up-right" aria-hidden="true" /></template>
+        </n-button>
+      </n-space>
     </div>
 
     <div v-if="listOpen || profileOpen" class="simple-backdrop" aria-hidden="true" @pointerdown.prevent="closeList(); closeProfileList()" />
@@ -818,73 +820,11 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.simple-dontask {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  max-width: 100%;
-  height: 17px;
-  margin-top: 2px;
-  padding-left: 3px;
-  color: var(--s-muted);
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-  user-select: none;
-}
-.simple-dontask input {
-  width: 13px;
-  height: 13px;
-  margin: 0;
-  flex: none;
-  accent-color: var(--s-accent);
-  cursor: pointer;
-}
 .simple-empty { padding-left: 3px; color: var(--s-muted); font-size: 12.5px; line-height: 18px; }
 .simple-arrow { color: var(--s-faint); margin: 0 3px; font-family: "Segoe UI", system-ui, sans-serif; }
 
-.simple-acts { display: flex; gap: 6px; }
-.simple-btn,
-.simple-ibtn {
-  height: 32px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  cursor: pointer;
-  color: var(--s-text);
-  background: var(--s-ctrl);
-  border: 1px solid var(--s-ctrl-b);
-  border-bottom-color: var(--s-ctrl-bb);
-  transition: background-color 0.12s ease;
-}
-.simple-btn {
-  flex: 1;
-  min-width: 0;
-  gap: 7px;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.simple-btn .bi { font-size: 14px; }
-.simple-btn--secondary { flex: none; padding: 0 16px; }
-.simple-btn--primary { background: var(--s-accent); border-color: var(--s-accent-h); color: var(--s-on-accent); }
-.simple-btn--primary:hover:not(:disabled) { background: var(--s-accent-h); }
-.simple-btn--outline:hover:not(:disabled),
-.simple-ibtn:hover:not(:disabled) { background: var(--s-ctrl-h); }
-.simple-ibtn { width: 32px; flex: none; padding: 0; font-size: 15px; }
-.simple-btn:disabled,
-.simple-ibtn:disabled { opacity: 0.42; cursor: default; }
-.simple-btn:focus-visible,
-.simple-ibtn:focus-visible {
-  outline: 2px solid var(--s-accent);
-  outline-offset: 1px;
-}
+.simple-acts { width: 100%; }
+.simple-acts :deep(.simple-main-btn) { flex: 1 1 auto; min-width: 0; }
 
 /* панель списка: по высоте содержимого, но не выше окна (8px сверху и снизу) */
 .simple-backdrop { position: absolute; inset: 0; z-index: 10; }

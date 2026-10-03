@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { findPortConflicts } from '../../utils/port-conflicts'
 import { bestFuzzyScore } from '../../utils/fuzzy'
 import { matchesKey } from '../../utils/keyboard'
+import { plainInputProps } from '../../theme/form-layout'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -15,6 +16,13 @@ const props = defineProps({
 const emit = defineEmits(['close', 'toggle-tunnel', 'activate-profile'])
 
 const { t } = useI18n()
+const searchInputProps = {
+  ...plainInputProps,
+  autocomplete: 'off',
+  role: 'combobox',
+  'aria-autocomplete': 'list',
+  'aria-controls': 'quick-search-list',
+}
 const query = ref('')
 const activeIndex = ref(0)
 const inputRef = ref(null)
@@ -149,23 +157,25 @@ function onKeydown(event) {
     <button type="button" class="qs-backdrop" :aria-label="t('app.common.close')" @click="close" />
     <div class="qs-card" role="dialog" aria-modal="true" :aria-label="t('app.quickSearch.title')">
       <div class="qs-search">
-        <i class="bi bi-search" aria-hidden="true" />
-        <input
+        <n-input
           ref="inputRef"
-          v-model="query"
-          class="qs-input"
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
+          v-model:value="query"
           :placeholder="t('app.quickSearch.placeholder')"
-          :aria-label="t('app.quickSearch.placeholder')"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-controls="quick-search-list"
-          :aria-expanded="results.length ? 'true' : 'false'"
-          :aria-activedescendant="selected ? `qs-opt-${activeIndex}` : undefined"
+          :input-props="{
+            ...searchInputProps,
+            'aria-label': t('app.quickSearch.placeholder'),
+            'aria-expanded': results.length ? 'true' : 'false',
+            'aria-activedescendant': selected ? `qs-opt-${activeIndex}` : undefined,
+          }"
+          @keydown="onKeydown"
         >
-        <kbd class="qs-kbd">esc</kbd>
+          <template #prefix>
+            <i class="bi bi-search" aria-hidden="true" />
+          </template>
+          <template #suffix>
+            <n-tag size="small" :bordered="true">esc</n-tag>
+          </template>
+        </n-input>
       </div>
       <ul v-if="results.length" id="quick-search-list" ref="listRef" class="qs-list" role="listbox">
         <li
@@ -230,31 +240,8 @@ function onKeydown(event) {
   box-shadow: var(--lt-dialog-shadow);
 }
 .qs-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  padding: var(--kit-field-gap);
   border-bottom: 1px solid var(--lt-border);
-}
-.qs-search .bi { color: var(--lt-muted); font-size: 16px; }
-.qs-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--lt-ink);
-  font: inherit;
-  font-size: 16px;
-}
-.qs-input::placeholder { color: var(--lt-muted); }
-.qs-kbd {
-  padding: 2px 6px;
-  border: 1px solid var(--lt-border);
-  border-radius: 6px;
-  color: var(--lt-muted);
-  font-family: inherit;
-  font-size: 11px;
 }
 .qs-list {
   max-height: min(360px, 50vh);

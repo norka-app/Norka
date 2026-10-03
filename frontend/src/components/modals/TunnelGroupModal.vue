@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconActionButton from '../common/IconActionButton.vue'
+import { BUTTON_GAP, plainInputProps } from '../../theme/form-layout'
 
 const props = defineProps({
   show: {
@@ -218,129 +219,111 @@ function onDragEnd() {
 </script>
 
 <template>
-  <div v-if="show" class="overlay">
-    <div class="dialog-card compact-dialog tunnel-group-dialog">
-      <div class="dialog-head">
-        <h3 class="dialog-title">{{ $t('app.tunnels.groups.manageTitle') }}</h3>
-        <button type="button" class="dialog-close" :aria-label="$t('app.common.close')" @click="$emit('close')">
-          <i class="bi bi-x-lg" aria-hidden="true" />
-        </button>
-      </div>
-      <form
-        class="dialog-body"
-        autocapitalize="none"
-        autocorrect="off"
-        spellcheck="false"
-        @submit.prevent="submitCreate"
-      >
-        <div class="tunnel-group-create-row">
-          <input
-            id="tunnel-group-new-name"
-            v-model="newGroupName"
-            class="form-control"
-            type="text"
-            :maxlength="nameMaxLength"
-            autocapitalize="none"
-            autocorrect="off"
-            spellcheck="false"
-            :placeholder="$t('app.tunnels.groups.newGroupPlaceholder')"
-            @keydown.enter.prevent="submitCreate"
-          />
-          <button type="submit" class="btn btn-primary tunnel-group-create-btn" :disabled="!newGroupName.trim()">
-            {{ $t('app.tunnels.groups.create') }}
-          </button>
-        </div>
+  <n-modal
+    :show="show"
+    preset="card"
+    class="app-modal tunnel-group-dialog"
+    :title="$t('app.tunnels.groups.manageTitle')"
+    :style="{ width: 'min(480px, calc(100vw - 32px))' }"
+    :mask-closable="false"
+    :segmented="{ content: true, footer: 'soft' }"
+    @update:show="(visible) => { if (!visible) emit('close') }"
+  >
+    <n-form class="kit-form" label-placement="top" :show-feedback="false" @submit.prevent="submitCreate">
+      <n-input-group>
+        <n-input
+          id="tunnel-group-new-name"
+          v-model:value="newGroupName"
+          :maxlength="nameMaxLength"
+          :input-props="plainInputProps"
+          :placeholder="$t('app.tunnels.groups.newGroupPlaceholder')"
+          @keydown.enter.prevent="submitCreate"
+        />
+        <n-button type="primary" attr-type="submit" :disabled="!newGroupName.trim()">
+          {{ $t('app.tunnels.groups.create') }}
+        </n-button>
+      </n-input-group>
 
-        <div v-if="orderedGroups.length === 0" class="tunnel-group-empty text-muted">
-          {{ $t('app.tunnels.groups.empty') }}
-        </div>
+      <n-text v-if="orderedGroups.length === 0" depth="3">
+        {{ $t('app.tunnels.groups.empty') }}
+      </n-text>
 
-        <ul v-else class="list-group tunnel-group-list">
-          <li
-            v-for="group in orderedGroups"
-            :key="group.id"
-            class="list-group-item tunnel-group-list-item"
-            :class="{
-              'is-draggable': canDrag(group),
-              'is-dragging': Number(draggingGroupId) === Number(group.id),
-              'is-drag-over': Number(dragOverGroupId) === Number(group.id)
-            }"
-            :draggable="canDrag(group)"
-            @dragstart="onDragStart($event, group)"
-            @dragover="onDragOver($event, group)"
-            @dragleave="onDragLeave(group)"
-            @drop="onDrop($event, group)"
-            @dragend="onDragEnd"
-          >
-            <template v-if="editingGroupId === group.id">
-              <div class="tunnel-group-edit-row">
-                <input
-                  v-model="editingGroupName"
-                  class="form-control"
-                  type="text"
-                  :maxlength="nameMaxLength"
-                  autocapitalize="none"
-                  autocorrect="off"
-                  spellcheck="false"
-                  @keydown.enter.prevent="submitRename(group)"
-                  @keydown.esc.prevent="cancelRename"
+      <n-list v-else bordered class="tunnel-group-list">
+        <n-list-item
+          v-for="group in orderedGroups"
+          :key="group.id"
+          class="tunnel-group-list-item"
+          :class="{
+            'is-draggable': canDrag(group),
+            'is-dragging': Number(draggingGroupId) === Number(group.id),
+            'is-drag-over': Number(dragOverGroupId) === Number(group.id)
+          }"
+          :draggable="canDrag(group)"
+          @dragstart="onDragStart($event, group)"
+          @dragover="onDragOver($event, group)"
+          @dragleave="onDragLeave(group)"
+          @drop="onDrop($event, group)"
+          @dragend="onDragEnd"
+        >
+          <template v-if="editingGroupId === group.id">
+            <div class="kit-section">
+              <n-input
+                v-model:value="editingGroupName"
+                :maxlength="nameMaxLength"
+                :input-props="plainInputProps"
+                @keydown.enter.prevent="submitRename(group)"
+                @keydown.esc.prevent="cancelRename"
+              />
+              <n-space :size="BUTTON_GAP">
+                <n-button type="primary" @click="submitRename(group)">
+                  {{ $t('app.common.save') }}
+                </n-button>
+                <n-button @click="cancelRename">
+                  {{ $t('app.common.cancel') }}
+                </n-button>
+              </n-space>
+            </div>
+          </template>
+          <template v-else>
+            <n-space justify="space-between" align="center" :wrap="false" style="width: 100%">
+              <n-ellipsis>{{ group.name }}</n-ellipsis>
+              <n-space :size="BUTTON_GAP" :wrap="false" :aria-label="$t('app.tunnels.groups.manageTitle')">
+                <IconActionButton
+                  button-class="btn-outline-secondary"
+                  :title="$t('app.tunnels.groups.rename')"
+                  :aria-label="$t('app.tunnels.groups.rename')"
+                  icon-class="bi-sliders"
+                  @click="startRename(group)"
                 />
-                <div class="tunnel-group-edit-actions">
-                  <button type="button" class="btn btn-primary" @click="submitRename(group)">
-                    {{ $t('app.common.save') }}
-                  </button>
-                  <button type="button" class="btn btn-outline-secondary" @click="cancelRename">
-                    {{ $t('app.common.cancel') }}
-                  </button>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="tunnel-group-item-row">
-                <span class="tunnel-group-item-name text-truncate">{{ group.name }}</span>
-                <div class="tunnel-group-item-actions">
-                  <div class="btn-group btn-group-sm action-btn-group" role="group" :aria-label="$t('app.tunnels.groups.manageTitle')">
-                    <IconActionButton
-                      button-class="btn-outline-secondary"
-                      :title="$t('app.tunnels.groups.rename')"
-                      :aria-label="$t('app.tunnels.groups.rename')"
-                      icon-class="bi-sliders"
-                      @click="startRename(group)"
-                    />
-                    <IconActionButton
-                      button-class="btn-outline-danger"
-                      :title="$t('app.tunnels.groups.delete')"
-                      :aria-label="$t('app.tunnels.groups.delete')"
-                      icon-class="bi-trash3"
-                      @click="emit('delete-group', group)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </li>
-        </ul>
+                <IconActionButton
+                  button-class="btn-outline-danger"
+                  :title="$t('app.tunnels.groups.delete')"
+                  :aria-label="$t('app.tunnels.groups.delete')"
+                  icon-class="bi-trash3"
+                  @click="emit('delete-group', group)"
+                />
+              </n-space>
+            </n-space>
+          </template>
+        </n-list-item>
+      </n-list>
 
-        <div class="form-check form-switch tunnel-group-pref-switch mt-3 mb-0">
-          <input
-            id="hideEmptyUngroupedSwitch"
-            class="form-check-input"
-            type="checkbox"
-            :checked="hideEmptyUngrouped"
-            @change="emit('update:hide-empty-ungrouped', $event.target.checked)"
-          />
-          <label class="form-check-label" for="hideEmptyUngroupedSwitch">
-            {{ $t('app.tunnels.groups.hideEmptyUngrouped') }}
-          </label>
-        </div>
-
-        <p v-if="displayError" class="text-danger tunnel-group-error mb-0 mt-2">{{ displayError }}</p>
-      </form>
-      <div class="dialog-footer">
-        <button type="button" class="btn btn-outline-secondary" @click="emit('close')">
-          {{ $t('app.common.close') }}
-        </button>
+      <div class="kit-switch-line">
+        <span>{{ $t('app.tunnels.groups.hideEmptyUngrouped') }}</span>
+        <n-switch
+          :value="hideEmptyUngrouped"
+          @update:value="emit('update:hide-empty-ungrouped', $event)"
+        />
       </div>
-    </div>
-  </div>
+
+      <n-alert v-if="displayError" type="error" :show-icon="false">{{ displayError }}</n-alert>
+    </n-form>
+    <template #footer>
+      <n-space justify="end" :size="BUTTON_GAP" style="width: 100%">
+        <n-button @click="emit('close')">
+          {{ $t('app.common.close') }}
+        </n-button>
+      </n-space>
+    </template>
+  </n-modal>
 </template>

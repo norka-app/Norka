@@ -1,5 +1,6 @@
 <script setup>
 import AIDebugResultCard from './AIDebugResultCard.vue'
+import { BUTTON_GAP, FIELD_GAP } from '../../theme/form-layout'
 
 defineProps({
   show: {
@@ -28,85 +29,34 @@ defineEmits(['close', 'retry-debug', 'test-again', 'report-content'])
 </script>
 
 <template>
-  <div v-if="show" class="overlay">
-    <div class="dialog-card compact-dialog ai-debug-dialog">
-      <div class="dialog-head ai-debug-dialog-head">
-        <div>
-          <h3 class="dialog-title">{{ title }}</h3>
-          <div v-if="subtitle" class="ai-debug-dialog-subtitle">{{ subtitle }}</div>
-        </div>
-        <button type="button" class="dialog-close" :aria-label="$t('app.common.close')" @click="$emit('close')">
-          <i class="bi bi-x-lg" aria-hidden="true" />
-        </button>
-      </div>
-      <div class="dialog-body">
-        <div v-if="rawError" class="ai-debug-source-error">
-          <div class="ai-debug-source-label">{{ $t('app.aiDebug.sourceError') }}</div>
-          <div class="ai-debug-source-message">{{ rawError }}</div>
-        </div>
-        <AIDebugResultCard
-          :state="state"
-          show-actions
-          @retry-debug="$emit('retry-debug')"
-          @test-again="$emit('test-again')"
-          @report-content="$emit('report-content')"
-        />
-      </div>
-      <div class="dialog-actions ai-debug-dialog-actions">
-        <button type="button" class="btn btn-outline-secondary" @click="$emit('close')">
+  <n-modal
+    :show="show"
+    preset="card"
+    class="app-modal"
+    :title="title"
+    :style="{ width: 'min(720px, calc(100vw - 32px))' }"
+    :segmented="{ content: true, footer: 'soft' }"
+    :content-style="{ maxHeight: 'calc(100vh - 180px)', overflow: 'auto' }"
+    @update:show="(visible) => { if (!visible) $emit('close') }"
+  >
+    <n-text v-if="subtitle" depth="3">{{ subtitle }}</n-text>
+    <n-alert v-if="rawError" type="error" :style="{ marginTop: subtitle ? FIELD_GAP + 'px' : 0 }">
+      <div>{{ $t('app.aiDebug.sourceError') }}</div>
+      <div>{{ rawError }}</div>
+    </n-alert>
+    <AIDebugResultCard
+      :state="state"
+      show-actions
+      @retry-debug="$emit('retry-debug')"
+      @test-again="$emit('test-again')"
+      @report-content="$emit('report-content')"
+    />
+    <template #footer>
+      <n-space justify="end" :size="BUTTON_GAP" style="width: 100%">
+        <n-button @click="$emit('close')">
           {{ $t('app.common.close') }}
-        </button>
-      </div>
-    </div>
-  </div>
+        </n-button>
+      </n-space>
+    </template>
+  </n-modal>
 </template>
-
-<style scoped>
-.ai-debug-dialog {
-  width: min(720px, 100%);
-}
-
-.ai-debug-dialog-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.ai-debug-dialog-subtitle {
-  color: var(--bs-secondary-color);
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
-}
-
-.ai-debug-source-error {
-  border: 1px solid rgba(220, 53, 69, 0.22);
-  border-radius: 8px;
-  background: var(--lt-danger-bg);
-  padding: 0.75rem 0.85rem;
-}
-
-.ai-debug-source-label {
-  color: var(--lt-danger-ink);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  margin-bottom: 0.25rem;
-}
-
-.ai-debug-source-message {
-  color: var(--lt-danger-ink);
-  font-size: 0.82rem;
-  line-height: 1.38;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.ai-debug-dialog-actions {
-  justify-content: flex-end;
-  margin-top: 0;
-  padding: 0.85rem 1rem;
-  border-top: 1px solid var(--lt-border);
-}
-</style>

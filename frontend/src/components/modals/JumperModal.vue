@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AIDebugResultCard from '../common/AIDebugResultCard.vue'
-import AppSelect from '../common/AppSelect.vue'
+import JumperFields from './JumperFields.vue'
+import { BUTTON_GAP, FIELD_GAP } from '../../theme/form-layout'
 
 const props = defineProps({
   show: {
@@ -86,283 +87,139 @@ const passwordPlaceholder = computed(() => {
     :content-style="{ maxHeight: 'calc(100vh - 180px)', overflow: 'auto' }"
     @update:show="(visible) => { if (!visible) $emit('close') }"
   >
-      <form
-        id="jumper-form"
-        class="dialog-body modal-form"
-        autocapitalize="none"
-        autocorrect="off"
-        spellcheck="false"
-        @submit.prevent="$emit('submit')"
+    <n-form
+      id="jumper-form"
+      class="kit-form"
+      label-placement="top"
+      :show-require-mark="false"
+      :show-feedback="false"
+      @submit.prevent="$emit('submit')"
+    >
+      <div class="kit-section">
+        <n-button text class="kit-disclosure" :aria-expanded="showJumperBasic" @click="$emit('toggle-basic')">
+          <template #icon>
+            <i class="bi bi-chevron-right kit-chevron" :class="{ 'is-open': showJumperBasic }" aria-hidden="true" />
+          </template>
+          {{ $t('app.modals.jumper.basicSettings') }}
+        </n-button>
+        <JumperFields
+          v-if="showJumperBasic"
+          :form="jumperForm"
+          :limits="jumperLimits"
+          :auth-options="authOptions"
+          :needs-key-file="jumperNeedsKeyFile"
+          :shows-password="jumperShowsPassword"
+          :password-placeholder="passwordPlaceholder"
+          :password-required="jumperNeedsPassword && !keepsStoredSecret"
+          :show-stored-hint="keepsStoredSecret"
+          show-notes
+          @key-file-change="$emit('key-file-change', $event)"
+        />
+      </div>
+
+      <n-space align="center" :size="BUTTON_GAP">
+        <div class="kit-switch-line">
+          <span>{{ $t('app.modals.jumper.bypassHostCheck') }}</span>
+          <n-switch v-model:value="jumperForm.bypassHostVerification" />
+        </div>
+        <n-tooltip>
+          <template #trigger>
+            <n-button text size="tiny">i</n-button>
+          </template>
+          {{ $t('app.modals.jumper.bypassTooltip') }}
+        </n-tooltip>
+      </n-space>
+
+      <div class="kit-section">
+        <n-button text class="kit-disclosure" :aria-expanded="showJumperAdvanced" @click="$emit('toggle-advanced')">
+          <template #icon>
+            <i class="bi bi-chevron-right kit-chevron" :class="{ 'is-open': showJumperAdvanced }" aria-hidden="true" />
+          </template>
+          {{ $t('app.modals.jumper.advancedOptions') }}
+        </n-button>
+        <n-grid v-if="showJumperAdvanced" cols="1 640:2" :x-gap="FIELD_GAP" :y-gap="FIELD_GAP" item-responsive>
+          <n-form-item-gi span="1 640:1" :show-feedback="false">
+            <template #label>
+              <n-space align="center" :size="BUTTON_GAP" :wrap="false">
+                <span>{{ $t('app.modals.jumper.keepAliveInterval') }}</span>
+                <n-tooltip>
+                  <template #trigger>
+                    <n-button text size="tiny" aria-label="?">?</n-button>
+                  </template>
+                  {{ $t('app.modals.jumper.keepAliveIntervalTooltip') }}
+                </n-tooltip>
+              </n-space>
+            </template>
+            <n-input-number
+              v-model:value="jumperForm.keepAliveIntervalMs"
+              :min="jumperLimits.keepAliveIntervalMin"
+              :max="jumperLimits.keepAliveIntervalMax"
+              :step="1000"
+              :show-button="false"
+              style="width: 100%"
+            />
+          </n-form-item-gi>
+          <n-form-item-gi span="1 640:1" :label="$t('app.modals.jumper.timeout')" :show-feedback="false">
+            <n-input-number
+              v-model:value="jumperForm.timeoutMs"
+              :min="jumperLimits.timeoutMin"
+              :max="jumperLimits.timeoutMax"
+              :step="100"
+              :show-button="false"
+              style="width: 100%"
+            />
+          </n-form-item-gi>
+        </n-grid>
+      </div>
+
+      <n-alert v-if="jumperValidationError" type="error" :show-icon="false">{{ jumperValidationError }}</n-alert>
+      <n-text
+        v-if="(!aiDebugEnabled && jumperTest.message) || (aiDebugEnabled && jumperTest.message && jumperTest.status !== 'error')"
+        :type="jumperTest.status === 'error' ? 'error' : jumperTest.status === 'success' ? 'success' : undefined"
       >
-        <div class="row g-2">
-          <div class="col-md-12">
-            <button type="button" class="advanced-toggle" :aria-expanded="showJumperBasic" @click="$emit('toggle-basic')">
-              <i class="bi bi-chevron-right advanced-chevron" :class="{ open: showJumperBasic }" aria-hidden="true" />
-              {{ $t('app.modals.jumper.basicSettings') }}
-            </button>
+        {{ jumperTest.message }}
+      </n-text>
+      <n-card v-if="aiDebugEnabled && jumperTest.message && jumperTest.status === 'error'" size="small">
+        <n-space justify="space-between" align="start" :size="FIELD_GAP" :wrap="true">
+          <div>
+            <div>{{ $t('app.aiDebug.connectionFailed') }}</div>
+            <n-text type="error">{{ jumperTest.message }}</n-text>
+            <n-text v-if="jumperTest.debuggable" depth="3" class="kit-note">{{ $t('app.aiDebug.inlineHint') }}</n-text>
           </div>
-
-          <div v-if="showJumperBasic" class="col-md-12">
-              <div class="row g-2">
-                <div class="col-md-6">
-                  <label class="form-label">{{ $t('app.modals.jumper.name') }}</label>
-                  <input
-                    v-model="jumperForm.name"
-                    class="form-control"
-                    type="text"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.name"
-                    required
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">{{ $t('app.modals.jumper.user') }}</label>
-                  <input
-                    v-model="jumperForm.user"
-                    class="form-control"
-                    type="text"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.user"
-                    required
-                  />
-                </div>
-                <div class="col-md-8">
-                  <label class="form-label">{{ $t('app.modals.jumper.host') }}</label>
-                  <input
-                    v-model="jumperForm.host"
-                    class="form-control"
-                    type="text"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.host"
-                    required
-                  />
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">{{ $t('app.modals.jumper.port') }}</label>
-                  <input v-model.number="jumperForm.port" class="form-control" type="number" min="1" max="65535" required />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">{{ $t('app.modals.jumper.authMethod') }}</label>
-                  <AppSelect v-model="jumperForm.authType" :options="authOptions" />
-                  <div v-if="jumperForm.authType === 'ssh_agent'" class="field-note mt-1">
-                    {{ $t('app.modals.jumper.sshAgentNote') }}
-                  </div>
-                </div>
-                <div v-if="jumperForm.authType === 'ssh_agent'" class="col-md-6">
-                  <label class="form-label">{{ $t('app.modals.jumper.agentSocketPath') }}</label>
-                  <input
-                    v-model="jumperForm.agentSocketPath"
-                    class="form-control"
-                    type="text"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.agentSocketPath"
-                    :placeholder="$t('app.modals.jumper.agentSocketPlaceholder')"
-                  />
-                  <div class="field-note">{{ $t('app.modals.jumper.agentSocketNote') }}</div>
-                </div>
-
-                <template v-if="jumperNeedsKeyFile">
-                  <div class="col-md-7">
-                    <label class="form-label">{{ $t('app.modals.jumper.sshKeyFile') }}</label>
-                    <div class="input-group">
-                      <input
-                        v-model="jumperForm.keyPath"
-                        class="form-control"
-                        type="text"
-                        autocapitalize="none"
-                        autocorrect="off"
-                        spellcheck="false"
-                        :maxlength="jumperLimits.keyPath"
-                        :placeholder="$t('app.modals.jumper.keyPathPlaceholder')"
-                        :required="jumperNeedsKeyFile"
-                      />
-                      <label class="btn btn-outline-secondary mb-0">
-                        {{ $t('app.modals.jumper.browse') }}
-                        <input class="d-none" type="file" @change="$emit('key-file-change', $event)" />
-                      </label>
-                    </div>
-                    <div class="field-note">{{ $t('app.modals.jumper.keyFileNote') }}</div>
-                  </div>
-                  <div class="col-md-5">
-                    <label class="form-label">{{ $t('app.modals.jumper.password') }}</label>
-                    <input
-                      v-model="jumperForm.password"
-                      class="form-control"
-                      type="password"
-                      autocapitalize="none"
-                      autocorrect="off"
-                      spellcheck="false"
-                      :maxlength="jumperLimits.password"
-                      :placeholder="passwordPlaceholder"
-                      :required="jumperNeedsPassword && !keepsStoredSecret"
-                    />
-                    <div v-if="keepsStoredSecret" class="field-note">{{ $t('app.modals.jumper.passwordStoredHint') }}</div>
-                  </div>
-                </template>
-
-                <div v-else-if="jumperShowsPassword" class="col-md-12">
-                  <label class="form-label">{{ $t('app.modals.jumper.password') }}</label>
-                  <input
-                    v-model="jumperForm.password"
-                    class="form-control"
-                    type="password"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.password"
-                    :placeholder="passwordPlaceholder"
-                    :required="jumperNeedsPassword && !keepsStoredSecret"
-                  />
-                  <div v-if="keepsStoredSecret" class="field-note">{{ $t('app.modals.jumper.passwordStoredHint') }}</div>
-                </div>
-
-                <div class="col-md-12">
-                  <label class="form-label">{{ $t('app.modals.jumper.notes') }}</label>
-                  <textarea
-                    v-model="jumperForm.notes"
-                    class="form-control"
-                    rows="2"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.notes"
-                  />
-                </div>
-              </div>
-          </div>
-
-          <div class="col-md-12">
-            <div class="d-flex align-items-center gap-2">
-              <div class="form-check form-switch m-0">
-                <input
-                  id="bypassHostSwitch"
-                  v-model="jumperForm.bypassHostVerification"
-                  class="form-check-input"
-                  type="checkbox"
-                />
-                <label class="form-check-label" for="bypassHostSwitch">{{ $t('app.modals.jumper.bypassHostCheck') }}</label>
-              </div>
-              <n-tooltip>
-                <template #trigger>
-                  <span class="hint-dot">i</span>
-                </template>
-                {{ $t('app.modals.jumper.bypassTooltip') }}
-              </n-tooltip>
-            </div>
-          </div>
-
-          <div class="col-md-12">
-            <button type="button" class="advanced-toggle" :aria-expanded="showJumperAdvanced" @click="$emit('toggle-advanced')">
-              <i class="bi bi-chevron-right advanced-chevron" :class="{ open: showJumperAdvanced }" aria-hidden="true" />
-              {{ $t('app.modals.jumper.advancedOptions') }}
-            </button>
-          </div>
-
-          <div v-if="showJumperAdvanced" class="col-md-12">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <div class="d-flex align-items-center gap-2">
-                    <label class="form-label mb-0">{{ $t('app.modals.jumper.keepAliveInterval') }}</label>
-                    <n-tooltip>
-                      <template #trigger>
-                        <span class="hint-dot">?</span>
-                      </template>
-                      {{ $t('app.modals.jumper.keepAliveIntervalTooltip') }}
-                    </n-tooltip>
-                  </div>
-                  <input
-                    v-model.number="jumperForm.keepAliveIntervalMs"
-                    class="form-control"
-                    type="number"
-                    :min="jumperLimits.keepAliveIntervalMin"
-                    :max="jumperLimits.keepAliveIntervalMax"
-                    step="1000"
-                    required
-                  />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">{{ $t('app.modals.jumper.timeout') }}</label>
-                  <input
-                    v-model.number="jumperForm.timeoutMs"
-                    class="form-control"
-                    type="number"
-                    :min="jumperLimits.timeoutMin"
-                    :max="jumperLimits.timeoutMax"
-                    step="100"
-                    required
-                  />
-                </div>
-              </div>
-          </div>
-        </div>
-
-        <p v-if="jumperValidationError" class="form-error mb-0 mt-3">{{ jumperValidationError }}</p>
-
-        <p
-          v-if="!aiDebugEnabled && jumperTest.message"
-          class="test-result mb-0 mt-3"
-          :class="{ success: jumperTest.status === 'success', error: jumperTest.status === 'error' }"
-        >
-          {{ jumperTest.message }}
-        </p>
-        <p
-          v-else-if="aiDebugEnabled && jumperTest.message && jumperTest.status !== 'error'"
-          class="test-result mb-0 mt-3"
-          :class="{ success: jumperTest.status === 'success' }"
-        >
-          {{ jumperTest.message }}
-        </p>
-        <div v-if="aiDebugEnabled && jumperTest.message && jumperTest.status === 'error'" class="ai-debug-inline-panel mt-3">
-          <div class="ai-debug-inline-head">
-            <div>
-              <div class="ai-debug-inline-title">{{ $t('app.aiDebug.connectionFailed') }}</div>
-              <div class="ai-debug-inline-error">{{ jumperTest.message }}</div>
-              <div v-if="jumperTest.debuggable" class="ai-debug-inline-hint">{{ $t('app.aiDebug.inlineHint') }}</div>
-            </div>
-            <button
-              v-if="jumperTest.debuggable"
-              type="button"
-              class="btn btn-sm btn-outline-primary ai-debug-action-btn"
-              :disabled="jumperAiDebug.status === 'analyzing'"
-              @click="$emit('ai-debug')"
-            >
-              <i class="bi" :class="jumperAiDebug.status === 'analyzing' ? 'bi-hourglass-split' : 'bi-magic'" />
-              <span>{{ jumperAiDebug.status === 'analyzing' ? $t('app.aiDebug.analyzing') : $t('app.aiDebug.action') }}</span>
-            </button>
-          </div>
-          <AIDebugResultCard
-            v-if="jumperAiDebug.status !== 'idle'"
-            :state="jumperAiDebug"
-            show-actions
-            @retry-debug="$emit('ai-debug')"
-            @test-again="$emit('test-connection')"
-            @report-content="$emit('report-ai-content')"
-          />
-        </div>
-      </form>
-    <template #footer>
-      <div class="dialog-footer modal-footer">
-        <div class="dialog-left-actions">
           <n-button
-            :disabled="jumperTest.status === 'testing'"
-            @click="$emit('test-connection')"
+            v-if="jumperTest.debuggable"
+            :disabled="jumperAiDebug.status === 'analyzing'"
+            @click="$emit('ai-debug')"
           >
-            {{ jumperTest.status === 'testing' ? $t('app.modals.jumper.testing') : $t('app.modals.jumper.testConnection') }}
+            <template #icon>
+              <i class="bi" :class="jumperAiDebug.status === 'analyzing' ? 'bi-hourglass-split' : 'bi-magic'" />
+            </template>
+            {{ jumperAiDebug.status === 'analyzing' ? $t('app.aiDebug.analyzing') : $t('app.aiDebug.action') }}
           </n-button>
-        </div>
-        <div class="dialog-right-actions">
+        </n-space>
+        <AIDebugResultCard
+          v-if="jumperAiDebug.status !== 'idle'"
+          :state="jumperAiDebug"
+          show-actions
+          @retry-debug="$emit('ai-debug')"
+          @test-again="$emit('test-connection')"
+          @report-content="$emit('report-ai-content')"
+        />
+      </n-card>
+    </n-form>
+    <template #footer>
+      <n-space justify="space-between" align="center" :size="BUTTON_GAP" :wrap="true" style="width: 100%">
+        <n-button
+          :disabled="jumperTest.status === 'testing'"
+          @click="$emit('test-connection')"
+        >
+          {{ jumperTest.status === 'testing' ? $t('app.modals.jumper.testing') : $t('app.modals.jumper.testConnection') }}
+        </n-button>
+        <n-space :size="BUTTON_GAP">
           <n-button @click="$emit('close')">{{ $t('app.common.cancel') }}</n-button>
           <n-button type="primary" attr-type="submit" form="jumper-form">{{ $t('app.common.save') }}</n-button>
-        </div>
-      </div>
+        </n-space>
+      </n-space>
     </template>
   </n-modal>
 </template>

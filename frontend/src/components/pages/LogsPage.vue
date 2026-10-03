@@ -39,7 +39,7 @@ const columns = computed(() => [
 <template>
   <n-card size="small" :title="$t('app.logs.title')">
     <template #header-extra>
-      <n-radio-group :value="selectedLogLevel" size="small" @update:value="$emit('set-log-level', $event)">
+      <n-radio-group :value="selectedLogLevel" @update:value="$emit('set-log-level', $event)">
         <n-radio-button value="all">{{ $t('app.logs.levels.all') }}</n-radio-button>
         <n-radio-button value="info">{{ $t('app.logs.levels.info') }}</n-radio-button>
         <n-radio-button value="warn">{{ $t('app.logs.levels.warn') }}</n-radio-button>
