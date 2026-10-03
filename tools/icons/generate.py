@@ -53,7 +53,11 @@ EDGE = (
     'M64 466C132 424 190 404 256 404C322 404 380 424 448 466'
     'C398 480 330 476 256 476C182 476 114 480 64 466Z'
 )
-RIM_DARK = 'rgba(255,255,255,0.10)'
+# Светлая кромка норы: на тёмной панели (Windows 11, GNOME/KDE) заливка #1E2127
+# пропадает, и без ободка остаются только глаза и светлый холмик.
+# 32 в координатах 512 после scale(1.18) — около 1 px на 16 и 2 px на 32.
+HOLE_RIM = '#F2EFEA'
+HOLE_RIM_WIDTH = 32
 MARGIN = 0.88
 
 
@@ -165,7 +169,8 @@ def variant_c(eye: str, closed: bool = False) -> str:
         defs, eye_body = eyes('vc', theme, eye, small=True)
     body = (
         f'<g transform="translate(256 259) scale(1.18) translate(-256 -326)">'
-        f'<path d="{HEAD}" fill="{theme["bg"]}" stroke="{RIM_DARK}" stroke-width="0"/>'
+        f'<path d="{HEAD}" fill="{theme["bg"]}" stroke="{HOLE_RIM}" stroke-width="{HOLE_RIM_WIDTH}" '
+        f'stroke-linejoin="round"/>'
         f'{eye_body}'
         f'<path d="{EDGE}" fill="{theme["arch"]}" stroke="{theme["arch"]}" stroke-width="24" '
         f'stroke-linejoin="round"/></g>'
@@ -503,8 +508,14 @@ def icon_sheet(path: Path) -> None:
 
     pad, label_h = 28, 22
     row_h = max(tile.height for _, tile in tiles) + label_h + 8
+    tray_icons = []
+    for status in EYE:
+        image = Image.open(ROOT / f'build/tray/tray-{status}-32.png').convert('RGBA')
+        tray_icons.append(image.resize((64, 64), Image.Resampling.NEAREST))
+    template = Image.open(ROOT / 'build/macos-systray.png').convert('RGBA').resize((64, 64), Image.Resampling.NEAREST)
+    strip_h = 64
     width = pad + sum(tile.width + pad for _, tile in tiles)
-    height = pad + row_h + 88 + pad
+    height = pad + row_h + 16 + (18 + strip_h + 12) * 2 + 18 + strip_h + pad
     sheet = Image.new('RGB', (width, height), (244, 244, 245))
     draw = ImageDraw.Draw(sheet)
     x = pad
@@ -515,14 +526,25 @@ def icon_sheet(path: Path) -> None:
         sheet.paste(cell.convert('RGB'), (x, pad + label_h))
         x += tile.width + pad
     y = pad + row_h + 16
+    captions = (
+        ('трей C · светлая панель', (246, 246, 248)),
+        ('трей C · тёмная панель', (32, 32, 36)),
+    )
+    for caption, bg in captions:
+        draw.text((pad, y), caption, fill=(82, 82, 91), font=font)
+        y += 18
+        strip = Image.new('RGB', (width - pad * 2, strip_h), bg)
+        sheet.paste(strip, (pad, y))
+        x = pad + 12
+        for image in tray_icons:
+            cell = Image.new('RGBA', image.size, bg + (255,))
+            cell.alpha_composite(image)
+            sheet.paste(cell.convert('RGB'), (x, y))
+            x += 72
+        y += strip_h + 12
+    draw.text((pad, y), 'macOS template', fill=(82, 82, 91), font=font)
+    y += 18
     x = pad
-    draw.text((x, y - 18), 'трей C: connected · connecting · error · stopped · macOS template', fill=(82, 82, 91), font=font)
-    for status in EYE:
-        image = Image.open(ROOT / f'build/tray/tray-{status}-32.png').convert('RGBA')
-        image = image.resize((64, 64), Image.Resampling.NEAREST)
-        sheet.paste(image.convert('RGB'), (x, y), image)
-        x += 72
-    template = Image.open(ROOT / 'build/macos-systray.png').convert('RGBA').resize((64, 64), Image.Resampling.NEAREST)
     for bg in ((246, 246, 248), (38, 38, 42)):
         bar = Image.new('RGBA', (64, 64), bg + (255,))
         bar.alpha_composite(template)
