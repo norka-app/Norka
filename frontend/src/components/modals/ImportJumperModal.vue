@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppSelect from '../common/AppSelect.vue'
 import { BUTTON_GAP, plainInputProps } from '../../theme/form-layout'
 import { ChevronDown, ChevronUp } from '../../icons'
@@ -143,9 +144,13 @@ const hasSelectableRows = computed(() => selectableRows.value.length > 0)
 const hasRows = computed(() => rows.value.length > 0)
 const allSelectableSelected = computed(() => hasSelectableRows.value && selectableRows.value.every((row) => row.selected))
 const canLoad = computed(() => !!String(props.selectedSourcePath || '').trim() && !props.loading)
+const { t } = useI18n()
 const footerSummary = computed(() => {
   if (!props.hasLoaded || props.loadError) return ''
-  return `Success! ${rows.value.length} found, ${selectableRows.value.length} ready to import`
+  return t('app.modals.importJumper.loadSummary', {
+    found: rows.value.length,
+    ready: selectableRows.value.length,
+  })
 })
 
 function getImportStatusLabelKey(row) {

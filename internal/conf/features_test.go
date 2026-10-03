@@ -42,6 +42,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	if _, ok := cfg.Features.Explicit(features.BackgroundMode); ok {
 		t.Fatal("background mode key must stay missing when the default applies")
 	}
+	assertFeature(t, cfg, features.FramelessWindow, false)
+	if _, ok := cfg.Features.Explicit(features.FramelessWindow); ok {
+		t.Fatal("frameless window key must stay missing when the default applies")
+	}
 	if _, ok := cfg.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay missing on a fresh config")
 	}
@@ -85,6 +89,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, loaded, features.BackgroundMode, false)
 	if _, ok := loaded.Features.Explicit(features.BackgroundMode); ok {
 		t.Fatal("background mode key must stay absent so the default stays off")
+	}
+	assertFeature(t, loaded, features.FramelessWindow, false)
+	if _, ok := loaded.Features.Explicit(features.FramelessWindow); ok {
+		t.Fatal("frameless window key must stay absent so the default stays off")
 	}
 	if _, ok := loaded.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay absent so the default can change later")
@@ -159,6 +167,7 @@ diagnostics = false
 tunnel_diagnostics = false
 autostart_hidden = false
 background_mode = false
+frameless_window = false
 `)
 	cfg, err := ParseConfigTOML(raw)
 	if err != nil {
@@ -196,7 +205,7 @@ background_mode = false
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false", "tunnel_stats = false", "onboarding = false", "diagnostics = false", "tunnel_diagnostics = false", "autostart_hidden = false", "background_mode = false"} {
+	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false", "tunnel_stats = false", "onboarding = false", "diagnostics = false", "tunnel_diagnostics = false", "autostart_hidden = false", "background_mode = false", "frameless_window = false"} {
 		if !strings.Contains(text, key) {
 			t.Fatalf("saved config missing %q:\n%s", key, text)
 		}

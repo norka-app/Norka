@@ -38,6 +38,11 @@ const (
 	// BackgroundMode lets norkad keep tunnels up without the window.
 	// Off by default. The window itself does not move to the background yet.
 	BackgroundMode ID = "background_mode"
+	// FramelessWindow replaces the system title bar with the page header.
+	// The window frame is chosen in wails.Run, so a change applies on the
+	// next start. Linux keeps the native frame and hides the switch.
+	// Default is off: the current window stays as it is.
+	FramelessWindow ID = "frameless_window"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -88,6 +93,7 @@ func All() []Flag {
 		{ID: TunnelDiagnostics, Default: true, TitleKey: "features.tunnelDiagnostics", DescriptionKey: "features.tunnelDiagnosticsDesc"},
 		{ID: AutostartHidden, Default: true, TitleKey: "features.autostartHidden", DescriptionKey: "features.autostartHiddenDesc"},
 		{ID: BackgroundMode, Default: false, TitleKey: "features.backgroundMode", DescriptionKey: "features.backgroundModeDesc"},
+		{ID: FramelessWindow, Default: false, TitleKey: "features.framelessWindow", DescriptionKey: "features.framelessWindowDesc"},
 	}
 }
 
@@ -132,6 +138,7 @@ type Flags struct {
 	TunnelDiagnostics *bool `toml:"tunnel_diagnostics,omitempty" json:"tunnelDiagnostics,omitempty"`
 	AutostartHidden   *bool `toml:"autostart_hidden,omitempty" json:"autostartHidden,omitempty"`
 	BackgroundMode    *bool `toml:"background_mode,omitempty" json:"backgroundMode,omitempty"`
+	FramelessWindow   *bool `toml:"frameless_window,omitempty" json:"framelessWindow,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -182,6 +189,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.AutostartHidden = &value
 	case BackgroundMode:
 		f.BackgroundMode = &value
+	case FramelessWindow:
+		f.FramelessWindow = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -222,6 +231,7 @@ func (f Flags) Clone() Flags {
 		TunnelDiagnostics: cloneBool(f.TunnelDiagnostics),
 		AutostartHidden:   cloneBool(f.AutostartHidden),
 		BackgroundMode:    cloneBool(f.BackgroundMode),
+		FramelessWindow:   cloneBool(f.FramelessWindow),
 	}
 }
 
@@ -286,6 +296,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.AutostartHidden
 	case BackgroundMode:
 		return f.BackgroundMode
+	case FramelessWindow:
+		return f.FramelessWindow
 	default:
 		return nil
 	}

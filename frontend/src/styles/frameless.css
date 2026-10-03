@@ -1,0 +1,541 @@
+/* Вид «окно без рамки». Все правила под html.frameless, классический
+   интерфейс без этого класса не меняется.
+   data-os="win" | "mac", data-theme="light" | "dark", data-backdrop="mica" | "solid" | "vibrancy".
+   Токены перенесены из макета. Окно здесь — само окно ОС, без обоев и отступов макета. */
+
+html.frameless {
+  --win-r: 8px;
+  --fl-head-h: 52px;
+  --fl-mica: rgba(240, 241, 245, 0.80);
+  --fl-solid: #f3f4f7;
+  --fl-sidebar: transparent;
+  --fl-layer: rgba(255, 255, 255, 0.74);
+  --fl-tone: rgba(24, 24, 27, 0.035);
+  --fl-tone-2: rgba(24, 24, 27, 0.055);
+  --fl-hover: rgba(24, 24, 27, 0.045);
+  --fl-active: rgba(24, 24, 27, 0.065);
+  --fl-hair: rgba(24, 24, 27, 0.07);
+  --fl-pop: rgba(252, 252, 253, 0.94);
+  --fl-pop-shadow: 0 0 0 1px rgba(24, 24, 27, 0.06), 0 16px 48px rgba(24, 24, 40, 0.18), 0 2px 8px rgba(24, 24, 40, 0.06);
+  --fl-mask: rgba(232, 234, 240, 0.42);
+  --fl-ok: #16a34a;
+  --fl-busy: #d97706;
+  --fl-err: #dc2626;
+  --fl-off: #a1a1aa;
+}
+
+html.frameless[data-theme="dark"] {
+  --fl-mica: rgba(30, 30, 37, 0.82);
+  --fl-solid: #1c1c22;
+  --fl-layer: rgba(255, 255, 255, 0.038);
+  --fl-tone: rgba(255, 255, 255, 0.045);
+  --fl-tone-2: rgba(255, 255, 255, 0.07);
+  --fl-hover: rgba(255, 255, 255, 0.055);
+  --fl-active: rgba(255, 255, 255, 0.085);
+  --fl-hair: rgba(255, 255, 255, 0.07);
+  --fl-pop: rgba(44, 44, 52, 0.95);
+  --fl-pop-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 18px 50px rgba(0, 0, 0, 0.55);
+  --fl-mask: rgba(10, 10, 14, 0.42);
+  --fl-ok: #4ade80;
+  --fl-busy: #fbbf24;
+  --fl-err: #f87171;
+  --fl-off: #71717a;
+}
+
+html.frameless[data-os="mac"] {
+  --win-r: 12px;
+  --fl-sidebar: rgba(236, 236, 241, 0.55);
+  --fl-mica: rgba(246, 246, 248, 0.55);
+  --fl-layer: rgba(255, 255, 255, 0.97);
+}
+
+html.frameless[data-os="mac"][data-theme="dark"] {
+  --fl-sidebar: rgba(44, 42, 52, 0.55);
+  --fl-mica: rgba(36, 36, 44, 0.50);
+  --fl-layer: rgba(30, 30, 36, 0.97);
+}
+
+html.frameless[data-backdrop="solid"] {
+  --fl-sidebar: var(--fl-solid);
+  --fl-mica: var(--fl-solid);
+  --fl-layer: #ffffff;
+}
+
+html.frameless[data-backdrop="solid"][data-theme="dark"] {
+  --fl-layer: #1e1e24;
+}
+
+html.frameless[data-backdrop="mica"],
+html.frameless[data-backdrop="vibrancy"],
+html.frameless[data-backdrop="mica"] body,
+html.frameless[data-backdrop="vibrancy"] body,
+html.frameless[data-backdrop="mica"] #app,
+html.frameless[data-backdrop="vibrancy"] #app {
+  background: transparent !important;
+}
+
+html.frameless[data-backdrop="solid"],
+html.frameless[data-backdrop="solid"] body,
+html.frameless[data-backdrop="solid"] #app {
+  background: var(--fl-solid) !important;
+}
+
+html.frameless .n-layout,
+html.frameless .n-layout-scroll-container,
+html.frameless .n-layout-header,
+html.frameless .n-layout-sider {
+  background: transparent !important;
+  --n-color: transparent !important;
+  --n-border-color: transparent !important;
+}
+
+html.frameless .n-layout-sider__border,
+html.frameless .n-layout-header--bordered { border: 0 !important; }
+html.frameless .n-layout-sider .n-layout-sider__border { display: none !important; }
+
+html.frameless .n-layout-sider.sidebar-panel {
+  background: var(--fl-sidebar) !important;
+  --wails-draggable: drag;
+}
+
+html.frameless[data-os="mac"] .n-layout-sider.sidebar-panel {
+  box-shadow: inset -1px 0 0 var(--fl-hair);
+}
+
+html.frameless[data-os="mac"] .content-shell {
+  background: var(--fl-layer) !important;
+}
+
+html.frameless .app-frame--titlebar .sidebar-main { padding-top: 0; }
+
+html.frameless .sidebar-panel .brand-logo-wrap {
+  min-height: var(--fl-head-h);
+  margin-bottom: 6px;
+}
+
+/* Светофор macOS сидит в левой части шапки. */
+html.frameless[data-os="mac"] .sidebar-panel:not(.collapsed) .brand-logo-wrap {
+  padding-left: 70px;
+  box-sizing: border-box;
+}
+
+html.frameless[data-os="mac"] .sidebar-panel.collapsed .sidebar-main {
+  padding-top: 36px;
+}
+
+html.frameless .fl-brand-icon {
+  flex: none;
+  display: block;
+  margin: -2px -2px 0 -4px;
+}
+
+html.frameless .brand-title { font-size: 14.5px; }
+html.frameless .brand-subtitle { display: none; }
+
+html.frameless .sidebar-panel .sidebar-collapse-btn.n-button,
+html.frameless .fl-mode-btn {
+  --wails-draggable: no-drag;
+}
+
+.fl-mode-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lt-muted);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.fl-mode-btn:hover { background: var(--fl-hover); color: var(--lt-ink); }
+
+html.frameless .sidebar-panel .n-menu {
+  --n-item-height: 36px !important;
+  --n-item-color-hover: var(--fl-hover) !important;
+  --n-item-color-active: var(--fl-active) !important;
+  --n-item-color-active-hover: var(--fl-active) !important;
+  --n-item-text-color-active: var(--lt-ink) !important;
+  --n-item-icon-color-active: var(--lt-ink) !important;
+  --n-item-text-color-active-hover: var(--lt-ink) !important;
+  --n-item-icon-color-active-hover: var(--lt-ink) !important;
+  --n-border-radius: 6px !important;
+  --wails-draggable: no-drag;
+}
+
+html.frameless .sidebar-panel .n-menu .n-menu-item { margin-top: 2px; }
+html.frameless .sidebar-panel .n-menu .n-menu-item-content { padding-left: 14px !important; }
+html.frameless .sidebar-panel .n-menu .n-menu-item-content::before { left: 0 !important; right: 0 !important; }
+html.frameless .sidebar-panel .n-menu .n-menu-item-content-header { font-weight: 450; }
+html.frameless .sidebar-panel .n-menu .n-menu-item-content--selected .n-menu-item-content-header { font-weight: 600; }
+
+html.frameless[data-os="win"] .sidebar-panel .n-menu .n-menu-item-content--selected::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 3px;
+  background: var(--lt-brand);
+  z-index: 2;
+}
+
+.fl-groups { margin-top: 18px; --wails-draggable: no-drag; }
+
+.fl-groups__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lt-muted);
+}
+
+.fl-groups__add {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lt-muted);
+  display: grid;
+  place-items: center;
+  --wails-draggable: no-drag;
+}
+
+.fl-groups__add:hover { background: var(--fl-hover); }
+
+.fl-group {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lt-ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  --wails-draggable: no-drag;
+}
+
+.fl-group:hover { background: var(--fl-hover); }
+.fl-group__icon { color: var(--lt-muted); flex: none; }
+.fl-group__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-group__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fl-off); flex: none; }
+.fl-group__dot.is-running { background: var(--fl-ok); }
+.fl-group__dot.is-busy { background: var(--fl-busy); }
+.fl-group__dot.is-error { background: var(--fl-err); }
+.fl-group__count { min-width: 26px; text-align: right; font-size: 12px; color: var(--lt-muted); font-variant-numeric: tabular-nums; }
+
+html.frameless .sidebar-mascot { padding: 8px 0 0; --wails-draggable: no-drag; }
+html.frameless .sidebar-panel .sidebar-bottom {
+  background: transparent !important;
+  border-top: 0 !important;
+  padding: 4px 16px 12px;
+  --wails-draggable: no-drag;
+}
+
+html.frameless .content-shell { gap: 0 !important; }
+
+html.frameless .top-header {
+  --wails-draggable: drag;
+  user-select: none;
+  -webkit-user-select: none;
+  min-height: var(--fl-head-h);
+  height: var(--fl-head-h) !important;
+  padding: 0 20px 0 22px !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  background: transparent !important;
+}
+
+html.frameless[data-os="win"] .top-header { padding-right: 108px !important; }
+
+html.frameless .top-header > div:first-child {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+html.frameless .page-title {
+  font-size: 17px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.frameless .page-subtitle { display: none; }
+
+html.frameless .header-actions,
+html.frameless .header-actions-group,
+html.frameless .top-header .n-button,
+html.frameless .profile-chip {
+  --wails-draggable: no-drag;
+}
+
+html.frameless .header-actions,
+html.frameless .header-actions-group {
+  flex: 0 0 auto !important;
+  flex-wrap: nowrap !important;
+}
+
+html.frameless .profile-chip {
+  border: 0 !important;
+  background: var(--fl-tone-2) !important;
+  margin-left: 0;
+  flex: none;
+}
+
+html.frameless .profile-chip__state { display: none; }
+html.frameless .top-header .n-button { --n-height: 32px !important; }
+
+html.frameless .page-body {
+  background: var(--fl-layer);
+  border-top-left-radius: 10px;
+  box-shadow: inset 1px 1px 0 var(--fl-hair);
+  padding: 18px 22px 22px !important;
+}
+
+html.frameless[data-os="mac"] .page-body {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html.frameless .n-layout.content-shell,
+html.frameless .content-shell > .n-layout-scroll-container {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.frameless .content-shell > .n-layout-scroll-container {
+  display: flex;
+  flex-direction: column;
+}
+
+html.frameless .content-shell .top-header { flex: 0 0 auto; }
+
+html.frameless .content-shell .page-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+html.frameless .page-body .n-card {
+  --n-color: transparent !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.frameless .page-body .n-card > .n-card-header { padding: 2px 0 10px !important; }
+html.frameless .page-body .n-card > .n-card__content,
+html.frameless .page-body .n-card > .n-card-content { padding: 0 !important; }
+html.frameless .page-body .n-card .n-card-header__main { font-size: 15px; font-weight: 600; }
+html.frameless .page-body .panel-card {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+html.frameless .n-data-table {
+  --n-th-color: transparent !important;
+  --n-td-color: transparent !important;
+  --n-th-color-hover: transparent !important;
+  --n-td-color-hover: var(--fl-hover) !important;
+  --n-merged-th-color: transparent !important;
+  --n-merged-td-color: transparent !important;
+  --n-merged-td-color-hover: var(--fl-hover) !important;
+  --n-border-color: transparent !important;
+  --n-merged-border-color: transparent !important;
+  --n-th-text-color: var(--lt-muted) !important;
+  --n-th-font-weight: 500 !important;
+}
+
+html.frameless .n-data-table .n-data-table-th { font-size: 12px; padding-top: 6px !important; padding-bottom: 6px !important; }
+html.frameless .n-data-table .n-data-table-td { padding-top: 9px !important; padding-bottom: 9px !important; }
+html.frameless .n-data-table .n-data-table-tr:not(.n-data-table-tr--expanded) .n-data-table-td:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+html.frameless .n-data-table .n-data-table-tr .n-data-table-td:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+html.frameless .n-collapse .n-collapse-item:not(:first-child) .n-data-table-thead { display: none; }
+html.frameless .n-collapse {
+  --n-divider-color: transparent !important;
+  --n-title-font-weight: 600 !important;
+  --n-title-font-size: 13px !important;
+}
+html.frameless .n-collapse .n-collapse-item { margin-top: 10px !important; border-top: 0 !important; }
+html.frameless .n-collapse .n-collapse-item:first-child { margin-top: 0 !important; }
+html.frameless .n-collapse .n-collapse-item .n-collapse-item__header { padding: 6px 4px 4px !important; }
+html.frameless .n-collapse .n-collapse-item__header-main { color: var(--lt-muted) !important; }
+html.frameless .n-collapse .n-collapse-item__content-inner { padding-top: 2px !important; }
+
+html.frameless .n-data-table .n-data-table-tr--expanded > .n-data-table-td:only-child {
+  background: color-mix(in srgb, var(--fl-err) 8%, transparent) !important;
+  border-radius: 8px;
+  padding: 10px 14px 10px 48px !important;
+}
+
+html.frameless .status-badge,
+html.frameless .n-data-table .n-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  padding: 0 9px 0 8px;
+}
+
+html.frameless .n-tag .n-tag__border { display: none; }
+
+html.frameless .status-badge::before,
+html.frameless .n-data-table .n-tag::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 6px;
+  flex: none;
+}
+
+html.frameless .status-badge.running { background: color-mix(in srgb, var(--fl-ok) 14%, transparent); color: var(--fl-ok); }
+html.frameless .status-badge.busy { background: color-mix(in srgb, var(--fl-busy) 16%, transparent); color: var(--fl-busy); }
+html.frameless .status-badge.error { background: color-mix(in srgb, var(--fl-err) 14%, transparent); color: var(--fl-err); }
+html.frameless .status-badge.stopped { background: var(--fl-tone-2); color: var(--lt-muted); }
+
+html.frameless .page-body .n-gi > .n-card:has(.n-statistic) {
+  background: var(--fl-tone) !important;
+  border-radius: 10px !important;
+}
+
+html.frameless .page-body .n-gi > .n-card:has(.n-statistic) > .n-card__content,
+html.frameless .page-body .n-gi > .n-card:has(.n-statistic) > .n-card-content {
+  padding: 14px 16px !important;
+}
+
+html.frameless .fl-settings-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0 0 12px;
+  --wails-draggable: no-drag;
+}
+
+html.frameless .fl-sec { grid-column: 1 / -1 !important; }
+html.frameless .fl-sec--off { display: none !important; }
+
+html.frameless .settings-row {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--fl-tone);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+html.frameless .n-modal-mask { background: var(--fl-mask) !important; }
+
+html.frameless .n-modal.n-card,
+html.frameless .n-modal .n-card,
+html.frameless .n-dialog.n-modal {
+  --n-color-modal: var(--fl-pop) !important;
+  --n-border-color: transparent !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: var(--fl-pop) !important;
+  box-shadow: var(--fl-pop-shadow) !important;
+}
+
+html.frameless .n-card.n-modal .n-card-header,
+html.frameless .n-modal .n-card__footer,
+html.frameless .n-modal .n-card__content,
+html.frameless .dialog-head,
+html.frameless .dialog-footer { border: 0 !important; }
+
+html.frameless .n-dropdown-menu,
+html.frameless .n-base-select-menu,
+html.frameless .n-popover:not(.n-popover--raw) {
+  border-radius: 10px !important;
+  background: var(--fl-pop) !important;
+  box-shadow: var(--fl-pop-shadow) !important;
+  border: 0 !important;
+}
+
+html.frameless .n-base-select-menu,
+html.frameless .n-dropdown-menu { --n-color: transparent !important; }
+html.frameless .n-dropdown-menu { padding: 5px !important; }
+html.frameless .n-dropdown-option-body { border-radius: 6px; }
+
+html.frameless .qs-card,
+html.frameless .onboarding-card {
+  border: 0 !important;
+  box-shadow: var(--fl-pop-shadow) !important;
+  background: var(--fl-pop) !important;
+  border-radius: 12px !important;
+}
+
+html.frameless .app-frame--simple {
+  box-sizing: border-box;
+  padding-top: 32px;
+  background: #ffffff;
+  --wails-draggable: drag;
+}
+
+html.frameless[data-theme="dark"] .app-frame--simple { background: #202227; }
+
+html.frameless[data-os="mac"] .app-frame--simple { padding-top: 36px; }
+
+html.frameless .app-frame--simple .simple {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  --wails-draggable: no-drag;
+}
+
+html.frameless .app-frame--simple .flc,
+html.frameless .app-frame--simple .flc-btn { height: 32px; }
+
+html.frameless ul.list-group,
+html.frameless .list-group { list-style: none; padding-left: 0; margin-left: 0; }
+
+html.frameless .list-group-item {
+  border: 0 !important;
+  background: var(--fl-tone) !important;
+  border-radius: 8px !important;
+  margin-bottom: 6px;
+}
+
+html.frameless .jumper-chain-editor,
+html.frameless .inline-jumper-block,
+html.frameless .diag-summary,
+html.frameless .update-notes,
+html.frameless .profiles-pref,
+html.frameless .profile-card,
+html.frameless .profile-editor,
+html.frameless .profiles-empty {
+  background: var(--fl-tone) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+}
+
+html.frameless .dialog-card { border: 0 !important; box-shadow: none !important; border-radius: 12px !important; }
