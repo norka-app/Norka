@@ -450,7 +450,10 @@ async function onOpenConfigDir() {
 <template>
   <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
     <n-gi span="2">
-      <n-card size="small" :title="t('features.title')">
+      <n-card size="small" class="features-card">
+        <template #header>
+          <div data-tour="features" class="features-tour-target">{{ t('features.title') }}</div>
+        </template>
         <n-space vertical :size="16">
           <n-space
             v-for="item in featureState.items"
@@ -499,16 +502,18 @@ async function onOpenConfigDir() {
             </div>
             <n-switch :value="theme === 'dark'" @update:value="$emit('theme-change', $event)" />
           </n-space>
-          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
-            <div class="settings-label">
-              <div class="config-name">{{ t('config.windowMode') }}</div>
-              <div class="config-desc">{{ t('config.windowModeDesc') }}</div>
-            </div>
-            <n-radio-group :value="windowMode" size="small" @update:value="$emit('window-mode-change', $event)">
-              <n-radio-button value="advanced">{{ t('config.windowModeAdvanced') }}</n-radio-button>
-              <n-radio-button value="simple">{{ t('config.windowModeSimple') }}</n-radio-button>
-            </n-radio-group>
-          </n-space>
+          <div data-tour="window-mode">
+            <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
+              <div class="settings-label">
+                <div class="config-name">{{ t('config.windowMode') }}</div>
+                <div class="config-desc">{{ t('config.windowModeDesc') }}</div>
+              </div>
+              <n-radio-group :value="windowMode" size="small" @update:value="$emit('window-mode-change', $event)">
+                <n-radio-button value="advanced">{{ t('config.windowModeAdvanced') }}</n-radio-button>
+                <n-radio-button value="simple">{{ t('config.windowModeSimple') }}</n-radio-button>
+              </n-radio-group>
+            </n-space>
+          </div>
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
             <div class="settings-label">
               <div class="config-name">{{ t('config.simpleOnTop') }}</div>
@@ -672,5 +677,10 @@ async function onOpenConfigDir() {
 
 .feature-row :deep(.n-switch) {
   flex-shrink: 0;
+}
+
+.features-tour-target {
+  display: inline-block;
+  padding: 2px 4px;
 }
 </style>

@@ -536,6 +536,32 @@
             "searchTunnels": "Search tunnels",
             "searchJumpers": "Search jump hosts",
             "skipToContent": "Skip to content"
+        },
+        "tour": {
+            "progress": "{current} of {total}",
+            "skip": "Skip",
+            "back": "Back",
+            "next": "Next",
+            "done": "Done",
+            "mascotLabel": "introduces the app",
+            "steps": {
+                "welcome": {
+                    "title": "This is Norka",
+                    "body": "Norka opens SSH tunnels: a local port on this computer reaches an address behind a jump host. Four short steps, and you can skip them."
+                },
+                "add": {
+                    "title": "A new tunnel or an import",
+                    "body": "Create tunnel sets the ports and the jump host. Import takes a ready-made ssh command. Both buttons are on the Tunnels page."
+                },
+                "mode": {
+                    "title": "Simple and advanced",
+                    "body": "Advanced mode is the lists, the log, and these settings. Simple mode keeps one compact window for a single tunnel. Switch it here, under Window mode, or with Ctrl+Shift+M."
+                },
+                "features": {
+                    "title": "Where the features live",
+                    "body": "The Features block is at the top of Settings. Profiles, notifications, and this tour are switched here. Done turns the tour off: it stays hidden until you turn the switch on again."
+                }
+            }
         }
     },
     "config": {
@@ -639,6 +665,8 @@
         "automation": "Automation",
         "automationDesc": "Terminal commands and norka:// links. Off by default: this is a local control surface for tunnels.",
         "tunnelStats": "Tunnel statistics",
-        "tunnelStatsDesc": "Connected time, reconnects, the last error, and traffic for each tunnel."
+        "tunnelStatsDesc": "Connected time, reconnects, the last error, and traffic for each tunnel.",
+        "firstLaunchTour": "First-launch tour",
+        "firstLaunchTourDesc": "A short introduction at startup. After Done or Skip it stays hidden until you turn it on again."
     }
 }

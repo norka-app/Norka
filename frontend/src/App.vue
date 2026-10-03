@@ -47,7 +47,8 @@ import {
   FormatTunnelSSHCommand,
   GetAutomationPrompt,
   ConfirmAutomation,
-  DismissAutomationPrompt
+  DismissAutomationPrompt,
+  SetFeature
 } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
@@ -69,9 +70,11 @@ import TunnelModal from './components/modals/TunnelModal.vue'
 import TunnelGroupModal from './components/modals/TunnelGroupModal.vue'
 import ImportTunnelModal from './components/modals/ImportTunnelModal.vue'
 import UpdateOfferModal from './components/modals/UpdateOfferModal.vue'
+import FirstLaunchTour from './components/onboarding/FirstLaunchTour.vue'
+import { FIRST_LAUNCH_TOUR_FLAG } from './components/onboarding/tour-steps.js'
 import './styles/app-shell.css'
 import { AI_DEBUG_ENABLED } from './config/features'
-import { applyFeatureViews, featureEnabled, useFeature } from './features/feature-store'
+import { applyFeatureViews, featureEnabled, setFeatureEnabled, useFeature } from './features/feature-store'
 import { aggregateNorkaStatus, trackTunnelErrorSince, trackTunnelStatusSince } from './utils/norka-status'
 import {
   SIMPLE_ON_TOP_STORAGE_KEY,
@@ -101,6 +104,9 @@ const autoUpdateOn = useFeature('auto_update')
 const sshCommandOn = useFeature('ssh_command')
 const automationOn = useFeature('automation')
 const tunnelStatsOn = useFeature('tunnel_stats')
+const tourOn = useFeature(FIRST_LAUNCH_TOUR_FLAG)
+const featuresLoaded = ref(false)
+const showTour = computed(() => languageReady.value && featuresLoaded.value && tourOn.value)
 
 const pages = computed(() => {
   const all = [
@@ -1021,12 +1027,40 @@ function stopUpdateChecks() {
 }
 
 async function loadFeatures() {
-  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  if (typeof window === 'undefined' || !window.go?.main?.App) {
+    featuresLoaded.value = true
+    return
+  }
   try {
     applyFeatureViews(await GetFeatures())
   } catch (_) {
-    /* остаются значения каталога */
+    /* состояние флагов неизвестно — тур не показываем, чтобы не открыть его повторно */
+    return
   }
+  featuresLoaded.value = true
+}
+
+async function finishTour() {
+  const previous = featureEnabled(FIRST_LAUNCH_TOUR_FLAG)
+  setFeatureEnabled(FIRST_LAUNCH_TOUR_FLAG, false)
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    applyFeatureViews(await SetFeature(FIRST_LAUNCH_TOUR_FLAG, false))
+  } catch (err) {
+    setFeatureEnabled(FIRST_LAUNCH_TOUR_FLAG, previous)
+    setConfigMessage(String(err))
+  }
+}
+
+function onTourPage(page) {
+  if (!page || !showTour.value) return
+  if (windowMode.value === 'simple') {
+    void setWindowMode('advanced').then(() => {
+      activePage.value = page
+    })
+    return
+  }
+  activePage.value = page
 }
 
 async function loadTunnelStats() {
@@ -2441,6 +2475,11 @@ async function toggleWindowModeFromShortcut(event) {
 }
 
 function onWindowKeydown(event) {
+  if (showTour.value && matchesKey(event, 'escape')) {
+    event.preventDefault()
+    void finishTour()
+    return
+  }
   // Слушатель на window в фазе capture, поэтому Ctrl/Cmd+K открывает палитру и когда
   // фокус в поле ввода, и поверх открытой модалки, и в простом режиме (то же окно).
   // Намеренно не перехватываем аккорд, если флаг quick_search выключен, и если фокус
@@ -2494,6 +2533,10 @@ function onWindowBlur() {
 // диалоги не помещаются в компактное окно (подтверждение смены порта простой режим
 // показывает сам, см. simplePortSwitchId — сюда оно не попадает)
 watch(dialogOpen, (open) => {
+  if (open && windowMode.value === 'simple') void setWindowMode('advanced')
+})
+
+watch(showTour, (open) => {
   if (open && windowMode.value === 'simple') void setWindowMode('advanced')
 })
 
@@ -2780,6 +2823,7 @@ watch(
   <div
     class="app-frame"
     :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar }]"
+    :inert="showTour ? true : undefined"
   >
   <AppTitleBar
     v-if="customTitleBar"
@@ -2951,6 +2995,14 @@ watch(
   </n-layout>
   </template>
   </div>
+
+  <FirstLaunchTour
+    v-if="showTour"
+    :show="showTour"
+    :theme="theme"
+    @finish="finishTour"
+    @goto-page="onTourPage"
+  />
 
   <UpdateOfferModal
     :show="!!updateOffer"

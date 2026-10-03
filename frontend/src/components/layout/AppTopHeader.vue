@@ -63,22 +63,24 @@ function onImportMenu(key) {
         </n-button>
       </div>
       <div v-if="activePage === 'tunnels'" class="header-actions-group">
-        <n-dropdown
-          v-if="sshCommandEnabled"
-          trigger="click"
-          :options="importMenuOptions"
-          @select="onImportMenu"
-        >
-          <n-button secondary>
-            <template #icon>
-              <i class="bi bi-file-earmark-plus" />
-            </template>
-            {{ $t('app.header.importTunnel') }}
+        <div class="tour-target-inline" data-tour="add-tunnel">
+          <n-dropdown
+            v-if="sshCommandEnabled"
+            trigger="click"
+            :options="importMenuOptions"
+            @select="onImportMenu"
+          >
+            <n-button secondary>
+              <template #icon>
+                <i class="bi bi-file-earmark-plus" />
+              </template>
+              {{ $t('app.header.importTunnel') }}
+            </n-button>
+          </n-dropdown>
+          <n-button type="primary" @click="$emit('new-tunnel')">
+            {{ $t('app.header.newTunnel') }}
           </n-button>
-        </n-dropdown>
-        <n-button type="primary" @click="$emit('new-tunnel')">
-          {{ $t('app.header.newTunnel') }}
-        </n-button>
+        </div>
       </div>
     </div>
   </n-layout-header>
@@ -102,4 +104,9 @@ function onImportMenu(key) {
 }
 .profile-chip__mark { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .profile-chip__state { color: var(--lt-brand); font-size: 12px; }
+.tour-target-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 </style>

@@ -15,16 +15,17 @@ import "fmt"
 type ID string
 
 const (
-	Profiles       ID = "profiles"
-	QuickSearch    ID = "quick_search"
-	Notifications  ID = "notifications"
-	AutoUpdate     ID = "auto_update"
-	TrafficMonitor ID = "traffic_monitor"
-	Mascot         ID = "mascot"
-	SSHCommand     ID = "ssh_command"
-	WakeReconnect  ID = "wake_reconnect"
-	Automation     ID = "automation"
-	TunnelStats    ID = "tunnel_stats"
+	Profiles        ID = "profiles"
+	QuickSearch     ID = "quick_search"
+	Notifications   ID = "notifications"
+	AutoUpdate      ID = "auto_update"
+	TrafficMonitor  ID = "traffic_monitor"
+	Mascot          ID = "mascot"
+	SSHCommand      ID = "ssh_command"
+	WakeReconnect   ID = "wake_reconnect"
+	Automation      ID = "automation"
+	TunnelStats     ID = "tunnel_stats"
+	FirstLaunchTour ID = "first_launch_tour"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -70,6 +71,7 @@ func All() []Flag {
 		{ID: WakeReconnect, Default: true, TitleKey: "features.wakeReconnect", DescriptionKey: "features.wakeReconnectDesc"},
 		{ID: Automation, Default: false, TitleKey: "features.automation", DescriptionKey: "features.automationDesc"},
 		{ID: TunnelStats, Default: true, TitleKey: "features.tunnelStats", DescriptionKey: "features.tunnelStatsDesc"},
+		{ID: FirstLaunchTour, Default: true, TitleKey: "features.firstLaunchTour", DescriptionKey: "features.firstLaunchTourDesc"},
 	}
 }
 
@@ -99,16 +101,17 @@ func find(id ID) (Flag, bool) {
 
 // Flags holds explicit overrides. A nil pointer means "use the default".
 type Flags struct {
-	Profiles       *bool `toml:"profiles,omitempty" json:"profiles,omitempty"`
-	QuickSearch    *bool `toml:"quick_search,omitempty" json:"quickSearch,omitempty"`
-	Notifications  *bool `toml:"notifications,omitempty" json:"notifications,omitempty"`
-	AutoUpdate     *bool `toml:"auto_update,omitempty" json:"autoUpdate,omitempty"`
-	TrafficMonitor *bool `toml:"traffic_monitor,omitempty" json:"trafficMonitor,omitempty"`
-	Mascot         *bool `toml:"mascot,omitempty" json:"mascot,omitempty"`
-	SSHCommand     *bool `toml:"ssh_command,omitempty" json:"sshCommand,omitempty"`
-	WakeReconnect  *bool `toml:"wake_reconnect,omitempty" json:"wakeReconnect,omitempty"`
-	Automation     *bool `toml:"automation,omitempty" json:"automation,omitempty"`
-	TunnelStats    *bool `toml:"tunnel_stats,omitempty" json:"tunnelStats,omitempty"`
+	Profiles        *bool `toml:"profiles,omitempty" json:"profiles,omitempty"`
+	QuickSearch     *bool `toml:"quick_search,omitempty" json:"quickSearch,omitempty"`
+	Notifications   *bool `toml:"notifications,omitempty" json:"notifications,omitempty"`
+	AutoUpdate      *bool `toml:"auto_update,omitempty" json:"autoUpdate,omitempty"`
+	TrafficMonitor  *bool `toml:"traffic_monitor,omitempty" json:"trafficMonitor,omitempty"`
+	Mascot          *bool `toml:"mascot,omitempty" json:"mascot,omitempty"`
+	SSHCommand      *bool `toml:"ssh_command,omitempty" json:"sshCommand,omitempty"`
+	WakeReconnect   *bool `toml:"wake_reconnect,omitempty" json:"wakeReconnect,omitempty"`
+	Automation      *bool `toml:"automation,omitempty" json:"automation,omitempty"`
+	TunnelStats     *bool `toml:"tunnel_stats,omitempty" json:"tunnelStats,omitempty"`
+	FirstLaunchTour *bool `toml:"first_launch_tour,omitempty" json:"firstLaunchTour,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -149,6 +152,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.Automation = &value
 	case TunnelStats:
 		f.TunnelStats = &value
+	case FirstLaunchTour:
+		f.FirstLaunchTour = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -174,16 +179,17 @@ func (f Flags) Views() []View {
 // Clone returns a detached copy so later Set calls do not alias stored config.
 func (f Flags) Clone() Flags {
 	return Flags{
-		Profiles:       cloneBool(f.Profiles),
-		QuickSearch:    cloneBool(f.QuickSearch),
-		Notifications:  cloneBool(f.Notifications),
-		AutoUpdate:     cloneBool(f.AutoUpdate),
-		TrafficMonitor: cloneBool(f.TrafficMonitor),
-		Mascot:         cloneBool(f.Mascot),
-		SSHCommand:     cloneBool(f.SSHCommand),
-		WakeReconnect:  cloneBool(f.WakeReconnect),
-		Automation:     cloneBool(f.Automation),
-		TunnelStats:    cloneBool(f.TunnelStats),
+		Profiles:        cloneBool(f.Profiles),
+		QuickSearch:     cloneBool(f.QuickSearch),
+		Notifications:   cloneBool(f.Notifications),
+		AutoUpdate:      cloneBool(f.AutoUpdate),
+		TrafficMonitor:  cloneBool(f.TrafficMonitor),
+		Mascot:          cloneBool(f.Mascot),
+		SSHCommand:      cloneBool(f.SSHCommand),
+		WakeReconnect:   cloneBool(f.WakeReconnect),
+		Automation:      cloneBool(f.Automation),
+		TunnelStats:     cloneBool(f.TunnelStats),
+		FirstLaunchTour: cloneBool(f.FirstLaunchTour),
 	}
 }
 
@@ -238,6 +244,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.Automation
 	case TunnelStats:
 		return f.TunnelStats
+	case FirstLaunchTour:
+		return f.FirstLaunchTour
 	default:
 		return nil
 	}
