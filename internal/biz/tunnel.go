@@ -42,13 +42,14 @@ type TunnelEvents interface {
 }
 
 type TunnelBiz struct {
-	storage  *conf.Storage
-	secrets  *secrets.Vault
-	events   TunnelEvents
-	mu       sync.Mutex
-	runs     map[int]*forward.LocalForward
-	starting map[int]context.CancelFunc
-	stats    *tunnelstats.Store
+	storage       *conf.Storage
+	secrets       *secrets.Vault
+	events        TunnelEvents
+	mu            sync.Mutex
+	runs          map[int]*forward.LocalForward
+	starting      map[int]context.CancelFunc
+	stats         *tunnelstats.Store
+	autoStartSkip func(model.Tunnel, []model.Jumper) string
 }
 
 func NewTunnelBiz(storage *conf.Storage) *TunnelBiz {
@@ -99,6 +100,32 @@ func (b *TunnelBiz) ResetStats(id int) {
 	}
 	b.observeTraffic()
 	b.stats.Reset(id)
+}
+
+// SetAutoStartSkip installs a filter consulted before an autostart tunnel is
+// dialed. Jumpers are the stored values, with keychain secrets not loaded.
+// A non-empty reason skips that tunnel. Nil keeps the previous behavior.
+// norkad uses it so a password the GUI would prompt for is logged and not dialed.
+func (b *TunnelBiz) SetAutoStartSkip(skip func(model.Tunnel, []model.Jumper) string) {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	b.autoStartSkip = skip
+	b.mu.Unlock()
+}
+
+func (b *TunnelBiz) autostartSkipReason(tunnel model.Tunnel, jumpers []model.Jumper) string {
+	if b == nil {
+		return ""
+	}
+	b.mu.Lock()
+	skip := b.autoStartSkip
+	b.mu.Unlock()
+	if skip == nil {
+		return ""
+	}
+	return skip(tunnel, jumpers)
 }
 
 // SetEvents attaches OS notification fan-out. Nil disables it.
@@ -585,6 +612,21 @@ func (b *TunnelBiz) StartAutoStart(maxRunning int) error {
 	if maxRunning > 0 && len(autoStartTunnels) > maxRunning {
 		autoStartTunnels = autoStartTunnels[:maxRunning]
 	}
+
+	kept := make([]model.Tunnel, 0, len(autoStartTunnels))
+	for _, t := range autoStartTunnels {
+		jumpers, err := collectJumpers(cfg.Jumpers, t.JumperIDs)
+		if err != nil {
+			kept = append(kept, t)
+			continue
+		}
+		if reason := b.autostartSkipReason(t, jumpers); reason != "" {
+			slog.Warn("autostart skipped", "tunnel_id", t.ID, "name", t.Name, "reason", reason)
+			continue
+		}
+		kept = append(kept, t)
+	}
+	autoStartTunnels = kept
 
 	for _, t := range autoStartTunnels {
 		_, _ = b.updateStatus(t.ID, "busy", "")

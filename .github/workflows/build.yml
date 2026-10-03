@@ -496,7 +496,7 @@ jobs:
       version: ${{ github.ref_name }}
     secrets: inherit
 
-  # Отдельный клиент norka-cli. На pull request только проверка конфига
+  # norka-cli и norkad в одних архивах. На pull request только проверка конфига
   # и короткая сборка snapshot: шесть платформ, без публикации.
   cli:
     if: github.event_name == 'pull_request'
@@ -537,7 +537,7 @@ jobs:
           TAP_GITHUB_TOKEN: fake-token-for-ci
         run: go test ./internal/goreleasercheck
 
-      - name: Snapshot build norka-cli
+      - name: Snapshot build norka-cli and norkad
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
