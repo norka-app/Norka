@@ -371,10 +371,10 @@ func (a *App) writeNotifyIcon() string {
 		return ""
 	}
 	name := "norka-notify.png"
-	data := trayIconFallback
-	if runtime.GOOS == "windows" && len(trayIconWindows) > 0 {
+	data := appIconPNG
+	if runtime.GOOS == "windows" && len(appIconWindows) > 0 {
 		name = "norka-notify.ico"
-		data = trayIconWindows
+		data = appIconWindows
 	}
 	if len(data) == 0 {
 		return ""

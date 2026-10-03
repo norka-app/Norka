@@ -6,7 +6,7 @@
 
   status  : 'connected' (green) | 'connecting' (amber + CSS blink) | 'error' (red) | 'stopped' (eyes closed, asleep)
             both eyes always share one status (the latest tunnel event, see utils/norka-status.js)  [ssh-client]
-  variant : 'A' (tall arch) | 'B' (flat mound)
+  variant : 'A' (frameless cutout, the app icon) | 'B' (flat mound on a rounded tile)
   theme   : 'dark' | 'light'
   statusLabel : optional text for the tooltip/aria-label instead of the raw status  [ssh-client addition]
   All colours are CSS custom properties, so the host can override them, e.g.
@@ -129,7 +129,21 @@ const GEOMETRY = {
   }
 } as const
 
+// Вырезка (вариант A): плитки нет, дырка норки залита цветом темы, фигура
+// увеличена вокруг центра. Пути глаз те же, поэтому моргание, простой и нокаут не меняются.
+const CUTOUT_SCALE = 1.16
+const HOLE_A = 'M126 408L126 326C126 259 182 214 256 214C330 214 386 259 386 326L386 408Z'
+
 const uid = useId()
+const cutout = computed(() => props.variant === 'A')
+const frameTransform = computed(() => {
+  if (!cutout.value) return undefined
+  const shift = (256 * (1 - CUTOUT_SCALE)).toFixed(2)
+  return `translate(${shift} ${shift}) scale(${CUTOUT_SCALE})`
+})
+// тонкая кромка, чтобы светлая арка не сливалась с тёмным фоном; в светлой теме арка и так тёмная
+const archStroke = computed(() => (cutout.value && props.theme === 'dark' ? 'rgba(0,0,0,0.18)' : 'none'))
+const archStrokeWidth = computed(() => (cutout.value && props.theme === 'dark' ? 3 : 0))
 const g = computed(() => GEOMETRY[props.variant])
 const t = computed(() => THEME[props.theme])
 const asleep = computed(() => props.status === 'stopped')
@@ -176,7 +190,7 @@ const eyeStyle = (side: Side) => ({
 </script>
 
 <template>
-  <svg class="norka" :class="[`norka--${status}`, koClass]" viewBox="0 0 512 512" :width="size" :height="size"
+  <svg class="norka" :class="[`norka--${status}`, { 'norka--cutout': cutout }, koClass]" viewBox="0 0 512 512" :width="size" :height="size"
        role="img" :aria-label="label" :style="svgStyle">
     <title>{{ label }}</title>
     <defs>
@@ -192,9 +206,11 @@ const eyeStyle = (side: Side) => ({
         <path :d="e.lid" fill="#000" />
       </mask>
     </defs>
-    <rect class="norka-bg" width="512" height="512" rx="115" :fill="c.bg" />
+    <g :transform="frameTransform">
+    <path v-if="cutout" class="norka-bg" :d="HOLE_A" :fill="c.bg" />
+    <rect v-else class="norka-bg" width="512" height="512" rx="115" :fill="c.bg" />
     <g class="norka-figure">
-    <path class="norka-arch" :d="g.arch" :fill="c.arch" />
+    <path class="norka-arch" :d="g.arch" :fill="c.arch" :stroke="archStroke" :stroke-width="archStrokeWidth" />
     <g v-for="e in g.eyes" :key="e.side" :id="`eye-${e.side}`" :data-side="e.side"
        :transform="`translate(${e.cx} ${e.cy})`" :style="eyeStyle(e.side)">
       <g v-if="!asleep || idle" class="norka-eye"
@@ -251,6 +267,7 @@ const eyeStyle = (side: Side) => ({
           <path class="ko-spark" :d="KO_SPARKLE" :style="{ animationDelay: `${delay}s` }" />
         </g>
       </g>
+    </g>
     </g>
   </svg>
 </template>
@@ -447,6 +464,9 @@ const eyeStyle = (side: Side) => ({
 
 /* wobble: dizzy sway that settles, sparks pop around */
 .norka--ko-wobble .norka-figure { transform-origin: 256px 408px; animation: ko-wobble var(--ko-dur) ease-in-out; }
+/* после масштаба вырезки «ступни» арки уезжают вниз; ось качания остаётся на них */
+.norka--cutout.norka--ko-spiral .norka-figure,
+.norka--cutout.norka--ko-wobble .norka-figure { transform-origin: 256px 432.32px; }
 @keyframes ko-wobble {
   0%, 92%, 100% { transform: rotate(0); }
   10% { transform: rotate(-9deg); } 22% { transform: rotate(8deg); } 34% { transform: rotate(-7deg); }

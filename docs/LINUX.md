@@ -61,7 +61,7 @@ packaging/linux/package.sh
 
 Включение в настройках создаёт файл `$XDG_CONFIG_HOME/autostart/norka.desktop` (обычно `~/.config/autostart/norka.desktop`). В `Exec` — полный путь к бинарнику. Выключение удаляет файл. Строки `Hidden=true` и `X-GNOME-Autostart-enabled=false` считаются выключенным автозапуском, даже если файл на месте.
 
-В пакет `.deb` и в AppImage входит ярлык меню `norka.desktop` и иконки `hicolor` из `build/appicon.png`. В ярлыке deb, AppImage и tar.gz указан `MimeType=x-scheme-handler/norka`, чтобы ссылки `norka://` открывали программу. Сами ссылки работают, только если в **Настройки → Функции** включена автоматизация.
+В пакет `.deb` и в AppImage входит ярлык меню `norka.desktop` и иконки `hicolor` из `build/linux/hicolor` (их собирает `tools/icons/generate.py`; если каталога нет, `package.sh` уменьшает `build/appicon.png`). В ярлыке deb, AppImage и tar.gz указан `MimeType=x-scheme-handler/norka`, чтобы ссылки `norka://` открывали программу. Сами ссылки работают, только если в **Настройки → Функции** включена автоматизация.
 
 ## Ссылки
 

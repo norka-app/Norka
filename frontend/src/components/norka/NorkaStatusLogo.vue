@@ -134,7 +134,7 @@ useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value &&
   <span
     ref="root"
     class="norka-status-logo"
-    :class="[`norka-status-logo--${theme}`, { 'is-winking': winking, 'norka-status-logo--egg': easterEgg }]"
+    :class="[`norka-status-logo--${theme}`, { 'is-winking': winking, 'norka-status-logo--egg': easterEgg, 'norka-status-logo--tile': variant === 'B' }]"
     :style="{ width: boxSize, height: boxSize }"
     @click="press"
   >
@@ -160,12 +160,15 @@ useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value &&
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
-  border-radius: 22.5%;
   line-height: 0;
 }
 
-/* светлая плитка почти сливается с белой панелью — тонкий контур */
-.norka-status-logo--light {
+/* вариант B всё ещё на плитке: в светлой теме она сливается с панелью */
+.norka-status-logo--tile {
+  border-radius: 22.5%;
+}
+
+.norka-status-logo--tile.norka-status-logo--light {
   box-shadow: 0 0 0 1px var(--lt-border, #e4e4e7);
 }
 
