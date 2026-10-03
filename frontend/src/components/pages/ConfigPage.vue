@@ -21,7 +21,8 @@ import {
   GetNotificationSettings,
   SetNotificationSettings,
   GetSecretsStatus,
-  CheckForUpdateNow
+  CheckForUpdateNow,
+  SaveDiagnostics
 } from '../../../wailsjs/go/main/App'
 import { applyFeatureViews, featureEnabled, featureState, setFeatureEnabled, useFeature } from '../../features/feature-store'
 import { hotkeyChord, matchesKey } from '../../utils/keyboard'
@@ -58,7 +59,8 @@ const emit = defineEmits([
   'simple-on-top-change',
   'update-offer',
   'language-change',
-  'restart-onboarding'
+  'restart-onboarding',
+  'diagnostics-saved'
 ])
 
 const { t } = useI18n()
@@ -66,10 +68,13 @@ const notificationsOn = useFeature('notifications')
 const quickSearchOn = useFeature('quick_search')
 const autoUpdateOn = useFeature('auto_update')
 const onboardingOn = useFeature('onboarding')
+const diagnosticsOn = useFeature('diagnostics')
 const autoRunEnabled = ref(false)
 const configBusy = ref('')
 const configLocationInfo = ref(null)
 const includePasswords = ref(false)
+const includeServerAddresses = ref(false)
+const diagnosticsBusy = ref(false)
 const secretsStatus = ref({ keychainAvailable: true, mode: 'keychain' })
 const notifications = ref({
   enabled: false,
@@ -446,6 +451,22 @@ async function onOpenConfigDir() {
   }
 }
 
+async function onCollectDiagnostics() {
+  if (!diagnosticsOn.value) return
+  diagnosticsBusy.value = true
+  try {
+    const result = await SaveDiagnostics(!!includeServerAddresses.value, props.theme)
+    if (!result || result.cancelled || !result.path) return
+    emit('diagnostics-saved', result)
+  } catch (err) {
+    const message = String(err)
+    if (message.toLowerCase().includes('cancelled')) return
+    emit('set-config-message', message)
+  } finally {
+    diagnosticsBusy.value = false
+  }
+}
+
 
 </script>
 
@@ -664,6 +685,17 @@ async function onOpenConfigDir() {
             </n-button>
           </n-space>
         </n-card>
+        <n-card v-if="diagnosticsOn" id="diagnostics-support" size="small" :title="t('config.support')">
+          <div class="config-name">{{ t('config.diagnosticsCollect') }}</div>
+          <div class="config-desc">{{ t('config.diagnosticsCollectDesc') }}</div>
+          <div class="diagnostics-option">
+            <n-checkbox v-model:checked="includeServerAddresses">{{ t('config.diagnosticsIncludeHosts') }}</n-checkbox>
+            <div class="config-desc">{{ t('config.diagnosticsIncludeHostsDesc') }}</div>
+          </div>
+          <n-button id="collect-diagnostics" size="small" :loading="diagnosticsBusy" @click="onCollectDiagnostics">
+            {{ t('config.diagnosticsCollect') }}
+          </n-button>
+        </n-card>
       </div>
     </n-gi>
   </n-grid>
@@ -705,5 +737,9 @@ async function onOpenConfigDir() {
   outline: 2px solid var(--lt-focus);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.diagnostics-option {
+  margin: 12px 0;
 }
 </style>

@@ -56,6 +56,7 @@ type trayMenu struct {
 	profiles     *systray.MenuItem
 	profileNone  *systray.MenuItem
 	profileSlots []*trayProfileSlot
+	diagnostics  *systray.MenuItem
 	signature    string
 	iconKey      string
 	statusSince  map[int]traySince
@@ -121,6 +122,13 @@ func (a *App) buildTrayMenu(showWindow func()) {
 	m.advanced = systray.AddMenuItem(text.AdvancedMode, text.AdvancedModeTooltip)
 	m.advanced.Click(func() { a.trayShowMode(showWindow, "advanced") })
 
+	systray.AddSeparator()
+	m.diagnostics = systray.AddMenuItem(text.Diagnostics, text.DiagnosticsTooltip)
+	m.diagnostics.Click(func() { go a.collectDiagnosticsFromTray() })
+	if !a.featureOn(features.Diagnostics) {
+		m.diagnostics.Hide()
+	}
+
 	a.startTrayRefresh()
 }
 
@@ -152,8 +160,10 @@ func (a *App) refreshTrayMenu() {
 	var profiles []model.Profile
 	var activeProfileID int
 	profilesOn := false
+	diagnosticsOn := false
 	if cfg, cfgErr := a.storage.Load(); cfgErr == nil {
 		profilesOn = cfg.Features.Enabled(features.Profiles)
+		diagnosticsOn = cfg.Features.Enabled(features.Diagnostics)
 		if profilesOn {
 			profiles = cfg.Profiles
 			activeProfileID = cfg.ActiveProfileID
@@ -169,6 +179,7 @@ func (a *App) refreshTrayMenu() {
 	trackTraySince(tunnels, m.statusSince, now)
 	state := buildTrayModel(tunnels, m.statusSince, now, text)
 	a.applyTrayStaticLabels(m, text)
+	a.paintTrayDiagnostics(m, text, diagnosticsOn)
 	profileState := buildTrayProfiles(profiles, activeProfileID, text.MoreProfiles)
 	if profileState.ActiveName != "" {
 		state.Header = insertTrayProfile(state.Header, profileState.ActiveName)
@@ -178,7 +189,7 @@ func (a *App) refreshTrayMenu() {
 		m.iconKey = key
 		setTrayStatusIcon(key)
 	}
-	sig := state.signature() + "§" + profileState.signature() + "§" + fmt.Sprintf("%t", profilesOn)
+	sig := state.signature() + "§" + profileState.signature() + "§" + fmt.Sprintf("%t%t", profilesOn, diagnosticsOn)
 	if sig == m.signature {
 		return
 	}
@@ -318,6 +329,19 @@ func (a *App) applyTrayStaticLabels(m *trayMenu, text traytext.Strings) {
 		m.profileNone.SetTitle(text.ProfileNone)
 		m.profileNone.SetTooltip(text.ProfileNoneTooltip)
 	}
+}
+
+func (a *App) paintTrayDiagnostics(m *trayMenu, text traytext.Strings, visible bool) {
+	if m == nil || m.diagnostics == nil {
+		return
+	}
+	m.diagnostics.SetTitle(text.Diagnostics)
+	m.diagnostics.SetTooltip(text.DiagnosticsTooltip)
+	if visible {
+		m.diagnostics.Show()
+		return
+	}
+	m.diagnostics.Hide()
 }
 
 // invalidateTrayMenu заставляет перерисовать меню (например, после смены подписи иконки

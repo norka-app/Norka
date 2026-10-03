@@ -616,7 +616,15 @@
         "configDirRelocateQuitHint": "Configuration updated. The app will quit; a packaged build usually restarts in a second. In wails dev, start it again yourself.",
         "exportSuccess": "Configuration exported.",
         "importSuccess": "Configuration imported. Autostart tunnels were restarted.",
-        "importConfirm": "The current configuration will be overwritten. Active tunnels will stop and restart. Continue?"
+        "importConfirm": "The current configuration will be overwritten. Active tunnels will stop and restart. Continue?",
+        "support": "Support",
+        "diagnosticsCollect": "Collect diagnostics",
+        "diagnosticsCollectDesc": "Saves a zip for a bug report: version, log, tunnel state, and statistics. Passwords, keys, and tokens are left out.",
+        "diagnosticsIncludeHosts": "Include server addresses",
+        "diagnosticsIncludeHostsDesc": "Off by default: addresses and usernames are replaced with ***.",
+        "diagnosticsSaved": "Diagnostics saved.",
+        "diagnosticsShowFolder": "Show in folder",
+        "diagnosticsCreateIssue": "Create a GitHub issue"
     },
     "features": {
         "title": "Features",
@@ -641,7 +649,9 @@
         "tunnelStats": "Tunnel statistics",
         "tunnelStatsDesc": "Connected time, reconnects, the last error, and traffic for each tunnel.",
         "onboarding": "First-run tour",
-        "onboardingDesc": "A short introduction while the tunnel list is empty."
+        "onboardingDesc": "A short introduction while the tunnel list is empty.",
+        "diagnostics": "Diagnostics",
+        "diagnosticsDesc": "The Collect diagnostics button in Settings and the tray item. A bug-report archive without passwords or keys."
     },
     "onboarding": {
         "replay": "Show the tour again",

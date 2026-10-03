@@ -675,8 +675,12 @@
   left: 50%;
   bottom: 16px;
   transform: translateX(-50%);
-  width: min(480px, calc(100% - 32px));
+  width: min(520px, calc(100% - 32px));
   z-index: 3000;
+}
+
+.config-toast-actions {
+  margin-top: 10px;
 }
 
 .top-header {

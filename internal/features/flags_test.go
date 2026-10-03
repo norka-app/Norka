@@ -6,7 +6,7 @@ func TestCatalogDefaults(t *testing.T) {
 	if Default(Profiles) {
 		t.Fatal("profiles default must be off")
 	}
-	if !Default(QuickSearch) || !Default(AutoUpdate) || !Default(TrafficMonitor) || !Default(Mascot) || !Default(SSHCommand) || !Default(WakeReconnect) || !Default(TunnelStats) || !Default(Onboarding) {
+	if !Default(QuickSearch) || !Default(AutoUpdate) || !Default(TrafficMonitor) || !Default(Mascot) || !Default(SSHCommand) || !Default(WakeReconnect) || !Default(TunnelStats) || !Default(Onboarding) || !Default(Diagnostics) {
 		t.Fatal("expected on by default")
 	}
 	if Default(Notifications) {
@@ -67,7 +67,31 @@ func TestMigrateLeavesExplicitChoice(t *testing.T) {
 	if flags.Enabled(Profiles) {
 		t.Fatal("profiles must stay at the default")
 	}
+	if !flags.Enabled(Diagnostics) {
+		t.Fatal("diagnostics must stay on when the key is missing")
+	}
 	_ = off
+}
+
+func TestExplicitFalseSurvivesCloneForEveryFlag(t *testing.T) {
+	var flags Flags
+	for _, flag := range All() {
+		if err := flags.Set(flag.ID, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cloned := flags.Clone()
+	for _, flag := range All() {
+		if cloned.Enabled(flag.ID) {
+			t.Fatalf("%s explicit false did not clone", flag.ID)
+		}
+	}
+	if err := flags.Set(Diagnostics, true); err != nil {
+		t.Fatal(err)
+	}
+	if !flags.Enabled(Diagnostics) || cloned.Enabled(Diagnostics) {
+		t.Fatal("clone aliased diagnostics")
+	}
 }
 
 func TestViewsUseCatalogOrder(t *testing.T) {
