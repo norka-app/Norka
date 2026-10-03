@@ -4,7 +4,7 @@
   "outputfilename": "norka",
   "info": {
     "productName": "Norka",
-    "productVersion": "1.2.1",
+    "productVersion": "1.3.0",
     "protocols": [
       {
         "scheme": "norka",
