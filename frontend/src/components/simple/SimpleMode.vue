@@ -729,7 +729,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: var(--s-bg);
   color: var(--s-text);
-  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--norka-font-family);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -838,7 +838,7 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 .simple-empty { padding-left: 3px; color: var(--s-muted); font-size: 12.5px; line-height: 18px; }
-.simple-arrow { color: var(--s-faint); margin: 0 3px; font-family: "Segoe UI", system-ui, sans-serif; }
+.simple-arrow { color: var(--s-faint); margin: 0 3px; font-family: inherit; }
 
 .simple-acts { width: 100%; }
 .simple-acts :deep(.simple-main-btn) { flex: 1 1 auto; min-width: 0; }

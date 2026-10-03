@@ -1,6 +1,14 @@
 import { darkTheme } from 'naive-ui'
 
-const fontFamily = '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif'
+// Системный шрифт каждой ОС. Selawik не входит: в файле нет кириллицы.
+// Тот же список в style.css (--norka-font-family).
+export const APP_FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, "Noto Sans", Ubuntu, Cantarell, sans-serif'
+
+// Шапка и подвал модалки: 16 по вертикали, 24 по горизонтали. Зазор кнопок — 8 (form-layout).
+const cardOverrides = {
+  paddingMedium: '16px 24px 16px',
+}
 
 function commonOverrides(primary, hover, pressed) {
   return {
@@ -9,7 +17,7 @@ function commonOverrides(primary, hover, pressed) {
     primaryColorPressed: pressed,
     primaryColorSuppl: primary,
     borderRadius: '8px',
-    fontFamily,
+    fontFamily: APP_FONT_FAMILY,
   }
 }
 
@@ -30,10 +38,12 @@ export function naiveThemeOverrides(mode) {
     return {
       common: commonOverrides('#7dd3fc', '#bae6fd', '#38bdf8'),
       Form: formOverrides,
+      Card: cardOverrides,
     }
   }
   return {
     common: commonOverrides('#1d4ed8', '#1e40af', '#1e3a8a'),
     Form: formOverrides,
+    Card: cardOverrides,
   }
 }

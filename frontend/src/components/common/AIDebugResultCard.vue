@@ -275,12 +275,6 @@ const confidenceBadgeLabel = computed(() => {
   gap: 0.5rem;
 }
 
-.ai-debug-actions .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
 .ai-debug-report-btn {
   margin-left: auto;
 }
