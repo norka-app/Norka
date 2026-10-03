@@ -193,9 +193,31 @@ Builds are in [Releases](../../releases):
 | Windows (x64) | `norka.exe` |
 | Linux (x64) | `norka-x86_64.AppImage`, the `norka_<version>_amd64.deb` package, or `norka_<version>_linux_amd64.tar.gz` |
 
-GitHub Actions publishes a build for each `v*` tag. Without signing secrets, `norka.exe` stays unsigned. How to turn on Azure Artifact Signing or a PFX file is in [docs/SIGNING.md](docs/SIGNING.md).
+GitHub Actions publishes a build for each `v*` tag. `norka.exe` is unsigned. The release page includes `SHA256SUMS`, and the tag workflow records a build attestation. Why there is no certificate, and which options are still open, is in [docs/SIGNING.md](docs/SIGNING.md).
 
 A Linux build needs GTK 3 and WebKitGTK 4.1 from the distro. On Ubuntu 24.04 the AppImage also needs FUSE 2 (`libfuse2t64`); without it, run `./norka-x86_64.AppImage --appimage-extract-and-run`. Install the package with `sudo apt install ./norka_<version>_amd64.deb`. The tray icon is a StatusNotifier (AppIndicator). On GNOME without the AppIndicator extension it may be missing; the window still works. Details are in [docs/LINUX.md](docs/LINUX.md).
+
+### Windows warns about an unknown publisher
+
+`norka.exe` from the releases page is unsigned. SmartScreen shows “Windows protected your PC” and says the publisher is unknown.
+
+Click **More info**, then **Run anyway**.
+
+Check the hash against the release:
+
+```bat
+certutil -hashfile norka.exe SHA256
+```
+
+The line should match the `norka.exe` hash in `SHA256SUMS` on the same release page.
+
+Check that this repository built the file (requires the [GitHub CLI](https://cli.github.com/)):
+
+```bash
+gh attestation verify norka.exe --repo norka-app/Norka
+```
+
+Installing with winget or Scoop usually does not show this warning.
 
 ### First launch on macOS
 

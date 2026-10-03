@@ -157,7 +157,7 @@ jobs:
   build-windows:
     # Свежая виртуальная машина Windows
     runs-on: windows-latest
-    # Секреты подписи читаются в env, чтобы шаг можно было пропустить, когда их нет.
+    # Запасной вариант подписи. Секреты читаются в env, чтобы шаг можно было пропустить.
     # Пустое значение — шаг не запускается, в релиз уходит неподписанный norka.exe.
     env:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -204,8 +204,9 @@ jobs:
       - name: Build Windows app
         run: wails build -platform windows/amd64
 
-      # Подпись необязательна. Сначала Azure Artifact Signing, если заданы все шесть секретов.
-      # Иначе PFX через signtool. Иначе файл остаётся неподписанным. Имя — norka.exe.
+      # Запасной вариант, см. docs/SIGNING.md. Без секретов оба шага пропускаются.
+      # Сначала Azure Artifact Signing, если заданы все шесть секретов. Иначе PFX.
+      # Иначе файл остаётся неподписанным. Имя — norka.exe.
       - name: Sign with Azure Artifact Signing
         id: azure-sign
         if: env.AZURE_TENANT_ID != '' && env.AZURE_CLIENT_ID != '' && env.AZURE_CLIENT_SECRET != '' && env.AZURE_SIGNING_ENDPOINT != '' && env.AZURE_SIGNING_ACCOUNT != '' && env.AZURE_CERT_PROFILE_NAME != ''
@@ -316,8 +317,17 @@ jobs:
     runs-on: ubuntu-latest
     
     # `if`: публиковать только если запуск вызван тегом на "v" (например v1.0.0).
-    # Обычный push кода заканчивается сборками, этот шаг пропускается.
+    # Обычный push кода и pull request заканчиваются сборками, эта задача пропускается.
     if: startsWith(github.ref, 'refs/tags/v')
+
+    # Аттестация просит id-token и attestations. contents: write — создать выпуск.
+    # actions: read нужен, чтобы скачать артефакты сборки: права задачи заменяют
+    # права всего workflow, и без этой строки download-artifact на теге не сработает.
+    permissions:
+      id-token: write
+      attestations: write
+      contents: write
+      actions: read
     
     steps:
       # Шаг 1. Заметки к выпуску лежат в репозитории: docs/releases/v1.2.3.md.
@@ -328,8 +338,8 @@ jobs:
         with:
           sparse-checkout: docs/releases
 
-      # Шаг 2. Имя файла совпадает с тегом. Нет файла — публикуем как раньше, без текста.
-      # Пустой path действие softprops не читает и из-за этого не падает.
+      # Шаг 2. Имя файла совпадает с тегом. Нет файла — в описании останется
+      # только хвост про SmartScreen, его допишет шаг Compose release body.
       - name: Look for release notes
         id: notes
         run: |
@@ -339,7 +349,7 @@ jobs:
             echo "Нашлись заметки: ${notes_file}"
           else
             echo "path=" >> "$GITHUB_OUTPUT"
-            echo "Файла ${notes_file} нет. Публикуем выпуск без текста."
+            echo "Файла ${notes_file} нет. В описании останется только блок про Windows."
           fi
 
       # Шаг 3. Скачать собранное приложение macOS из архива задачи build-macos.
@@ -371,6 +381,42 @@ jobs:
           done > SHA256SUMS
           cat SHA256SUMS
 
+      # Происхождение файлов релиза. Задача и так запускается только на теге v*.
+      # gh attestation verify сверяет хеш локального файла с этой аттестацией.
+      # SHA256SUMS сюда не входит: это список хешей, а не сама сборка.
+      - name: Attest release files
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            artifacts/windows/norka.exe
+            artifacts/macos/norka.dmg
+            artifacts/linux/*.AppImage
+            artifacts/linux/*.deb
+            artifacts/linux/*.tar.gz
+
+      # К заметкам дописывается общий хвост про SmartScreen.
+      # Если маркер хвоста уже есть в файле заметок, второй раз он не добавляется.
+      # Файла заметок нет — в описании остаётся только этот хвост.
+      - name: Compose release body
+        id: body
+        env:
+          NOTES_FILE: ${{ steps.notes.outputs.path }}
+        run: |
+          set -euo pipefail
+          body="artifacts/release-body.md"
+          : > "$body"
+          if [ -n "${NOTES_FILE}" ] && [ -f "${NOTES_FILE}" ]; then
+            cat "${NOTES_FILE}" >> "$body"
+          fi
+          snippet="docs/releases/windows-smartscreen.md"
+          if [ -f "$snippet" ] && ! grep -Fq '<!-- norka:release-footer -->' "$body"; then
+            if [ -s "$body" ]; then
+              printf '\n\n' >> "$body"
+            fi
+            cat "$snippet" >> "$body"
+          fi
+          echo "path=${body}" >> "$GITHUB_OUTPUT"
+
       # Шаг 5. Официальным действием GitHub создать страницу Release.
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -383,9 +429,8 @@ jobs:
             artifacts/SHA256SUMS
           draft: false           # false — опубликовать сразу, без черновика
           # Текст этой страницы приложение показывает в окне «Что нового».
-          # path — это docs/releases/<тег>.md, если шаг выше файл нашёл.
-          # Пустая строка значит «файла нет»: описание остаётся пустым, задача не падает.
-          body_path: ${{ steps.notes.outputs.path }}
+          # path — заметки тега плюс хвост про SmartScreen, если его ещё не было в файле.
+          body_path: ${{ steps.body.outputs.path }}
           # Дефис в теге (например v1.2.0-beta.1) — предварительный выпуск.
           # Без дефиса — обычный стабильный выпуск.
           prerelease: ${{ contains(github.ref_name, '-') }}

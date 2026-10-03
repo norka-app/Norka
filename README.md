@@ -157,7 +157,7 @@ Norka создаёт и держит SSH-туннели из окна, без р
 | Windows (x64) | `norka.exe` |
 | Linux (x64) | `norka-x86_64.AppImage`, пакет `norka_<версия>_amd64.deb` или архив `norka_<версия>_linux_amd64.tar.gz` |
 
-Сборки публикует GitHub Actions по тегу `v*`. Без секретов подписи `norka.exe` остаётся неподписанным; как включить Azure Artifact Signing или PFX — в [docs/SIGNING.md](docs/SIGNING.md).
+Сборки публикует GitHub Actions по тегу `v*`. `norka.exe` выходит без подписи издателя. На странице выпуска лежит `SHA256SUMS`, а тег оставляет аттестацию сборки. Почему сертификата нет и какие пути ещё смотрим — в [docs/SIGNING.md](docs/SIGNING.md).
 
 Linux-сборке нужны GTK 3 и WebKitGTK 4.1 из дистрибутива. AppImage на Ubuntu 24.04 дополнительно просит FUSE 2 (`libfuse2t64`); без него запуск — `./norka-x86_64.AppImage --appimage-extract-and-run`. Пакет ставится так: `sudo apt install ./norka_<версия>_amd64.deb`. Иконка трея — StatusNotifier (AppIndicator). На GNOME без расширения AppIndicator её может не быть, окно при этом работает. Подробности — в [docs/LINUX.md](docs/LINUX.md).
 
@@ -177,6 +177,28 @@ scoop install norka
 brew tap norka-app/tap
 brew install --cask norka-app/tap/norka
 ```
+
+### Windows предупреждает о неизвестном издателе
+
+`norka.exe` со страницы выпусков не подписан. SmartScreen показывает «Система Windows защитила ваш компьютер» и пишет, что издатель неизвестен.
+
+Нажмите **Подробнее**, затем **Выполнить в любом случае**.
+
+Сверить хеш с выпуском:
+
+```bat
+certutil -hashfile norka.exe SHA256
+```
+
+Строка должна совпасть с хешем `norka.exe` в файле `SHA256SUMS` на той же странице выпуска.
+
+Проверить, что файл собран в этом репозитории (нужен [GitHub CLI](https://cli.github.com/)):
+
+```bash
+gh attestation verify norka.exe --repo norka-app/Norka
+```
+
+Установка через winget или Scoop обычно проходит без этого предупреждения.
 
 ### Первый запуск на macOS
 
