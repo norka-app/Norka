@@ -103,6 +103,11 @@ jobs:
       - name: Build macOS app
         run: wails build -platform darwin/universal
 
+      # Icon Composer (.icon → Assets.car) только если на раннере есть actool из Xcode 26.
+      # Иначе остаётся .icns из appicon.png. Скрипт не валит сборку, если actool отказал.
+      - name: Apply macOS icon catalog
+        run: sh packaging/darwin/apply-liquid-icon.sh
+
       # Шаг 8. Установить create-dmg.
       # Сторонний инструмент для DMG: свой фон и точная раскладка окна.
       - name: Install create-dmg

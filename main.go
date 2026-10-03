@@ -7,30 +7,38 @@ import (
 	"runtime"
 
 	"github.com/energye/systray"
+	"github.com/norka-app/Norka/internal/automation"
+	"github.com/norka-app/Norka/internal/cli"
+	"github.com/norka-app/Norka/internal/notify"
+	"github.com/norka-app/Norka/internal/traytext"
+	"github.com/norka-app/Norka/internal/update"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	wailslinux "github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
-	"github.com/norka-app/Norka/internal/automation"
-	"github.com/norka-app/Norka/internal/cli"
-	"github.com/norka-app/Norka/internal/notify"
-	"github.com/norka-app/Norka/internal/traytext"
-	"github.com/norka-app/Norka/internal/update"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 //go:embed build/windows/icon.ico
-var trayIconWindows []byte
+var appIconWindows []byte
+
+//go:embed build/appicon.png
+var appIconPNG []byte
 
 //go:embed build/macos-systray.png
 var trayIconMacOS []byte
 
-//go:embed build/appicon.png
-var trayIconFallback []byte
+// Трей — вариант C (минимал). Цвет глаз подставит refresh по статусу туннелей.
+//
+//go:embed build/tray/tray-connected.ico
+var trayIconWindows []byte
+
+//go:embed build/tray/tray-connected-32.png
+var trayIconLinux []byte
 
 func main() {
 	// До единичного экземпляра и до Wails: дождаться завершения предыдущей копии
@@ -64,26 +72,19 @@ func main() {
 	}
 
 	startTray, endTray := systray.RunWithExternalLoop(func() {
-		iconBytes := trayIconFallback
 		switch runtime.GOOS {
 		case "windows":
 			if len(trayIconWindows) > 0 {
-				iconBytes = trayIconWindows
-			}
-			if len(iconBytes) > 0 {
-				systray.SetIcon(iconBytes)
+				systray.SetIcon(trayIconWindows)
 			}
 		case "darwin":
+			// Строка меню: монохромный template (вариант C). Статус цветом глаз тут не кодируется.
 			if len(trayIconMacOS) > 0 {
-				iconBytes = trayIconMacOS
-			}
-			// macOS menu bar icon prefers template icons.
-			if len(iconBytes) > 0 {
-				systray.SetTemplateIcon(iconBytes, iconBytes)
+				systray.SetTemplateIcon(trayIconMacOS, trayIconMacOS)
 			}
 		default:
-			if len(iconBytes) > 0 {
-				systray.SetIcon(iconBytes)
+			if len(trayIconLinux) > 0 {
+				systray.SetIcon(trayIconLinux)
 			}
 		}
 		if runtime.GOOS != "darwin" {
@@ -162,7 +163,7 @@ func main() {
 		// Linux: нативные рамка и иконка окна. GPU выключен так же, как если Linux == nil:
 		// интерфейс — формы и списки, программный рендеринг устойчивее на Xvfb и части дистрибутивов.
 		Linux: &wailslinux.Options{
-			Icon:             trayIconFallback,
+			Icon:             appIconPNG,
 			ProgramName:      "norka",
 			WebviewGpuPolicy: wailslinux.WebviewGpuPolicyNever,
 		},

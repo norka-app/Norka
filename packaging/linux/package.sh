@@ -32,6 +32,12 @@ trap 'rm -rf "$STAGE"' EXIT
 
 install_icons() {
   dest="$1"
+  pre="$ROOT/build/linux/hicolor"
+  if [ -d "$pre/16x16/apps" ]; then
+    mkdir -p "$dest"
+    cp -a "$pre/." "$dest/"
+    return
+  fi
   for size in 16 32 48 64 128 256 512; do
     dir="$dest/hicolor/${size}x${size}/apps"
     mkdir -p "$dir"
@@ -47,7 +53,11 @@ chmod 755 "$APPDIR/usr/bin/norka"
 sed 's|^Exec=.*|Exec=norka %u|' "$ROOT/packaging/linux/norka.desktop" > "$APPDIR/norka.desktop"
 cp "$APPDIR/norka.desktop" "$APPDIR/usr/share/applications/norka.desktop"
 install_icons "$APPDIR/usr/share/icons"
-convert "$ROOT/build/appicon.png" -resize 256x256 "$APPDIR/norka.png"
+if [ -f "$ROOT/build/linux/hicolor/256x256/apps/norka.png" ]; then
+  cp "$ROOT/build/linux/hicolor/256x256/apps/norka.png" "$APPDIR/norka.png"
+else
+  convert "$ROOT/build/appicon.png" -resize 256x256 "$APPDIR/norka.png"
+fi
 cp "$APPDIR/norka.png" "$APPDIR/.DirIcon"
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
@@ -111,7 +121,11 @@ mkdir -p "$TARROOT"
 cp "$BIN" "$TARROOT/norka"
 chmod 755 "$TARROOT/norka"
 sed 's|^Exec=.*|Exec=norka %u|' "$ROOT/packaging/linux/norka.desktop" > "$TARROOT/norka.desktop"
-convert "$ROOT/build/appicon.png" -resize 256x256 "$TARROOT/norka.png"
+if [ -f "$ROOT/build/linux/hicolor/256x256/apps/norka.png" ]; then
+  cp "$ROOT/build/linux/hicolor/256x256/apps/norka.png" "$TARROOT/norka.png"
+else
+  convert "$ROOT/build/appicon.png" -resize 256x256 "$TARROOT/norka.png"
+fi
 cat > "$TARROOT/README.txt" <<EOF
 Norka ${VERSION} для Linux (x86_64).
 
