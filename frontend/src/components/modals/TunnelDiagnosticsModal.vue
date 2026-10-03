@@ -38,9 +38,10 @@ const checks = computed(() => (Array.isArray(props.report?.checks) ? props.repor
 
 function sentence(check) {
   const key = `app.tunnels.diagnostics.checks.${check?.code || ''}`
-  const translated = t(key, check?.params || {})
-  if (!check?.code || translated === key) return check?.detail || check?.code || ''
-  return translated
+  const translated = check?.code ? t(key, check?.params || {}) : ''
+  if (translated && translated !== key) return translated
+  if (check?.status === 'skipped') return t('app.tunnels.diagnostics.skipped')
+  return check?.detail || check?.code || ''
 }
 
 function titleOf(check) {
@@ -128,7 +129,7 @@ function toggleDetail(id) {
 
 <style scoped>
 .diag-body {
-  max-height: min(460px, calc(100vh - 180px));
+  max-height: min(640px, calc(100vh - 140px));
   overflow: auto;
 }
 
