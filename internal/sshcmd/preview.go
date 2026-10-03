@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func buildPreview(commands []command, jumpers []model.Jumper, tunnels []model.Tunnel) model.SSHCommandPreview {

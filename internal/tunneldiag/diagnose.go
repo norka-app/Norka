@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"norka/internal/forward"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/forward"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 const (

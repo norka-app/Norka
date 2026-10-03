@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"norka/internal/features"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 const defaultConfigPath = "config.toml"

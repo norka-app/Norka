@@ -1,6 +1,6 @@
 package main
 
-import "norka/internal/conf"
+import "github.com/norka-app/Norka/internal/conf"
 
 // GetOnboardingDone reports whether the first-run tour was finished or skipped.
 func (a *App) GetOnboardingDone() (bool, error) {

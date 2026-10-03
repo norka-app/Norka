@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func TestParseTable(t *testing.T) {

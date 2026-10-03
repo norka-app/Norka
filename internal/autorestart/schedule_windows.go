@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/windows"
-	"norka/internal/update"
+	"github.com/norka-app/Norka/internal/update"
 )
 
 func scheduleRelaunch(exe string, args []string) error {

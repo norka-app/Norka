@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/conf"
-	"norka/internal/features"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
 )
 
 const secretCanary = "super-secret-canary-value"

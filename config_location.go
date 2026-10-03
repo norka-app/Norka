@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"norka/internal/autorestart"
-	"norka/internal/conf"
-	"norka/internal/uilocale"
-	"norka/internal/update"
+	"github.com/norka-app/Norka/internal/autorestart"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/uilocale"
+	"github.com/norka-app/Norka/internal/update"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

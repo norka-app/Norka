@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 // AmbiguousError means more than one tunnel matched the query.

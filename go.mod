@@ -1,10 +1,11 @@
-module norka
+module github.com/norka-app/Norka
 
 go 1.25.0
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
 	github.com/BurntSushi/toml v1.6.0
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/emersion/go-autostart v0.0.0-20250403115856-34830d6457d2
 	github.com/energye/systray v1.0.3
 	github.com/godbus/dbus/v5 v5.1.0
@@ -16,7 +17,6 @@ require (
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
-	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

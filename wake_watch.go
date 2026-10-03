@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	"norka/internal/features"
-	"norka/internal/netwatch"
-	"norka/internal/wake"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/netwatch"
+	"github.com/norka-app/Norka/internal/wake"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

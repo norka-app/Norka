@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/conf"
-	"norka/internal/features"
-	"norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/ipc"
 )
 
 func TestParseCommands(t *testing.T) {

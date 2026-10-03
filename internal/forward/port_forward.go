@@ -20,9 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"norka/internal/model"
-	"norka/internal/netwatch"
-	"norka/internal/wake"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/netwatch"
+	"github.com/norka-app/Norka/internal/wake"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"

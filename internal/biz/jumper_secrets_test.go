@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/conf"
-	"norka/internal/model"
-	"norka/internal/secrets"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/secrets"
 )
 
 func TestJumperSecretRoundTripAndDelete(t *testing.T) {

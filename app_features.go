@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"norka/internal/conf"
-	"norka/internal/features"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

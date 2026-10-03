@@ -1,0 +1,98 @@
+# Сборка отдельного клиента norka-cli.
+# Общий SHA256SUMS приложения сюда не входит: его читают update-manifests
+# и автообновление. У клиента свой файл norka-cli_SHA256SUMS.
+# release.mode: keep-existing дописывает файлы в уже созданный выпуск GUI.
+version: 2
+
+project_name: norka-cli
+
+builds:
+  - id: norka-cli
+    main: ./cmd/norka-cli
+    binary: norka-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: norka-cli
+    ids:
+      - norka-cli
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: norka-cli_SHA256SUMS
+  algorithm: sha256
+
+changelog:
+  disable: true
+
+release:
+  mode: keep-existing
+  prerelease: auto
+
+nfpms:
+  - id: norka-cli
+    package_name: norka-cli
+    ids:
+      - norka-cli
+    vendor: Norka
+    homepage: https://github.com/norka-app/Norka
+    maintainer: Norka
+    description: Command-line client for the Norka tunnel app.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    section: utils
+
+homebrew_casks:
+  - name: norka-cli
+    ids:
+      - norka-cli
+    repository:
+      owner: norka-app
+      name: homebrew-tap
+      branch: main
+      token: '{{ index .Env "TAP_GITHUB_TOKEN" }}'
+    homepage: https://github.com/norka-app/Norka
+    description: Command-line client for the Norka tunnel app.
+    binaries:
+      - norka-cli
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/norka-cli"]
+          end
+    commit_msg_template: "norka-cli {{ .Tag }}"
+    skip_upload: '{{ if eq (index .Env "TAP_GITHUB_TOKEN") "" }}true{{ else }}false{{ end }}'
+
+scoops:
+  - name: norka-cli
+    repository:
+      owner: norka-app
+      name: scoop-bucket
+      branch: main
+      token: '{{ index .Env "TAP_GITHUB_TOKEN" }}'
+    directory: bucket
+    homepage: https://github.com/norka-app/Norka
+    description: Command-line client for the Norka tunnel app.
+    license: MIT
+    commit_msg_template: "norka-cli {{ .Tag }}"
+    skip_upload: '{{ if eq (index .Env "TAP_GITHUB_TOKEN") "" }}true{{ else }}false{{ end }}'

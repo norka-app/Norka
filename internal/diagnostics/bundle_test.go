@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"norka/internal/conf"
-	"norka/internal/features"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func TestZipContentsAndReadme(t *testing.T) {

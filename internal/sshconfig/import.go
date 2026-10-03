@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 type configEntry struct {

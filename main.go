@@ -13,11 +13,11 @@ import (
 	wailslinux "github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
-	"norka/internal/automation"
-	"norka/internal/cli"
-	"norka/internal/notify"
-	"norka/internal/traytext"
-	"norka/internal/update"
+	"github.com/norka-app/Norka/internal/automation"
+	"github.com/norka-app/Norka/internal/cli"
+	"github.com/norka-app/Norka/internal/notify"
+	"github.com/norka-app/Norka/internal/traytext"
+	"github.com/norka-app/Norka/internal/update"
 )
 
 //go:embed all:frontend/dist

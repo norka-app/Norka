@@ -10,13 +10,13 @@ import (
 	"time"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
-	"norka/internal/conf"
-	"norka/internal/diagnostics"
-	"norka/internal/features"
-	"norka/internal/ipc"
-	"norka/internal/model"
-	"norka/internal/tunnelstats"
-	"norka/internal/uilocale"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/diagnostics"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/tunnelstats"
+	"github.com/norka-app/Norka/internal/uilocale"
 )
 
 const eventDiagnosticsSaved = "diagnostics:saved"

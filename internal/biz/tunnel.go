@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"norka/internal/conf"
-	"norka/internal/forward"
-	"norka/internal/model"
-	"norka/internal/secrets"
-	"norka/internal/tunneldiag"
-	"norka/internal/tunnelstats"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/forward"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/secrets"
+	"github.com/norka-app/Norka/internal/tunneldiag"
+	"github.com/norka-app/Norka/internal/tunnelstats"
 )
 
 var (

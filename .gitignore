@@ -23,7 +23,11 @@ frontend/package.json.md5
 config.toml
 ui.locale
 update.skip
+app-path
 .DS_Store
+
+# GoReleaser
+dist/
 
 # Local backups (config migration and in-place updates write *.old)
 *.old

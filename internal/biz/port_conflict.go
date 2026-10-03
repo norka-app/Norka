@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 // holdsLocalPort reports whether a tunnel in this status listens (or is about to listen)

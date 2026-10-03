@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"norka/internal/conf"
+	"github.com/norka-app/Norka/internal/conf"
 )
 
 // IssuesNewURL is the GitHub form that opens with a prefilled report.

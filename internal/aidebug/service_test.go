@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func TestMatchRulesPublicKeyOfferedButRejected(t *testing.T) {

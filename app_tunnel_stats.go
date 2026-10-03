@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"norka/internal/features"
-	"norka/internal/tunnelstats"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/tunnelstats"
 )
 
 // GetTunnelStats returns per-tunnel counters. An empty list when the feature

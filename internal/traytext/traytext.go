@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"norka/internal/uilocale"
+	"github.com/norka-app/Norka/internal/uilocale"
 )
 
 //go:embed tray.json

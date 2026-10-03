@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/ipc"
 )
 
 func usage(locale string) string {

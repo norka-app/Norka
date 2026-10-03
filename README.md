@@ -112,6 +112,25 @@ Norka создаёт и держит SSH-туннели из окна, без р
 
 Автоматизация по умолчанию выключена. После включения в **Настройки → Функции** туннелем можно управлять из терминала (`norka connect`, `status`, `list`) и ссылкой `norka://`. Первый `connect` или `disconnect` по ссылке спрашивает подтверждение. Команды, коды выхода, ярлык Windows и псевдоним оболочки: [docs/CLI.md](docs/CLI.md).
 
+## norka-cli
+
+Тонкий клиент к уже запущенной Norka. Окна у него нет. Norka должна быть запущена, а в **Настройки → Функции** включено «Автоматизация». Если приложение не запущено, `norka-cli connect` стартует его в трее. Подробности и коды выхода: [docs/CLI.md](docs/CLI.md).
+
+```bash
+brew install norka-app/tap/norka-cli
+```
+
+```bash
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka-cli
+```
+
+```bash
+go install github.com/norka-app/Norka/cmd/norka-cli@latest
+```
+
+Пакеты deb и rpm лежат в выпуске GitHub рядом с приложением. Встроенные команды `norka connect` … и ссылки `norka://` остаются в самом приложении.
+
 ---
 
 ## Норка смотрит за туннелями
