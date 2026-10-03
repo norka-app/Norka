@@ -1,0 +1,85 @@
+# Публикация отдельного клиента norka-cli.
+#
+# Сборка по тегу вызывает этот файл через workflow_call после задачи
+# release. Ручной запуск берёт исходники с указанного тега, а шаги и
+# .goreleaser.yaml — из той ветки, с которой нажали Run workflow
+# (после правки публикации это main).
+#
+# Файлы GUI и общий SHA256SUMS не создаются и не заменяются:
+# GoReleaser выкладывает только архивы, пакеты и norka-cli_SHA256SUMS.
+# Уже лежащие файлы клиента с теми же именами заменяются.
+name: Release norka-cli
+
+permissions:
+  id-token: write
+  attestations: write
+  contents: write
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Тег выпуска, например v1.5.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Тег выпуска, например v1.5.0
+        required: true
+        type: string
+
+jobs:
+  release-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      # На теге конфиг лежит рядом с кодом. Ручной запуск собирает старый
+      # тег конфигом из ветки workflow: файл кладём вне репозитория,
+      # иначе GoReleaser увидит грязное дерево.
+      - name: GoReleaser config
+        id: config
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            git fetch origin main
+            git show origin/main:.goreleaser.yaml > "$RUNNER_TEMP/goreleaser.yaml"
+            echo "args=release --clean --config ${RUNNER_TEMP}/goreleaser.yaml" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=release --clean" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish norka-cli
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: ${{ steps.config.outputs.args }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+      # Хеш локального архива или пакета сверяет gh attestation verify.
+      # norka-cli_SHA256SUMS сюда не входит: это список хешей, а не сборка.
+      - name: Attest norka-cli packages
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/*.rpm

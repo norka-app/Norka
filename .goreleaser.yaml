@@ -44,6 +44,9 @@ changelog:
 release:
   mode: keep-existing
   prerelease: auto
+  # Повторный запуск заменяет только файлы с теми же именами.
+  # GUI и общий SHA256SUMS GoReleaser не выкладывает, они остаются.
+  replace_existing_artifacts: true
 
 nfpms:
   - id: norka-cli
@@ -69,7 +72,9 @@ homebrew_casks:
       owner: norka-app
       name: homebrew-tap
       branch: main
-      token: '{{ index .Env "TAP_GITHUB_TOKEN" }}'
+      # Только {{ .Env.ИМЯ }}. index и любой другой текст GoReleaser
+      # отклоняет на публикации.
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/norka-app/Norka
     description: Command-line client for the Norka tunnel app.
     binaries:
@@ -81,6 +86,8 @@ homebrew_casks:
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/norka-cli"]
           end
     commit_msg_template: "norka-cli {{ .Tag }}"
+    # index, а не .Env.ИМЯ: пустая строка из Actions и отсутствующая
+    # переменная обе дают true, и до разбора токена публикация не доходит.
     skip_upload: '{{ if eq (index .Env "TAP_GITHUB_TOKEN") "" }}true{{ else }}false{{ end }}'
 
 scoops:
@@ -89,7 +96,7 @@ scoops:
       owner: norka-app
       name: scoop-bucket
       branch: main
-      token: '{{ index .Env "TAP_GITHUB_TOKEN" }}'
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: bucket
     homepage: https://github.com/norka-app/Norka
     description: Command-line client for the Norka tunnel app.
