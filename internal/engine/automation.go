@@ -76,7 +76,7 @@ func (e *Engine) SyncAutomation() {
 	if err := sync(on); err != nil {
 		slog.Warn("url scheme sync failed", "error", err)
 	}
-	if !on {
+	if !on || !e.hosting() {
 		e.stopAutomationIPC()
 		return
 	}

@@ -12,6 +12,7 @@ func TestWakeWatchStaysOffWhenFlagDisabled(t *testing.T) {
 
 func TestWakeWatchStartsAndStopsWithFlag(t *testing.T) {
 	eng := &Engine{}
+	eng.HostWithoutLock()
 	t.Cleanup(func() { eng.SyncWakeWatch(false) })
 	eng.SyncWakeWatch(true)
 	if eng.wakeCancel == nil {

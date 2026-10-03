@@ -238,6 +238,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.bindQuickSearchHotkey()
 	if err := a.ensureReady(); err == nil {
+		a.claimEngine()
 		a.engine.Start()
 		if link := automation.LinkFromArgs(os.Args); link != "" {
 			a.HandleDeepLink(link)
@@ -352,11 +353,26 @@ func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	slog.Info("app shutdown")
 	if a.engine != nil {
+		defer a.engine.Release()
 		a.engine.StopAutomation()
 	}
 	a.unbindQuickSearchHotkey()
 	if a.engine != nil {
 		a.engine.ShutdownTunnels()
+	}
+}
+
+// claimEngine takes engine.lock for this window. If another process already
+// holds it, the window still hosts tunnels: the daemon is not wired up yet,
+// and failing the lock must not change what the user sees.
+func (a *App) claimEngine() {
+	if a == nil || a.engine == nil {
+		return
+	}
+	a.engine.SetVersion(appVersion())
+	if _, err := a.engine.Acquire(engine.KindGUI); err != nil {
+		slog.Warn("could not take the engine lock; this window keeps hosting tunnels", "error", err)
+		a.engine.HostWithoutLock()
 	}
 }
 

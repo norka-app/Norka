@@ -16,6 +16,12 @@ func (e *Engine) SyncWakeWatch(enabled bool) {
 	}
 	e.wakeMu.Lock()
 	defer e.wakeMu.Unlock()
+	if !e.hosting() {
+		if !enabled {
+			e.stopWakeLocked()
+		}
+		return
+	}
 	if !enabled {
 		e.stopWakeLocked()
 		return

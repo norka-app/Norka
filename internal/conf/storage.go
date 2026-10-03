@@ -8,13 +8,19 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/norka-app/Norka/internal/filelock"
 )
 
 var (
 	ErrInvalidTOMLConfigurationFile = errors.New("invalid config TOML")
 )
+
+// configLockTimeout is how long a read-modify-write waits for another process
+// to finish saving config.toml. The lock file is config.toml.lock beside it.
+var configLockTimeout = 10 * time.Second
 
 type Storage struct {
 	path string
@@ -116,34 +122,59 @@ func NewDefaultStorage() (*Storage, error) {
 }
 
 func (r *Storage) Load() (*Config, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	cfg, err := r.loadLocked()
-	if err != nil {
-		return nil, err
-	}
-	return cfg.Clone(), nil
+	var cfg *Config
+	err := r.withLock(func() error {
+		loaded, err := r.loadLocked()
+		if err != nil {
+			return err
+		}
+		cfg = loaded.Clone()
+		return nil
+	})
+	return cfg, err
 }
 
 func (r *Storage) Update(mutator func(cfg *Config) error) (*Config, error) {
+	var out *Config
+	err := r.withLock(func() error {
+		// Reload inside the file lock so a concurrent process cannot lose
+		// its write between our read and our rename.
+		cfg, err := r.loadLocked()
+		if err != nil {
+			return err
+		}
+		if err := mutator(cfg); err != nil {
+			return err
+		}
+		cfg.Normalize()
+		if err := r.saveLocked(cfg); err != nil {
+			return err
+		}
+		out = cfg.Clone()
+		return nil
+	})
+	return out, err
+}
+
+func (r *Storage) lockPath() string {
+	return r.path + ".lock"
+}
+
+// withLock holds the in-process mutex and the cross-process file lock.
+// The mutex stops a mutator from calling back into Update while the lock is held.
+func (r *Storage) withLock(fn func() error) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	cfg, err := r.loadLocked()
+	if err := r.ensureParentDirLocked(); err != nil {
+		return err
+	}
+	lk, err := filelock.Acquire(r.lockPath(), configLockTimeout)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("lock %s: %w", r.lockPath(), err)
 	}
-	if err := mutator(cfg); err != nil {
-		return nil, err
-	}
-
-	cfg.Normalize()
-	if err := r.saveLocked(cfg); err != nil {
-		return nil, err
-	}
-
-	return cfg.Clone(), nil
+	defer lk.Release()
+	return fn()
 }
 
 func (r *Storage) loadLocked() (*Config, error) {
@@ -188,12 +219,35 @@ func (r *Storage) saveLocked(cfg *Config) error {
 	cfg.Normalize()
 	data := encodeConfigTOML(cfg)
 
-	tmpPath := r.path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, PrivateFilePerm); err != nil {
+	dir := filepath.Dir(r.path)
+	if dir == "" {
+		dir = "."
+	}
+	// A unique name so two processes never share one config.toml.tmp.
+	tmp, err := os.CreateTemp(dir, ".norka-config-*.tmp")
+	if err != nil {
 		return err
 	}
-
-	return os.Rename(tmpPath, r.path)
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Chmod(PrivateFilePerm); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, r.path); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return nil
 }
 
 func (r *Storage) ensureParentDirLocked() error {
