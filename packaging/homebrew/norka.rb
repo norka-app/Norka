@@ -1,6 +1,6 @@
 cask "norka" do
-  version "1.2.1"
-  sha256 "d36055302f89e263141bead5d7f343a2e152b0a78eb040ac54205d969f133179"
+  version "1.3.0"
+  sha256 "ad0ceb47144e8ea584c9ba0484dc8fe10459da835e173cfa069eb23b957c7327"
 
   url "https://github.com/norka-app/Norka/releases/download/v#{version}/norka.dmg"
   name "Norka"
