@@ -20,12 +20,19 @@ Usage:
   norka-cli toggle <name|id>       toggle a tunnel
   norka-cli status [--json]        Norka and tunnel status
   norka-cli list [--json]          list tunnels
+  norka-cli daemon stop [--force]  ask the owner to stop and exit
+  norka-cli daemon handover        ask the owner to drop the engine lock
   norka-cli --version              print the client version
 
 Norka must be running, and Automation must be on in Settings → Features.
 If Norka is not running, connect starts it in the tray. The app records its
 executable next to config.toml when it starts. disconnect, toggle, status,
-and list do not start the app.
+list, and daemon do not start the app.
+
+status --json speaks protocol 2: it prints hello (owner, pid, version) and
+the full state. daemon stop asks the owner to stop its tunnels and exit.
+A window ignores that unless --force is set. daemon handover asks the owner
+to stop its tunnels and release the engine lock.
 
 Exit codes:
   0  success
@@ -82,6 +89,13 @@ func explain(cmd command, resp ipc.Response) string {
 		return ipc.MessageUpdateApp
 	case ipc.CodeUpdateCLI:
 		return ipc.MessageUpdateCLI
+	case ipc.CodeIgnored:
+		return "The window ignored shutdown. Pass --force to stop it."
+	case ipc.CodeTimeout:
+		if strings.TrimSpace(resp.Message) != "" {
+			return resp.Message
+		}
+		return "Handover timed out. The owner still holds the engine lock."
 	case ipc.CodeUnauthorized:
 		return "Access to the local Norka channel was denied."
 	case ipc.CodeOK:
@@ -100,6 +114,12 @@ func explain(cmd command, resp ipc.Response) string {
 }
 
 func okText(cmd command, resp ipc.Response) string {
+	if cmd.Op == ipc.OpShutdown {
+		return "Norka is stopping."
+	}
+	if cmd.Op == ipc.OpHandover {
+		return "The engine lock is released."
+	}
 	if cmd.Op == ipc.OpStatus || cmd.Op == ipc.OpList {
 		return statusLine(resp.Tunnels)
 	}

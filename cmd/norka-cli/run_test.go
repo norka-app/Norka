@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/norka-app/Norka/internal/conf"
 	"github.com/norka-app/Norka/internal/features"
@@ -259,6 +260,87 @@ func TestStatusHumanAndJSON(t *testing.T) {
 	stdout.Reset()
 	if code := run([]string{"--json", "list"}, e); code != 0 || !strings.Contains(stdout.String(), `"name": "api"`) {
 		t.Fatalf("json code %d %s", code, stdout.String())
+	}
+}
+
+func TestStatusJSONSpeaksV2(t *testing.T) {
+	var stdout bytes.Buffer
+	var ops []string
+	e := testEnv(enabledConfig(), &stdout, &bytes.Buffer{})
+	e.Call = func(_ context.Context, _, _ string, req ipc.Request) (ipc.Response, error) {
+		ops = append(ops, req.Op)
+		if req.V != ipc.ProtocolVersion {
+			t.Fatalf("dialect %d", req.V)
+		}
+		if req.Op == ipc.OpHello {
+			if req.Client == nil || req.Client.Name != "norka-cli" || req.Client.Version != "test" || req.Client.Protocol != ipc.ProtocolVersion {
+				t.Fatalf("client %+v", req.Client)
+			}
+			return ipc.Response{
+				V:        ipc.ProtocolVersion,
+				OK:       true,
+				Code:     ipc.CodeOK,
+				ExitCode: ipc.ExitOK,
+				Hello:    &ipc.Hello{ProtocolVersion: 2, MinClientVersion: 1, Owner: "daemon", PID: 42, Version: "dev"},
+			}, nil
+		}
+		if req.Op != ipc.OpState {
+			t.Fatalf("op %s", req.Op)
+		}
+		return ipc.Response{
+			V:        ipc.ProtocolVersion,
+			OK:       true,
+			Code:     ipc.CodeOK,
+			ExitCode: ipc.ExitOK,
+			State:    &ipc.State{Tunnels: []ipc.TunnelInfo{{ID: 1, Name: "db", Status: "running"}}},
+		}, nil
+	}
+	if code := run([]string{"status", "--json"}, e); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if len(ops) != 2 || ops[0] != ipc.OpHello || ops[1] != ipc.OpState {
+		t.Fatalf("ops %v", ops)
+	}
+	text := stdout.String()
+	if !strings.Contains(text, `"protocol_version": 2`) || !strings.Contains(text, `"owner": "daemon"`) || !strings.Contains(text, `"name": "db"`) {
+		t.Fatalf("stdout %s", text)
+	}
+}
+
+func TestDaemonCommandsUseV2(t *testing.T) {
+	var got ipc.Request
+	e := testEnv(enabledConfig(), &bytes.Buffer{}, &bytes.Buffer{})
+	e.Call = func(_ context.Context, _, _ string, req ipc.Request) (ipc.Response, error) {
+		got = req
+		return ipc.Response{V: ipc.ProtocolVersion, OK: true, Code: ipc.CodeOK, ExitCode: ipc.ExitOK, Message: "stopping"}, nil
+	}
+	var stdout bytes.Buffer
+	e.Stdout = &stdout
+	if code := run([]string{"daemon", "stop"}, e); code != 0 || !strings.Contains(stdout.String(), "Norka is stopping.") {
+		t.Fatalf("stop code %d out %q req %+v", code, stdout.String(), got)
+	}
+	if got.Op != ipc.OpShutdown || got.V != ipc.ProtocolVersion || got.Force {
+		t.Fatalf("stop request %+v", got)
+	}
+	stdout.Reset()
+	if code := run([]string{"daemon", "stop", "--force"}, e); code != 0 || !got.Force {
+		t.Fatalf("force code %d force %v", code, got.Force)
+	}
+	stdout.Reset()
+	if code := run([]string{"daemon", "handover"}, e); code != 0 || !strings.Contains(stdout.String(), "engine lock is released") {
+		t.Fatalf("handover code %d out %q", code, stdout.String())
+	}
+	if got.Op != ipc.OpHandover || got.TimeoutMS != int(ipc.DefaultHandoverTimeout/time.Millisecond) {
+		t.Fatalf("handover request %+v", got)
+	}
+	var stderr bytes.Buffer
+	e.Stderr = &stderr
+	if code := run([]string{"daemon"}, e); code != ipc.ExitUsage || !strings.Contains(stderr.String(), "stop or handover") {
+		t.Fatalf("usage code %d %q", code, stderr.String())
+	}
+	stderr.Reset()
+	if code := run([]string{"status", "--force"}, e); code != ipc.ExitUsage {
+		t.Fatalf("--force on status: %d", code)
 	}
 }
 

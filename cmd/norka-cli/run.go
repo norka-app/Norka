@@ -21,6 +21,7 @@ type command struct {
 	JSON    bool
 	Help    bool
 	Version bool
+	Force   bool
 }
 
 // env is what the client needs from the machine. Tests replace the functions.
@@ -82,7 +83,12 @@ func run(args []string, e env) int {
 		return fail(e, cmd, ipc.ExitDisabled, ipc.CodeDisabled, "")
 	}
 
-	resp, err := invoke(e, cmd, path)
+	var resp ipc.Response
+	if cmd.Op == ipc.OpStatus && cmd.JSON {
+		resp, err = statusV2(e, path)
+	} else {
+		resp, err = invoke(e, cmd, path)
+	}
 	if errors.Is(err, errAppUnavailable) {
 		return fail(e, cmd, ipc.ExitNotRunning, ipc.CodeNotRunning, publicError(err))
 	}
@@ -103,16 +109,16 @@ func run(args []string, e env) int {
 
 func invoke(e env, cmd command, configPath string) (ipc.Response, error) {
 	if !mutates(cmd.Op) {
-		return call(e, configPath, request(cmd), 8*time.Second)
+		return call(e, configPath, request(e, cmd), 8*time.Second)
 	}
 	// Ask the running app which dialect it speaks before connect, disconnect,
 	// or toggle. An older app would otherwise run the command and ignore v.
-	probe, err := call(e, configPath, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpStatus}, 8*time.Second)
+	probe, err := call(e, configPath, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpStatus, Client: clientInfo(e)}, 8*time.Second)
 	if errors.Is(err, ipc.ErrNotRunning) && cmd.Op == ipc.OpConnect {
 		if err := startApp(e, configPath); err != nil {
 			return ipc.Response{}, err
 		}
-		probe, err = call(e, configPath, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpStatus}, 60*time.Second)
+		probe, err = call(e, configPath, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpStatus, Client: clientInfo(e)}, 60*time.Second)
 	}
 	if err != nil {
 		return ipc.Response{}, err
@@ -120,11 +126,42 @@ func invoke(e env, cmd command, configPath string) (ipc.Response, error) {
 	if _, stale := outdated(probe); stale || !probe.OK {
 		return probe, nil
 	}
-	return call(e, configPath, request(cmd), 60*time.Second)
+	return call(e, configPath, request(e, cmd), 60*time.Second)
 }
 
-func request(cmd command) ipc.Request {
-	return ipc.Request{V: ipc.ProtocolVersion, Op: cmd.Op, Target: cmd.Target}
+func statusV2(e env, configPath string) (ipc.Response, error) {
+	client := clientInfo(e)
+	hello, err := call(e, configPath, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpHello, Client: client}, 8*time.Second)
+	if err != nil {
+		return ipc.Response{}, err
+	}
+	if _, stale := outdated(hello); stale || !hello.OK {
+		return hello, nil
+	}
+	state, err := call(e, configPath, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpState, Client: client}, 8*time.Second)
+	if err != nil {
+		return ipc.Response{}, err
+	}
+	if state.Hello == nil {
+		state.Hello = hello.Hello
+	}
+	return state, nil
+}
+
+func clientInfo(e env) *ipc.ClientInfo {
+	version := strings.TrimSpace(e.Version)
+	if version == "" {
+		version = "dev"
+	}
+	return &ipc.ClientInfo{Name: "norka-cli", Version: version, Protocol: ipc.ProtocolVersion}
+}
+
+func request(e env, cmd command) ipc.Request {
+	req := ipc.Request{V: ipc.ProtocolVersion, Op: cmd.Op, Target: cmd.Target, Force: cmd.Force, Client: clientInfo(e)}
+	if cmd.Op == ipc.OpHandover {
+		req.TimeoutMS = int(ipc.DefaultHandoverTimeout / time.Millisecond)
+	}
+	return req
 }
 
 func mutates(op string) bool {
@@ -259,6 +296,8 @@ func parse(args []string) (command, error) {
 			cmd.Version = true
 		case "--help", "-h", "help":
 			cmd.Help = true
+		case "--force":
+			cmd.Force = true
 		default:
 			if strings.HasPrefix(arg, "-") {
 				return command{}, fmt.Errorf("unknown flag %q", arg)
@@ -284,8 +323,23 @@ func parse(args []string) (command, error) {
 			return command{}, fmt.Errorf("%s needs one tunnel name or id", cmd.Op)
 		}
 		cmd.Target = rest[0]
+	case "daemon":
+		if len(rest) != 1 {
+			return command{}, errors.New("daemon needs stop or handover")
+		}
+		switch rest[0] {
+		case "stop":
+			cmd.Op = ipc.OpShutdown
+		case "handover":
+			cmd.Op = ipc.OpHandover
+		default:
+			return command{}, fmt.Errorf("unknown daemon command %q", rest[0])
+		}
 	default:
 		return command{}, fmt.Errorf("unknown command %q", cmd.Op)
+	}
+	if cmd.Force && cmd.Op != ipc.OpShutdown {
+		return command{}, errors.New("--force is only valid with daemon stop")
 	}
 	return cmd, nil
 }

@@ -110,7 +110,7 @@ func (e *Engine) startAutomationIPC() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	e.ipcCancel = cancel
 	go func() {
-		if err := ipc.Serve(ctx, ln, token, e.handleAutomation); err != nil {
+		if err := ipc.ServeStream(ctx, ln, token, e.handleAutomation, e.handleSubscribe); err != nil {
 			slog.Error("automation ipc stopped", "error", err)
 		}
 	}()
@@ -146,6 +146,9 @@ func (e *Engine) handleAutomation(req ipc.Request) ipc.Response {
 			ExitCode: ipc.ExitDisabled,
 			Message:  automation.Message(locale, ipc.CodeDisabled, "", "", nil),
 		}
+	}
+	if req.V >= 2 && ipc.IsV2Op(req.Op) {
+		return e.handleV2(req)
 	}
 	switch req.Op {
 	case ipc.OpStatus, ipc.OpList:
