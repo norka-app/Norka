@@ -14,7 +14,7 @@
 - `norka.exe` — winget (`InstallerSha256`, заглавные буквы) и Scoop (`hash`, строчные)
 - `norka.dmg` — Homebrew (`sha256`, строчные)
 
-Номер приложения — `1.5.0`. В `packaging/` пока версия `1.4.0`, хеши взяты из `SHA256SUMS` выпуска [v1.4.0](https://github.com/norka-app/Norka/releases/tag/v1.4.0). После тега `v1.5.0` workflow ниже перепишет версию и хеши и откроет pull request. Этот выпуск файлы манифестов не меняет.
+Номер приложения — `1.6.0`. В `packaging/` пока версия `1.5.0`, хеши взяты из `SHA256SUMS` выпуска [v1.5.0](https://github.com/norka-app/Norka/releases/tag/v1.5.0). После тега `v1.6.0` workflow ниже перепишет версию и хеши и откроет pull request. Этот выпуск файлы манифестов не меняет.
 
 Сборка по тегу `v*` публикует выпуск из `build.yml` токеном `GITHUB_TOKEN`. Событие, которое создал этот токен, другие workflow не запускает, поэтому отдельный триггер `on: release` здесь не используется. Когда задача `release` прошла и в теге нет дефиса, `build.yml` вызывает `.github/workflows/update-manifests.yml` через `workflow_call` и передаёт версию.
 
@@ -35,7 +35,7 @@ https://github.com/norka-app/Norka/compare/main...packaging/manifests-v<верс
 Pull request по этой ссылке открывает человек. Если ветку нужно собрать локально, те же файлы правит скрипт:
 
 ```bash
-scripts/update-manifests.sh 1.5.0
+scripts/update-manifests.sh 1.6.0
 ```
 
 Версию можно передать с `v` или без. Скрипт только меняет файлы в рабочей копии: не пушит, не ставит теги и не редактирует выпуски. Дальше обычный коммит и PR.
@@ -45,7 +45,7 @@ scripts/update-manifests.sh 1.5.0
 Идентификатор пакета: `NorkaApp.Norka`. Файлы для первой заявки: `packaging/winget/`.
 
 1. Поставьте [wingetcreate](https://github.com/microsoft/winget-create) или проверяйте YAML по схемам из комментария в начале каждого файла.
-2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Пока тег `v1.5.0` не опубликован, в образцах версия `1.4.0` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.4.0`. `InstallerSha256` записан заглавными буквами. На выпуске `v1.5.0` те же поля перепишет workflow хешей или `scripts/update-manifests.sh`.
+2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Пока тег `v1.6.0` не опубликован, в образцах версия `1.5.0` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.5.0`. `InstallerSha256` записан заглавными буквами. На выпуске `v1.6.0` те же поля перепишет workflow хешей или `scripts/update-manifests.sh`.
 3. Скопируйте четыре файла в свой форк [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) по пути:
 
    `manifests/n/NorkaApp/Norka/<версия>/`
@@ -118,7 +118,7 @@ jobs:
 
 1. Создайте публичный репозиторий `norka-app/homebrew-tap`.
 2. Положите туда `Casks/norka.rb` — копия `packaging/homebrew/norka.rb`.
-3. Перед первым `brew audit` сверьте `version` и `sha256` с `norka.dmg` релиза (`shasum -a 256 norka.dmg` или строка `norka.dmg` в `SHA256SUMS`). Пока тег `v1.5.0` не опубликован, в cask версия `1.4.0` и SHA256 `norka.dmg` из `SHA256SUMS` выпуска v1.4.0. После `v1.5.0` образец в этом репозитории обновляет тот же workflow, что и остальные манифесты.
+3. Перед первым `brew audit` сверьте `version` и `sha256` с `norka.dmg` релиза (`shasum -a 256 norka.dmg` или строка `norka.dmg` в `SHA256SUMS`). Пока тег `v1.6.0` не опубликован, в cask версия `1.5.0` и SHA256 `norka.dmg` из `SHA256SUMS` выпуска v1.5.0. После `v1.6.0` образец в этом репозитории обновляет тот же workflow, что и остальные манифесты.
 4. В cask есть `caveats`: сборка ad-hoc, без нотаризации, macOS ставит карантин. Снять его: `xattr -dr com.apple.quarantine /Applications/norka.app`.
 5. `zap trash: "~/.norka"` — каталог конфига на macOS.
 
