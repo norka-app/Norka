@@ -32,7 +32,7 @@ func (a *App) bindQuickSearchHotkey() {
 	if err := a.ensureReady(); err != nil {
 		return
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		slog.Warn("quick search settings unread", "err", err)
 		return
@@ -114,7 +114,7 @@ func (a *App) GetQuickSearchSettings() (model.QuickSearchSettings, error) {
 		settings.ErrorCode = "unsupported"
 		return settings, err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return settings, err
 	}
@@ -145,7 +145,7 @@ func (a *App) SetQuickSearchSettings(input model.QuickSearchSettings) (model.Qui
 		}
 	}
 	enabled := input.Enabled
-	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage().Update(func(cfg *conf.Config) error {
 		if err := cfg.Features.Set(features.QuickSearch, enabled); err != nil {
 			return err
 		}

@@ -7,7 +7,7 @@ func (a *App) GetOnboardingDone() (bool, error) {
 	if err := a.ensureReady(); err != nil {
 		return false, err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return false, err
 	}
@@ -20,7 +20,7 @@ func (a *App) SetOnboardingDone(done bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	_, err := a.storage.Update(func(cfg *conf.Config) error {
+	_, err := a.storage().Update(func(cfg *conf.Config) error {
 		cfg.OnboardingDone = done
 		return nil
 	})

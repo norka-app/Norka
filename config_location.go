@@ -39,7 +39,7 @@ func (a *App) GetConfigLocationInfo() (ConfigLocationInfo, error) {
 		return out, err
 	}
 	implicit := conf.ResolveImplicitConfigPath()
-	effective := a.storage.Path()
+	effective := a.storage().Path()
 	out.EffectiveConfigPath = effective
 	out.EffectiveConfigDir = filepath.Dir(effective)
 	out.ImplicitConfigPath = implicit
@@ -120,7 +120,7 @@ func (a *App) SetConfigDirectory(targetDir string, overwriteExisting bool) error
 
 	implicit := conf.ResolveImplicitConfigPath()
 	anchor := conf.AnchorDirFromImplicit(implicit)
-	srcPath := a.storage.Path()
+	srcPath := a.storage().Path()
 	srcDir := filepath.Dir(srcPath)
 	dstPath := filepath.Join(absTarget, conf.DefaultConfigFileName)
 
@@ -128,8 +128,8 @@ func (a *App) SetConfigDirectory(targetDir string, overwriteExisting bool) error
 		return nil
 	}
 
-	if a.tunnel != nil {
-		a.tunnel.Shutdown()
+	if a.tunnel() != nil {
+		a.tunnel().Shutdown()
 	}
 
 	if err := syncArtifactsToTargetDir(srcDir, absTarget, overwriteExisting); err != nil {
@@ -171,15 +171,15 @@ func (a *App) ResetConfigDirectoryToDefault(overwriteExisting bool) error {
 
 	implicit := conf.ResolveImplicitConfigPath()
 	anchor := conf.AnchorDirFromImplicit(implicit)
-	srcPath := a.storage.Path()
+	srcPath := a.storage().Path()
 	srcDir := filepath.Dir(srcPath)
 
 	if pathsEqualPathfile(srcPath, implicit) {
 		return conf.RemoveConfigRootPointer(anchor)
 	}
 
-	if a.tunnel != nil {
-		a.tunnel.Shutdown()
+	if a.tunnel() != nil {
+		a.tunnel().Shutdown()
 	}
 
 	implicitDir := filepath.Dir(implicit)

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/norka-app/Norka/internal/conf"
 	"github.com/norka-app/Norka/internal/diagnostics"
 	"github.com/norka-app/Norka/internal/features"
@@ -17,6 +16,7 @@ import (
 	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/tunnelstats"
 	"github.com/norka-app/Norka/internal/uilocale"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const eventDiagnosticsSaved = "diagnostics:saved"
@@ -111,30 +111,30 @@ func (a *App) collectDiagnosticsFromTray() {
 }
 
 func (a *App) diagnosticsBundle(includeHosts bool, theme string) (diagnostics.Bundle, error) {
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return diagnostics.Bundle{}, err
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return diagnostics.Bundle{}, err
 	}
-	logPath := diagnostics.LogPath(a.storage.Path())
+	logPath := diagnostics.LogPath(a.storage().Path())
 	logData, err := diagnostics.ReadLogTail(logPath)
 	if err != nil {
 		slog.Warn("diagnostics log was not readable")
 		logData = nil
 	}
 	var extra []string
-	if token, err := ipc.ReadToken(ipc.TokenPath(a.storage.Path())); err == nil && token != "" {
+	if token, err := ipc.ReadToken(ipc.TokenPath(a.storage().Path())); err == nil && token != "" {
 		extra = []string{token}
 	}
-	statsPath := tunnelstats.PathBeside(a.storage.Path())
+	statsPath := tunnelstats.PathBeside(a.storage().Path())
 	statsPresent := false
 	var totals []diagnostics.StatTotals
 	if info, err := os.Stat(statsPath); err == nil && info.Mode().IsRegular() {
 		statsPresent = true
-		totals = statTotals(a.tunnel.Stats())
+		totals = statTotals(a.tunnel().Stats())
 	}
 	views := cfg.Features.Views()
 	flags := make([]diagnostics.FlagState, 0, len(views))

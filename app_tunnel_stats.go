@@ -16,7 +16,7 @@ func (a *App) GetTunnelStats() ([]tunnelstats.View, error) {
 	if !a.featureOn(features.TunnelStats) {
 		return []tunnelstats.View{}, nil
 	}
-	return a.tunnel.Stats(), nil
+	return a.tunnel().Stats(), nil
 }
 
 // ResetTunnelStats clears one tunnel's counters and keeps the saved file in
@@ -28,6 +28,6 @@ func (a *App) ResetTunnelStats(id int) error {
 	if id <= 0 {
 		return fmt.Errorf("invalid tunnel id")
 	}
-	a.tunnel.ResetStats(id)
+	a.tunnel().ResetStats(id)
 	return nil
 }

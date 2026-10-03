@@ -19,11 +19,11 @@ func (a *App) PreviewSSHCommands(text string) (model.SSHCommandPreview, error) {
 	if !a.featureOn(features.SSHCommand) {
 		return model.SSHCommandPreview{}, fmt.Errorf("ssh command is disabled")
 	}
-	jumpers, err := a.jumper.List()
+	jumpers, err := a.jumper().List()
 	if err != nil {
 		return model.SSHCommandPreview{}, err
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return model.SSHCommandPreview{}, err
 	}
@@ -39,7 +39,7 @@ func (a *App) FormatTunnelSSHCommand(tunnelID int) (string, error) {
 	if !a.featureOn(features.SSHCommand) {
 		return "", fmt.Errorf("ssh command is disabled")
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return "", err
 	}
@@ -55,7 +55,7 @@ func (a *App) FormatTunnelSSHCommand(tunnelID int) (string, error) {
 	if !found {
 		return "", fmt.Errorf("tunnel not found")
 	}
-	jumpers, err := a.jumper.List()
+	jumpers, err := a.jumper().List()
 	if err != nil {
 		return "", err
 	}
