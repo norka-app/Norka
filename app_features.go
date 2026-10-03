@@ -43,6 +43,7 @@ func (a *App) SetFeature(id string, enabled bool) ([]features.View, error) {
 	}
 	a.applyFeatureSideEffects(cfg)
 	a.publishFeatures(cfg.Features)
+	a.onBackgroundFlag(featureID, enabled)
 	return cfg.Features.Views(), nil
 }
 

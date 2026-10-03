@@ -130,6 +130,7 @@ func main() {
 		}
 
 		app.SetTrayMenuItems(showWinItem, quitMenu)
+		app.installBackgroundQuitItem()
 	}, func() {})
 	startTray()
 	defer endTray()

@@ -19,6 +19,8 @@ type Strings struct {
 	ShowMainTooltip      string `json:"showMainTooltip"`
 	QuitTitle            string `json:"quitTitle"`
 	QuitTooltip          string `json:"quitTooltip"`
+	QuitStopTitle        string `json:"quitStopTitle"`
+	QuitStopTooltip      string `json:"quitStopTooltip"`
 	IconTooltip          string `json:"iconTooltip"`
 	AppTitle             string `json:"appTitle"`
 	CopyAddress          string `json:"copyAddress"`
@@ -94,6 +96,8 @@ func fallbackRussian() Strings {
 		ShowMainTooltip:      "Вывести окно приложения на передний план",
 		QuitTitle:            "Выход",
 		QuitTooltip:          "Закрыть приложение",
+		QuitStopTitle:        "Выйти и остановить туннели",
+		QuitStopTooltip:      "Остановить фоновый процесс и закрыть окно",
 		IconTooltip:          "Norka",
 		AppTitle:             "Norka",
 		CopyAddress:          "Скопировать адрес (%s)",
@@ -145,6 +149,8 @@ func fallbackEnglish() Strings {
 		ShowMainTooltip:      "Bring the window to the front",
 		QuitTitle:            "Quit",
 		QuitTooltip:          "Quit the application",
+		QuitStopTitle:        "Quit and stop tunnels",
+		QuitStopTooltip:      "Stop the background process and close the window",
 		IconTooltip:          "Norka",
 		AppTitle:             "Norka",
 		CopyAddress:          "Copy address (%s)",

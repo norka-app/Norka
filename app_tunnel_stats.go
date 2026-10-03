@@ -16,6 +16,14 @@ func (a *App) GetTunnelStats() ([]tunnelstats.View, error) {
 	if !a.featureOn(features.TunnelStats) {
 		return []tunnelstats.View{}, nil
 	}
+	if a.backgroundAttached() {
+		a.bg.mu.Lock()
+		stats := a.bg.stats
+		a.bg.mu.Unlock()
+		if stats != nil {
+			return append([]tunnelstats.View(nil), (*stats)...), nil
+		}
+	}
 	return a.tunnel().Stats(), nil
 }
 

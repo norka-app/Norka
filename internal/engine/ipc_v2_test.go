@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -183,6 +184,107 @@ func TestControlRestartUsesOwnerRuntime(t *testing.T) {
 	}
 	if len(rt.ops) != 2 || rt.ops[0] != "stop" || rt.ops[1] != "start" {
 		t.Fatalf("ops %v", rt.ops)
+	}
+}
+
+func TestControlStartSecretIsNotStoredOrReturned(t *testing.T) {
+	rt := &secretRuntime{}
+	eng, path := newIPCEngineRuntime(t, KindDaemon, true, rt)
+	if _, err := eng.Acquire(KindDaemon); err != nil {
+		t.Fatal(err)
+	}
+	jumper, err := eng.jumper.Create(model.JumperPayload{
+		Name: "bastion", Host: "bastion.example", User: "norka", AuthType: "password", Password: "stored-secret",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tunnel, err := eng.tunnel.Create(model.TunnelPayload{
+		Name: "db", Mode: "local", JumperIDs: []int{jumper.ID},
+		LocalHost: "127.0.0.1", LocalPort: 15432, RemoteHost: "db.internal", RemotePort: 5432, Status: "stopped",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const ephemeral = "ephemeral-one-shot-secret"
+	denied := eng.handleAutomation(ipc.Request{
+		V:       ipc.ProtocolVersion,
+		Op:      ipc.OpControl,
+		Control: &ipc.Control{Action: ipc.ActionStart, Kind: ipc.KindTunnel, ID: tunnel.ID},
+	})
+	if denied.OK || !strings.Contains(denied.Message, "password") {
+		t.Fatalf("start without secret: %+v", denied)
+	}
+	if len(rt.secrets) != 0 {
+		t.Fatal("daemon dialed a password tunnel without a secret from the window")
+	}
+	allowed := eng.handleAutomation(ipc.Request{
+		V:  ipc.ProtocolVersion,
+		Op: ipc.OpControl,
+		Control: &ipc.Control{
+			Action:  ipc.ActionStart,
+			Kind:    ipc.KindTunnel,
+			ID:      tunnel.ID,
+			Secrets: []ipc.HopSecret{{JumperID: jumper.ID, Secret: ephemeral}},
+		},
+	})
+	if !allowed.OK {
+		t.Fatalf("start with secret: %+v", allowed)
+	}
+	raw, err := json.Marshal(allowed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), ephemeral) || strings.Contains(string(raw), "stored-secret") {
+		t.Fatalf("response leaked a secret: %s", raw)
+	}
+	disk, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(disk), ephemeral) {
+		t.Fatalf("config stored the ephemeral secret: %s", disk)
+	}
+	if len(rt.secrets) != 1 || rt.secrets[0] != ephemeral {
+		t.Fatalf("runtime secrets %+v", rt.secrets)
+	}
+}
+
+func TestDaemonAnswersWindowWhenAutomationIsOff(t *testing.T) {
+	eng, path := newIPCEngine(t, KindDaemon, false)
+	storage, err := conf.NewStorage(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := storage.Update(func(cfg *conf.Config) error {
+		if err := cfg.Features.Set(features.Automation, false); err != nil {
+			return err
+		}
+		return cfg.Features.Set(features.BackgroundMode, true)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := eng.Acquire(KindDaemon); err != nil {
+		t.Fatal(err)
+	}
+	hello := eng.handleAutomation(ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpHello})
+	if !hello.OK || hello.Hello == nil || hello.Hello.Owner != string(KindDaemon) {
+		t.Fatalf("hello: %+v", hello)
+	}
+	legacy := eng.handleAutomation(ipc.Request{Op: ipc.OpStatus})
+	if legacy.Code != ipc.CodeDisabled {
+		t.Fatalf("legacy status should stay disabled: %+v", legacy)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var snap ipc.Response
+	err = eng.handleSubscribe(ctx, ipc.Request{V: ipc.ProtocolVersion, Op: ipc.OpSubscribe}, func(resp ipc.Response) error {
+		snap = resp
+		cancel()
+		return nil
+	})
+	if snap.State == nil || !snap.OK {
+		t.Fatalf("subscribe %v %+v", err, snap)
 	}
 }
 
@@ -465,6 +567,39 @@ func nextEvent(t *testing.T, stream *ipc.Follower) ipc.Response {
 		t.Fatalf("stream: %v", err)
 	}
 	return resp
+}
+
+type secretRuntime struct {
+	secrets []string
+}
+
+func (s *secretRuntime) SetEvents(biz.TunnelEvents) {}
+
+func (s *secretRuntime) List() ([]model.Tunnel, error) { return nil, nil }
+
+func (s *secretRuntime) Start(id int, _ int) (model.Tunnel, error) {
+	return model.Tunnel{ID: id, Status: "running"}, nil
+}
+
+func (s *secretRuntime) StartWithSecrets(id int, _ int, secrets []biz.DialSecret) (model.Tunnel, error) {
+	for _, item := range secrets {
+		s.secrets = append(s.secrets, item.Secret)
+	}
+	return model.Tunnel{ID: id, Name: "db", Status: "running"}, nil
+}
+
+func (s *secretRuntime) Stop(id int) (model.Tunnel, error) {
+	return model.Tunnel{ID: id, Status: "stopped"}, nil
+}
+
+func (s *secretRuntime) Toggle(int, int) (model.Tunnel, error) { return model.Tunnel{}, nil }
+
+func (s *secretRuntime) StartAutoStart(int) error { return nil }
+
+func (s *secretRuntime) Shutdown() {}
+
+func (s *secretRuntime) RecoverAfterWake(context.Context, netwatch.Kind, time.Time, wake.Options) wake.Result {
+	return wake.Result{}
 }
 
 type recordingRuntime struct {

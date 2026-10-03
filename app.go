@@ -15,14 +15,13 @@ import (
 
 	"github.com/energye/systray"
 	"github.com/norka-app/Norka/internal/aidebug"
-	"github.com/norka-app/Norka/internal/automation"
 	"github.com/norka-app/Norka/internal/autostart"
 	"github.com/norka-app/Norka/internal/biz"
 	"github.com/norka-app/Norka/internal/conf"
 	"github.com/norka-app/Norka/internal/engine"
 	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/ipc"
 	"github.com/norka-app/Norka/internal/model"
-	"github.com/norka-app/Norka/internal/notify"
 	"github.com/norka-app/Norka/internal/secrets"
 	"github.com/norka-app/Norka/internal/sshconfig"
 	"github.com/norka-app/Norka/internal/traytext"
@@ -69,6 +68,10 @@ type App struct {
 	quickSearchRestoreHide atomic.Bool
 
 	startHidden bool
+
+	engineStarted bool
+	bg            backgroundSession
+	trayQuitStop  *systray.MenuItem
 
 	diagMu    sync.Mutex
 	diagPaths map[string]struct{}
@@ -198,6 +201,10 @@ func (a *App) applyTrayLocaleUnlocked(tag string) {
 		a.trayQuit.SetTitle(s.QuitTitle)
 		a.trayQuit.SetTooltip(s.QuitTooltip)
 	}
+	if a.trayQuitStop != nil {
+		a.trayQuitStop.SetTitle(s.QuitStopTitle)
+		a.trayQuitStop.SetTooltip(s.QuitStopTooltip)
+	}
 	if runtime.GOOS != "darwin" {
 		systray.SetTitle(s.AppTitle)
 	}
@@ -238,13 +245,14 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.bindQuickSearchHotkey()
 	if err := a.ensureReady(); err == nil {
+		if a.featureOn(features.BackgroundMode) && a.beginBackground() {
+			a.openStartupTarget()
+			return
+		}
 		a.claimEngine()
 		a.engine.Start()
-		if link := automation.LinkFromArgs(os.Args); link != "" {
-			a.HandleDeepLink(link)
-		} else if id := notify.ParseFocusArg(os.Args); id > 0 {
-			a.FocusTunnel(id)
-		}
+		a.engineStarted = true
+		a.openStartupTarget()
 		a.engine.StartAutoStart()
 	}
 }
@@ -352,6 +360,11 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	slog.Info("app shutdown")
+	if a.backgroundAttached() {
+		a.detachBackground()
+		a.unbindQuickSearchHotkey()
+		return
+	}
 	if a.engine != nil {
 		defer a.engine.Release()
 		a.engine.StopAutomation()
@@ -391,7 +404,7 @@ func (a *App) GetState() (model.State, error) {
 	if err != nil {
 		return model.State{}, err
 	}
-	tunnels, err := a.tunnel().List()
+	tunnels, err := a.ListTunnels()
 	if err != nil {
 		return model.State{}, err
 	}
@@ -483,12 +496,18 @@ func (a *App) CreateJumper(payload model.JumperPayload) (model.Jumper, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Jumper{}, err
 	}
+	if a.backgroundAttached() {
+		return a.saveRemoteJumper(0, payload)
+	}
 	return a.jumper().Create(payload)
 }
 
 func (a *App) UpdateJumper(id int, payload model.JumperPayload) (model.Jumper, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Jumper{}, err
+	}
+	if a.backgroundAttached() {
+		return a.saveRemoteJumper(id, payload)
 	}
 	return a.jumper().Update(id, payload)
 }
@@ -504,6 +523,9 @@ func (a *App) DeleteJumper(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
+	if a.backgroundAttached() {
+		return a.deleteRemote(ipc.KindJumper, id)
+	}
 	return a.jumper().Delete(id)
 }
 
@@ -511,7 +533,11 @@ func (a *App) ListTunnels() ([]model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, err
 	}
-	return a.tunnel().List()
+	items, err := a.tunnel().List()
+	if err != nil || !a.backgroundAttached() {
+		return items, err
+	}
+	return a.overlayTunnels(items), nil
 }
 
 func (a *App) ListGroups() ([]model.TunnelGroup, error) {
@@ -525,6 +551,9 @@ func (a *App) CreateGroup(payload model.TunnelGroupPayload) (model.TunnelGroup, 
 	if err := a.ensureReady(); err != nil {
 		return model.TunnelGroup{}, err
 	}
+	if a.backgroundAttached() {
+		return a.saveRemoteGroup(0, payload)
+	}
 	return a.group().Create(payload)
 }
 
@@ -532,12 +561,18 @@ func (a *App) UpdateGroup(id int, payload model.TunnelGroupPayload) (model.Tunne
 	if err := a.ensureReady(); err != nil {
 		return model.TunnelGroup{}, err
 	}
+	if a.backgroundAttached() {
+		return a.saveRemoteGroup(id, payload)
+	}
 	return a.group().Update(id, payload)
 }
 
 func (a *App) DeleteGroup(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
+	}
+	if a.backgroundAttached() {
+		return a.deleteRemote(ipc.KindGroup, id)
 	}
 	return a.group().Delete(id)
 }
@@ -553,6 +588,9 @@ func (a *App) CreateTunnel(payload model.TunnelPayload) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
+	if a.backgroundAttached() {
+		return a.saveRemoteTunnel(0, payload)
+	}
 	return a.tunnel().Create(payload)
 }
 
@@ -560,12 +598,44 @@ func (a *App) UpdateTunnel(id int, payload model.TunnelPayload) (model.Tunnel, e
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
+	if a.backgroundAttached() {
+		return a.saveRemoteTunnel(id, payload)
+	}
 	return a.tunnel().Update(id, payload)
 }
 
 func (a *App) MoveTunnelToGroup(id int, groupID int) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
+	}
+	if a.backgroundAttached() {
+		items, err := a.tunnel().List()
+		if err != nil {
+			return model.Tunnel{}, err
+		}
+		item, ok := findTunnel(items, id)
+		if !ok {
+			return model.Tunnel{}, biz.ErrTunnelNotFound
+		}
+		status := item.Status
+		switch status {
+		case "running", "stopped", "error":
+		default:
+			status = "stopped"
+		}
+		return a.saveRemoteTunnel(id, model.TunnelPayload{
+			Name:        item.Name,
+			GroupID:     groupID,
+			Mode:        item.Mode,
+			JumperIDs:   item.JumperIDs,
+			LocalHost:   item.LocalHost,
+			LocalPort:   item.LocalPort,
+			RemoteHost:  item.RemoteHost,
+			RemotePort:  item.RemotePort,
+			AutoStart:   item.AutoStart,
+			Status:      status,
+			Description: item.Description,
+		})
 	}
 	return a.tunnel().MoveToGroup(id, groupID)
 }
@@ -724,12 +794,18 @@ func (a *App) DeleteTunnel(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
+	if a.backgroundAttached() {
+		return a.deleteRemote(ipc.KindTunnel, id)
+	}
 	return a.tunnel().Delete(id)
 }
 
 func (a *App) ToggleTunnel(id int) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
+	}
+	if a.backgroundAttached() {
+		return a.remoteToggle(id)
 	}
 	return a.tunnel().Toggle(id, a.tunnelStartLimit())
 }
@@ -919,6 +995,14 @@ func (a *App) ImportConfig(srcPath string) error {
 	}
 	oldRefs := secrets.SecretRefs(oldCfg.Jumpers)
 
+	wasAttached := a.backgroundAttached()
+	if wasAttached {
+		if err := a.handoverDaemon(); err != nil {
+			return err
+		}
+		a.detachBackground()
+	}
+
 	// Stop all running tunnels.
 	if tun := a.engine.Tunnel(); tun != nil {
 		tun.Shutdown()
@@ -952,6 +1036,13 @@ func (a *App) ImportConfig(srcPath string) error {
 
 	// Restart auto-start tunnels.
 	_ = a.engine.Tunnel().StartAutoStart(a.tunnelStartLimit())
+
+	if wasAttached || a.featureOn(features.BackgroundMode) {
+		a.releaseLocalHost()
+		if !a.beginBackground() {
+			a.becomeLocalHost(true)
+		}
+	}
 
 	slog.Info("config imported", "src", srcPath)
 	return nil

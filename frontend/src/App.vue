@@ -87,6 +87,7 @@ import TunnelGroupModal from './components/modals/TunnelGroupModal.vue'
 import ImportTunnelModal from './components/modals/ImportTunnelModal.vue'
 import UpdateOfferModal from './components/modals/UpdateOfferModal.vue'
 import './styles/app-shell.css'
+import BackgroundHost from './components/common/BackgroundHost.vue'
 import { AI_DEBUG_ENABLED } from './config/features'
 import { applyFeatureViews, featureEnabled, useFeature } from './features/feature-store'
 import { aggregateNorkaStatus, trackTunnelErrorSince, trackTunnelStatusSince } from './utils/norka-status'
@@ -2972,6 +2973,7 @@ watch(
   <n-global-style />
   <n-dialog-provider>
   <n-message-provider>
+  <BackgroundHost />
   <div
     class="app-frame"
     :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar && !framelessActive }]"

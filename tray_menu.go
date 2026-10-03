@@ -152,7 +152,7 @@ func (a *App) refreshTrayMenu() {
 	if a.ensureReady() != nil {
 		return
 	}
-	tunnels, err := a.tunnel().List()
+	tunnels, err := a.ListTunnels()
 	if err != nil {
 		return
 	}
@@ -371,6 +371,40 @@ func setTrayStatusIcon(key string) {
 	systray.SetIcon(data)
 }
 
+// installBackgroundQuitItem adds «Выйти и остановить туннели» when background mode is on.
+// The item is not created while the flag is off, so that menu stays as it is.
+func (a *App) installBackgroundQuitItem() {
+	if a == nil || !a.featureOn(features.BackgroundMode) {
+		return
+	}
+	a.trayMu.Lock()
+	if a.trayQuitStop != nil {
+		item := a.trayQuitStop
+		a.trayMu.Unlock()
+		item.Show()
+		return
+	}
+	a.trayMu.Unlock()
+	text := a.uiText()
+	item := systray.AddMenuItem(text.QuitStopTitle, text.QuitStopTooltip)
+	item.Click(func() { a.QuitAndStopTunnels() })
+	a.trayMu.Lock()
+	a.trayQuitStop = item
+	a.trayMu.Unlock()
+}
+
+func (a *App) hideBackgroundQuitItem() {
+	if a == nil {
+		return
+	}
+	a.trayMu.Lock()
+	item := a.trayQuitStop
+	a.trayMu.Unlock()
+	if item != nil {
+		item.Hide()
+	}
+}
+
 // afterTrayAction сразу обновляет трей и просит фронтенд перечитать состояние.
 func (a *App) afterTrayAction() {
 	a.refreshTrayMenu()
@@ -404,6 +438,9 @@ func (a *App) switchTunnel(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
+	if a.backgroundAttached() {
+		return a.remoteSwitch(id)
+	}
 	_, err := a.tunnel().SwitchTo(id, a.tunnelStartLimit())
 	return err
 }
@@ -414,7 +451,7 @@ func (a *App) trayRetryFailed() {
 	if a.ensureReady() != nil {
 		return
 	}
-	tunnels, err := a.tunnel().List()
+	tunnels, err := a.ListTunnels()
 	if err != nil {
 		return
 	}
@@ -431,7 +468,7 @@ func (a *App) trayToggleWhere(match func(status string) bool) {
 	if a.ensureReady() != nil {
 		return
 	}
-	tunnels, err := a.tunnel().List()
+	tunnels, err := a.ListTunnels()
 	if err != nil {
 		return
 	}

@@ -66,6 +66,9 @@ type Engine struct {
 	version         string
 	owner           *Owner
 	hostWithoutLock bool
+	// runner replaces local start/stop for automation when the window is an IPC client.
+	// Nil keeps the in-process runtime.
+	runner func(op string, id int) (model.Tunnel, error)
 
 	subMu sync.Mutex
 	subs  []*sub
