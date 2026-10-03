@@ -46,7 +46,7 @@ func IsEnabled() (bool, error) {
 	return desktopEnabled(string(data)), nil
 }
 
-func Enable() error {
+func Enable(hidden bool) error {
 	path, err := desktopPath()
 	if err != nil {
 		return err
@@ -58,8 +58,31 @@ func Enable() error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	content := desktopFile(exe)
+	content := desktopFile(exe, hidden)
 	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+func matches(hidden bool) (bool, error) {
+	path, err := desktopPath()
+	if err != nil {
+		return false, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false, err
+	}
+	got, ok := desktopExecValue(string(data))
+	if !ok {
+		return false, nil
+	}
+	return got == linuxDesktopExec(exe, hidden), nil
 }
 
 func Disable() error {
@@ -73,28 +96,38 @@ func Disable() error {
 	return nil
 }
 
-func desktopFile(exe string) string {
+func desktopFile(exe string, hidden bool) string {
 	return "[Desktop Entry]\n" +
 		"Type=Application\n" +
 		"Version=1.0\n" +
 		"Name=" + appDisplayName + "\n" +
 		"Comment=SSH tunnel manager\n" +
-		"Exec=" + quoteDesktopExec(exe) + "\n" +
+		"Exec=" + linuxDesktopExec(exe, hidden) + "\n" +
 		"Icon=norka\n" +
 		"Terminal=false\n" +
 		"Categories=Network;\n" +
 		"X-GNOME-Autostart-enabled=true\n"
 }
 
-func quoteDesktopExec(exe string) string {
-	if exe == "" {
-		return "norka"
+func desktopExecValue(content string) (string, bool) {
+	var value string
+	found := false
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, raw, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(key), "exec") {
+			continue
+		}
+		value = strings.TrimSpace(raw)
+		found = true
 	}
-	if strings.ContainsAny(exe, " \t\"\\$`") {
-		escaped := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(exe)
-		return `"` + escaped + `"`
-	}
-	return exe
+	return value, found
 }
 
 // desktopEnabled reports whether an autostart entry should launch the app.

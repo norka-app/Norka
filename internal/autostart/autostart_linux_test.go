@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/norka-app/Norka/internal/cli"
 )
 
 func TestDesktopEnabled(t *testing.T) {
@@ -48,7 +50,7 @@ func TestEnableWritesXDGAutostart(t *testing.T) {
 	if enabled {
 		t.Fatal("expected autostart to be off before Enable")
 	}
-	if err := Enable(); err != nil {
+	if err := Enable(true); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "autostart", appName+".desktop")
@@ -60,8 +62,12 @@ func TestEnableWritesXDGAutostart(t *testing.T) {
 	if !strings.Contains(text, "Name=Norka") || !strings.Contains(text, "X-GNOME-Autostart-enabled=true") {
 		t.Fatalf("desktop file missing fields:\n%s", text)
 	}
-	if !strings.Contains(text, "Exec=") {
-		t.Fatalf("desktop file missing Exec:\n%s", text)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(text, "Exec="+linuxDesktopExec(exe, true)) {
+		t.Fatalf("desktop file missing hidden Exec:\n%s", text)
 	}
 	enabled, err = IsEnabled()
 	if err != nil {
@@ -75,5 +81,71 @@ func TestEnableWritesXDGAutostart(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("desktop file should be removed, stat err = %v", err)
+	}
+}
+
+func TestSyncRewritesLegacyDesktopEntry(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "autostart", appName+".desktop")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := desktopFile(exe, false)
+	if strings.Contains(legacy, cli.HiddenArg) {
+		t.Fatal("legacy desktop file must open the window")
+	}
+	if err := os.WriteFile(path, []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Sync(true, true); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "Exec="+linuxDesktopExec(exe, true)) {
+		t.Fatalf("legacy entry was not rewritten:\n%s", data)
+	}
+
+	marked := string(data) + "# keep\n"
+	if err := os.WriteFile(path, []byte(marked), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Sync(true, true); err != nil {
+		t.Fatal(err)
+	}
+	again, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(again) != marked {
+		t.Fatalf("matching entry was rewritten:\n%s", again)
+	}
+
+	if err := Sync(true, false); err != nil {
+		t.Fatal(err)
+	}
+	visible, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(visible), cli.HiddenArg) {
+		t.Fatalf("flag off still starts in the tray:\n%s", visible)
+	}
+	if !strings.Contains(string(visible), "Exec="+linuxDesktopExec(exe, false)) {
+		t.Fatalf("visible exec:\n%s", visible)
+	}
+
+	if err := Sync(false, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("disabled autostart should remove the file, stat err = %v", err)
 	}
 }
