@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"norka/internal/conf"
+	"norka/internal/diagnostics"
 	"norka/internal/forward"
 	"norka/internal/model"
 	"norka/internal/secrets"
@@ -471,6 +472,49 @@ func (b *TunnelBiz) TestConnection(payload model.TunnelPayload, inlineJumper *mo
 		RemotePort: payload.RemotePort,
 	}
 	return forward.TestTunnelConnection(t, chain)
+}
+
+// Diagnose runs on-demand checks for one saved tunnel.
+// Passwords are hydrated only for the call and cleared before return.
+// The report is not stored.
+func (b *TunnelBiz) Diagnose(ctx context.Context, id int) (diagnostics.Report, error) {
+	if b == nil || b.storage == nil {
+		return diagnostics.Report{}, fmt.Errorf("tunnel store is not ready")
+	}
+	if id <= 0 {
+		return diagnostics.Report{}, fmt.Errorf("invalid tunnel id")
+	}
+	cfg, err := b.storage.Load()
+	if err != nil {
+		return diagnostics.Report{}, err
+	}
+	tunnel, ok := findTunnelByID(cfg.Tunnels, id)
+	if !ok {
+		return diagnostics.Report{}, ErrTunnelNotFound
+	}
+	var jumpers []model.Jumper
+	if len(tunnel.JumperIDs) > 0 {
+		jumpers, err = collectJumpers(cfg.Jumpers, tunnel.JumperIDs)
+		if err != nil {
+			return diagnostics.Report{}, err
+		}
+		jumpers = b.hydrateJumpers(jumpers)
+		defer clearJumperPasswords(jumpers)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return diagnostics.Run(ctx, diagnostics.Input{
+		Tunnel:   tunnel,
+		Jumpers:  jumpers,
+		Siblings: cfg.Tunnels,
+	}, nil), nil
+}
+
+func clearJumperPasswords(jumpers []model.Jumper) {
+	for i := range jumpers {
+		jumpers[i].Password = ""
+	}
 }
 
 func (b *TunnelBiz) attachRuntimeLatencies(items []model.Tunnel) {

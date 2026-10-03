@@ -1,6 +1,8 @@
 package forward
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -11,6 +13,67 @@ import (
 
 	"golang.org/x/crypto/ssh"
 )
+
+// ErrPasswordNotProbed means a hop uses password authentication.
+// ProbeChain returns it before the password is sent.
+var ErrPasswordNotProbed = errors.New("password authentication is not probed")
+
+// ChainProbe is a key or agent login plus an optional forwarded TCP dial.
+// Latency is one keepalive round trip and stays zero when that request fails.
+type ChainProbe struct {
+	Latency       time.Duration
+	KeepaliveErr  error
+	TargetChecked bool
+	TargetErr     error
+}
+
+// ProbeChain logs in with public-key or agent authentication. When targetHost
+// is set, it dials that address through the session. A password hop is rejected
+// before any credential is sent.
+func ProbeChain(ctx context.Context, jumpers []model.Jumper, targetHost string, targetPort int) (ChainProbe, error) {
+	if err := ctx.Err(); err != nil {
+		return ChainProbe{}, err
+	}
+	for i, hop := range jumpers {
+		if strings.TrimSpace(hop.AuthType) == "password" {
+			return ChainProbe{}, fmt.Errorf("hop %d: %w", i+1, ErrPasswordNotProbed)
+		}
+	}
+	client, closeChain, err := dialSSHChainContext(ctx, jumpers)
+	if err != nil {
+		return ChainProbe{}, err
+	}
+	defer closeChain()
+
+	var result ChainProbe
+	start := time.Now()
+	if _, _, kerr := client.SendRequest("keepalive@openssh.com", true, nil); kerr != nil {
+		result.KeepaliveErr = kerr
+	} else {
+		result.Latency = time.Since(start)
+	}
+
+	host := strings.TrimSpace(targetHost)
+	if host == "" || targetPort <= 0 {
+		return result, nil
+	}
+	result.TargetChecked = true
+	if err := ctx.Err(); err != nil {
+		result.TargetErr = err
+		return result, nil
+	}
+	timeout := dialTimeoutFromJumpers(jumpers)
+	if timeout > 4*time.Second {
+		timeout = 4 * time.Second
+	}
+	result.TargetErr = probeRemoteDial(client, host, targetPort, timeout)
+	return result, nil
+}
+
+// ResolveKeyPath expands a configured private-key path. It does not read the file.
+func ResolveKeyPath(path string) (string, error) {
+	return resolveKeyPath(path)
+}
 
 // TestJumperLatency measures pure SSH channel round-trip latency via keepalive.
 func TestJumperLatency(client *ssh.Client) (time.Duration, error) {

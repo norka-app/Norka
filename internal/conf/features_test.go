@@ -22,6 +22,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 	assertFeature(t, cfg, features.WakeReconnect, true)
 	assertFeature(t, cfg, features.Automation, false)
 	assertFeature(t, cfg, features.TunnelStats, true)
+	assertFeature(t, cfg, features.TunnelDiagnostics, true)
+	if _, ok := cfg.Features.Explicit(features.TunnelDiagnostics); ok {
+		t.Fatal("tunnel diagnostics key must stay missing when the default applies")
+	}
 	if _, ok := cfg.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay missing on a fresh config")
 	}
@@ -46,6 +50,10 @@ func TestFeatureDefaultsAndMissingKeys(t *testing.T) {
 		t.Fatal("automation key must stay absent so the default stays off")
 	}
 	assertFeature(t, loaded, features.TunnelStats, true)
+	assertFeature(t, loaded, features.TunnelDiagnostics, true)
+	if _, ok := loaded.Features.Explicit(features.TunnelDiagnostics); ok {
+		t.Fatal("tunnel diagnostics key must stay absent so the default stays on")
+	}
 	if _, ok := loaded.Features.Explicit(features.Profiles); ok {
 		t.Fatal("profiles key must stay absent so the default can change later")
 	}
@@ -114,6 +122,7 @@ ssh_command = false
 wake_reconnect = false
 automation = false
 tunnel_stats = false
+tunnel_diagnostics = false
 `)
 	cfg, err := ParseConfigTOML(raw)
 	if err != nil {
@@ -151,7 +160,7 @@ tunnel_stats = false
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false", "tunnel_stats = false"} {
+	for _, key := range []string{"profiles = false", "quick_search = false", "traffic_monitor = false", "mascot = false", "ssh_command = false", "wake_reconnect = false", "automation = false", "tunnel_stats = false", "tunnel_diagnostics = false"} {
 		if !strings.Contains(text, key) {
 			t.Fatalf("saved config missing %q:\n%s", key, text)
 		}
@@ -203,6 +212,7 @@ status = "running"
 	assertFeature(t, cfg, features.WakeReconnect, true)
 	assertFeature(t, cfg, features.Automation, false)
 	assertFeature(t, cfg, features.TunnelStats, true)
+	assertFeature(t, cfg, features.TunnelDiagnostics, true)
 	if cfg.QuickSearchHotkey != "ctrl+shift+k" {
 		t.Fatalf("hotkey lost: %q", cfg.QuickSearchHotkey)
 	}

@@ -1,11 +1,34 @@
 package forward
 
 import (
+	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"norka/internal/model"
 )
+
+func TestProbeChainDoesNotSendPassword(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	const secret = "super-secret-value"
+	_, err := ProbeChain(ctx, []model.Jumper{{
+		Host:     "192.0.2.1",
+		Port:     22,
+		User:     "root",
+		AuthType: "password",
+		Password: secret,
+	}}, "10.0.0.1", 5432)
+	if !errors.Is(err, ErrPasswordNotProbed) {
+		t.Fatalf("err = %v", err)
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Fatalf("password leaked into %v", err)
+	}
+}
 
 func TestDialTimeoutFromJumper(t *testing.T) {
 	t.Parallel()
