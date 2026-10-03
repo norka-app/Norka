@@ -17,7 +17,7 @@ func (a *App) GetFeatures() ([]features.View, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (a *App) SetFeature(id string, enabled bool) ([]features.View, error) {
 	if !features.Known(featureID) {
 		return nil, fmt.Errorf("unknown feature %q", id)
 	}
-	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage().Update(func(cfg *conf.Config) error {
 		return cfg.Features.Set(featureID, enabled)
 	})
 	if err != nil {
@@ -47,14 +47,10 @@ func (a *App) SetFeature(id string, enabled bool) ([]features.View, error) {
 }
 
 func (a *App) featureOn(id features.ID) bool {
-	if a == nil || a.storage == nil {
+	if a == nil || a.engine == nil {
 		return features.Default(id)
 	}
-	cfg, err := a.storage.Load()
-	if err != nil {
-		return features.Default(id)
-	}
-	return cfg.Features.Enabled(id)
+	return a.engine.FeatureOn(id)
 }
 
 func (a *App) publishFeatures(flags features.Flags) {

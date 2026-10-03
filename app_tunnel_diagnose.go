@@ -24,5 +24,5 @@ func (a *App) DiagnoseTunnel(id int) (tunneldiag.Report, error) {
 	if id <= 0 {
 		return tunneldiag.Report{}, fmt.Errorf("invalid tunnel id")
 	}
-	return a.tunnel.Diagnose(context.Background(), id)
+	return a.tunnel().Diagnose(context.Background(), id)
 }

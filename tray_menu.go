@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/energye/systray"
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/norka-app/Norka/internal/features"
 	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/traytext"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Иконки трея по агрегированному статусу (connected / connecting / error / stopped).
@@ -152,7 +152,7 @@ func (a *App) refreshTrayMenu() {
 	if a.ensureReady() != nil {
 		return
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return
 	}
@@ -161,7 +161,7 @@ func (a *App) refreshTrayMenu() {
 	var activeProfileID int
 	profilesOn := false
 	diagnosticsOn := false
-	if cfg, cfgErr := a.storage.Load(); cfgErr == nil {
+	if cfg, cfgErr := a.storage().Load(); cfgErr == nil {
 		profilesOn = cfg.Features.Enabled(features.Profiles)
 		diagnosticsOn = cfg.Features.Enabled(features.Diagnostics)
 		if profilesOn {
@@ -404,7 +404,7 @@ func (a *App) switchTunnel(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	_, err := a.tunnel.SwitchTo(id, a.tunnelStartLimit())
+	_, err := a.tunnel().SwitchTo(id, a.tunnelStartLimit())
 	return err
 }
 
@@ -414,7 +414,7 @@ func (a *App) trayRetryFailed() {
 	if a.ensureReady() != nil {
 		return
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return
 	}
@@ -431,7 +431,7 @@ func (a *App) trayToggleWhere(match func(status string) bool) {
 	if a.ensureReady() != nil {
 		return
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return
 	}

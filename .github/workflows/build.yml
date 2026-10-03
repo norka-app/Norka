@@ -498,6 +498,11 @@ jobs:
       - name: Check go.mod is tidy
         run: go mod tidy -diff
 
+      # Движок фонового режима не должен тянуть Wails или трей и
+      # собирается без cgo на linux, darwin и windows.
+      - name: Check headless engine
+        run: go test ./internal/engine -count=1 -timeout 180s
+
       - name: Check GoReleaser config
         uses: goreleaser/goreleaser-action@v6
         with:

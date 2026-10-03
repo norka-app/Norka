@@ -15,7 +15,7 @@ func (a *App) profileSnapshot() ([]model.Profile, int, bool, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, 0, false, err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return nil, 0, false, err
 	}
@@ -30,7 +30,7 @@ func (a *App) CreateProfile(payload model.ProfilePayload) (model.Profile, error)
 	if err := a.ensureReady(); err != nil {
 		return model.Profile{}, err
 	}
-	created, err := a.profile.Create(payload)
+	created, err := a.profile().Create(payload)
 	if err != nil {
 		return model.Profile{}, err
 	}
@@ -42,7 +42,7 @@ func (a *App) UpdateProfile(id int, payload model.ProfilePayload) (model.Profile
 	if err := a.ensureReady(); err != nil {
 		return model.Profile{}, err
 	}
-	updated, err := a.profile.Update(id, payload)
+	updated, err := a.profile().Update(id, payload)
 	if err != nil {
 		return model.Profile{}, err
 	}
@@ -54,7 +54,7 @@ func (a *App) DeleteProfile(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	if err := a.profile.Delete(id); err != nil {
+	if err := a.profile().Delete(id); err != nil {
 		return err
 	}
 	a.invalidateTrayMenu()
@@ -65,14 +65,14 @@ func (a *App) SetProfileStopOthers(enabled bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	return a.profile.SetStopOthers(enabled)
+	return a.profile().SetStopOthers(enabled)
 }
 
 func (a *App) ClearActiveProfile() error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	if err := a.profile.ClearActive(); err != nil {
+	if err := a.profile().ClearActive(); err != nil {
 		return err
 	}
 	a.invalidateTrayMenu()
@@ -89,11 +89,11 @@ func (a *App) ActivateProfile(id int) (model.ProfileActivationResult, error) {
 	if !a.featureOn(features.Profiles) {
 		return model.ProfileActivationResult{}, fmt.Errorf("profiles are disabled")
 	}
-	result, err := a.profile.Activate(id, func(tunnelID int) error {
-		_, stopErr := a.tunnel.Stop(tunnelID)
+	result, err := a.profile().Activate(id, func(tunnelID int) error {
+		_, stopErr := a.tunnel().Stop(tunnelID)
 		return stopErr
 	}, func(tunnelID int) error {
-		updated, startErr := a.tunnel.Toggle(tunnelID, a.tunnelStartLimit())
+		updated, startErr := a.tunnel().Toggle(tunnelID, a.tunnelStartLimit())
 		if startErr != nil {
 			return startErr
 		}

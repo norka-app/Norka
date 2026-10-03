@@ -19,13 +19,13 @@ import (
 	"github.com/norka-app/Norka/internal/autostart"
 	"github.com/norka-app/Norka/internal/biz"
 	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/engine"
 	"github.com/norka-app/Norka/internal/features"
 	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/notify"
 	"github.com/norka-app/Norka/internal/secrets"
 	"github.com/norka-app/Norka/internal/sshconfig"
 	"github.com/norka-app/Norka/internal/traytext"
-	"github.com/norka-app/Norka/internal/tunnelstats"
 	"github.com/norka-app/Norka/internal/uilocale"
 	"github.com/norka-app/Norka/internal/update"
 
@@ -45,13 +45,8 @@ type OpenReportEmailResult struct {
 // App struct
 type App struct {
 	ctx     context.Context
-	storage *conf.Storage
-	jumper  *biz.JumperBiz
-	group   *biz.GroupBiz
-	profile *biz.ProfileBiz
-	tunnel  *biz.TunnelBiz
+	engine  *engine.Engine
 	aiDebug *aidebug.Service
-	initErr error
 
 	trayMu   sync.Mutex
 	trayShow *systray.MenuItem
@@ -68,25 +63,12 @@ type App struct {
 	window   windowModeState
 	trayMenu trayMenu
 
-	vault    *secrets.Vault
-	notifier *notify.Service
-
-	notifyMu       sync.Mutex
-	notifySettings notify.Settings
-
 	windowVisible          atomic.Bool
 	quickSearchHotkey      quickSearchHotkey
 	quickSearchOpen        atomic.Bool
 	quickSearchRestoreHide atomic.Bool
 
-	wakeMu     sync.Mutex
-	wakeCancel context.CancelFunc
-
-	startHidden      bool
-	ipcMu            sync.Mutex
-	ipcCancel        context.CancelFunc
-	automationMu     sync.Mutex
-	automationPrompt AutomationPrompt
+	startHidden bool
 
 	diagMu    sync.Mutex
 	diagPaths map[string]struct{}
@@ -98,92 +80,24 @@ type SecretsStatus struct {
 	Mode              string `json:"mode"`
 }
 
-const eventNotificationFocus = "notification:focus"
-
 var errExportCancelled = errors.New("export cancelled")
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	storage, err := conf.NewDefaultStorage()
-	if err != nil {
-		return &App{initErr: err}
+	eng := engine.Open()
+	app := &App{engine: eng}
+	if eng != nil && eng.Ready() == nil {
+		app.aiDebug = aidebug.NewService("", "")
+		app.windowVisible.Store(true)
 	}
-	level := detectLogLevel()
-	if err := configureLogger(storage.Path(), level); err != nil {
-		fmt.Printf("logger init failed: %v\n", err)
+	if eng != nil {
+		eng.SetHost(engine.Host{
+			Sink:       wailsSink{app: app},
+			Locale:     app.uiLocaleTag,
+			NotifyIcon: app.writeNotifyIcon,
+		})
 	}
-	slog.Info("app initialized", "config", storage.Path())
-
-	vault := secrets.OpenSystem()
-	if _, err := vault.MigrateStorage(storage); err != nil {
-		slog.Error("jumper secret migration failed", "error", err)
-	}
-	jumper := biz.NewJumperBiz(storage)
-	jumper.SetSecrets(vault)
-	tunnel := biz.NewTunnelBiz(storage)
-	tunnel.SetSecrets(vault)
-	tunnel.SetStats(tunnelstats.Open(tunnelstats.PathBeside(storage.Path())))
-
-	app := &App{
-		storage: storage,
-		jumper:  jumper,
-		group:   biz.NewGroupBiz(storage),
-		profile: biz.NewProfileBiz(storage),
-		tunnel:  tunnel,
-		aiDebug: aidebug.NewService("", ""),
-		vault:   vault,
-	}
-	app.windowVisible.Store(true)
 	return app
-}
-
-func detectLogLevel() slog.Level {
-	// Explicit override takes highest priority.
-	if raw := strings.TrimSpace(os.Getenv("NORKA_LOG_LEVEL")); raw != "" {
-		return parseLogLevel(raw)
-	}
-	// `wails dev` injects `devserver`; use debug logging for dev runtime.
-	if strings.TrimSpace(os.Getenv("devserver")) != "" {
-		return slog.LevelDebug
-	}
-	// Built binary defaults to info.
-	return slog.LevelInfo
-}
-
-func parseLogLevel(raw string) slog.Level {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "debug":
-		return slog.LevelDebug
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
-
-func configureLogger(configPath string, level slog.Level) error {
-	dir := filepath.Dir(strings.TrimSpace(configPath))
-	if dir == "" {
-		dir = "."
-	}
-	if err := os.MkdirAll(dir, conf.PrivateDirPerm); err != nil {
-		return fmt.Errorf("create log dir failed: %w", err)
-	}
-
-	logPath := filepath.Join(dir, "norka.log")
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, conf.PrivateFilePerm)
-	if err != nil {
-		return fmt.Errorf("open log file failed: %w", err)
-	}
-
-	handler := slog.NewTextHandler(file, &slog.HandlerOptions{
-		Level: level,
-	})
-	slog.SetDefault(slog.New(handler))
-	slog.Info("logger initialized", "path", logPath, "level", level.String())
-	return nil
 }
 
 // startup is called when the app starts. The context is saved
@@ -210,10 +124,10 @@ func (a *App) languageSetting(preference string) LanguageSetting {
 // ResolvedUILocale reads the language preference from config.toml.
 // A missing file or an empty preference follows the system locale.
 func (a *App) ResolvedUILocale() string {
-	if a == nil || a.storage == nil {
+	if a == nil || a.storage() == nil {
 		return uilocale.DetectFromEnv()
 	}
-	data, err := os.ReadFile(a.storage.Path())
+	data, err := os.ReadFile(a.storage().Path())
 	if err != nil {
 		return uilocale.DetectFromEnv()
 	}
@@ -248,7 +162,7 @@ func (a *App) GetLanguage() (LanguageSetting, error) {
 	if err := a.ensureReady(); err != nil {
 		return a.languageSetting(""), err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return a.languageSetting(""), err
 	}
@@ -261,13 +175,13 @@ func (a *App) SetLanguage(preference string) (LanguageSetting, error) {
 		return LanguageSetting{}, err
 	}
 	setting := a.languageSetting(preference)
-	if _, err := a.storage.Update(func(cfg *conf.Config) error {
+	if _, err := a.storage().Update(func(cfg *conf.Config) error {
 		cfg.Language = setting.Preference
 		return nil
 	}); err != nil {
 		return LanguageSetting{}, err
 	}
-	if err := uilocale.WriteFile(filepath.Dir(a.storage.Path()), setting.Preference); err != nil {
+	if err := uilocale.WriteFile(filepath.Dir(a.storage().Path()), setting.Preference); err != nil {
 		return LanguageSetting{}, err
 	}
 	a.ApplyTrayLocale(setting.Locale)
@@ -310,8 +224,8 @@ func (a *App) SaveUILocale(locale string) error {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	slog.Info("app startup")
-	if a.storage != nil {
-		if err := conf.WriteAppPath(a.storage.Path()); err != nil {
+	if a.engine != nil && a.engine.Storage() != nil {
+		if err := conf.WriteAppPath(a.engine.Storage().Path()); err != nil {
 			slog.Warn("could not record application path", "error", err)
 		}
 	}
@@ -324,50 +238,18 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.bindQuickSearchHotkey()
 	if err := a.ensureReady(); err == nil {
-		a.initNotifier()
-		a.syncAutoRunWithConfig()
-		if cfg, err := a.storage.Load(); err == nil {
-			a.syncWakeWatch(cfg.Features.Enabled(features.WakeReconnect))
-		}
-		a.syncAutomation()
+		a.engine.Start()
 		if link := automation.LinkFromArgs(os.Args); link != "" {
 			a.HandleDeepLink(link)
 		} else if id := notify.ParseFocusArg(os.Args); id > 0 {
 			a.FocusTunnel(id)
 		}
-		go func() {
-			if err := a.tunnel.StartAutoStart(0); err != nil {
-				slog.Error("auto start tunnel failed", "err", err)
-			}
-		}()
+		a.engine.StartAutoStart()
 	}
-}
-
-func (a *App) initNotifier() {
-	if a.storage == nil || a.tunnel == nil {
-		return
-	}
-	a.loadNotifySettings()
-	poster := notify.NewSystemPoster(notify.PosterConfig{
-		AppID:    "Norka",
-		IconPath: a.writeNotifyIcon(),
-		OnClick: func(id int) {
-			a.FocusTunnel(id)
-		},
-	})
-	a.notifier = notify.NewService(notify.ServiceConfig{
-		Window:   2 * time.Second,
-		Settings: a.currentNotifySettings,
-		Catalog: func() notify.Catalog {
-			return notify.CatalogFor(a.uiLocaleTag())
-		},
-		Poster: poster,
-	})
-	a.tunnel.SetEvents(a.notifier)
 }
 
 func (a *App) writeNotifyIcon() string {
-	if a.storage == nil {
+	if a.storage() == nil {
 		return ""
 	}
 	name := "norka-notify.png"
@@ -379,7 +261,7 @@ func (a *App) writeNotifyIcon() string {
 	if len(data) == 0 {
 		return ""
 	}
-	path := filepath.Join(filepath.Dir(a.storage.Path()), name)
+	path := filepath.Join(filepath.Dir(a.storage().Path()), name)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		slog.Warn("notification icon was not written", "error", err)
 		return ""
@@ -394,41 +276,17 @@ func (a *App) writeNotifyIcon() string {
 // FocusTunnel brings the window forward and asks the UI to show that tunnel.
 // id 0 only focuses the app.
 func (a *App) FocusTunnel(id int) {
-	if a == nil || a.ctx == nil {
+	if a == nil || a.engine == nil {
 		return
 	}
-	a.showMainWindow()
-	wailsruntime.EventsEmit(a.ctx, eventNotificationFocus, id)
+	a.engine.FocusTunnel(id)
 }
 
 func (a *App) loadNotifySettings() {
-	settings := notify.Settings{}
-	if a.storage != nil {
-		if cfg, err := a.storage.Load(); err == nil {
-			settings = notifySettingsFromConfig(cfg.Notifications)
-			settings.Enabled = cfg.Features.Enabled(features.Notifications)
-		}
+	if a == nil || a.engine == nil {
+		return
 	}
-	a.notifyMu.Lock()
-	a.notifySettings = settings
-	a.notifyMu.Unlock()
-}
-
-func (a *App) currentNotifySettings() notify.Settings {
-	a.notifyMu.Lock()
-	defer a.notifyMu.Unlock()
-	return a.notifySettings
-}
-
-func notifySettingsFromConfig(cfg conf.NotificationSettings) notify.Settings {
-	return notify.Settings{
-		Enabled:       cfg.Enabled,
-		Dropped:       cfg.Dropped,
-		Reconnected:   cfg.Reconnected,
-		GaveUp:        cfg.GaveUp,
-		ConnectFailed: cfg.ConnectFailed,
-		Connected:     cfg.Connected,
-	}
+	a.engine.ReloadNotifySettings()
 }
 
 // GetNotificationSettings returns the opt-in OS notification toggles.
@@ -436,7 +294,7 @@ func (a *App) GetNotificationSettings() (conf.NotificationSettings, error) {
 	if err := a.ensureReady(); err != nil {
 		return conf.NotificationSettings{}, err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return conf.NotificationSettings{}, err
 	}
@@ -450,7 +308,7 @@ func (a *App) SetNotificationSettings(settings conf.NotificationSettings) error 
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage().Update(func(cfg *conf.Config) error {
 		cfg.Notifications = settings
 		cfg.NotificationsSet = true
 		return cfg.Features.Set(features.Notifications, settings.Enabled)
@@ -468,7 +326,7 @@ func (a *App) GetSecretsStatus() (SecretsStatus, error) {
 	if err := a.ensureReady(); err != nil {
 		return SecretsStatus{}, err
 	}
-	if a.vault != nil && a.vault.Available() {
+	if a.vault() != nil && a.vault().Available() {
 		return SecretsStatus{KeychainAvailable: true, Mode: "keychain"}, nil
 	}
 	return SecretsStatus{KeychainAvailable: false, Mode: "config"}, nil
@@ -493,36 +351,35 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 func (a *App) shutdown(ctx context.Context) {
 	_ = ctx
 	slog.Info("app shutdown")
-	a.stopAutomationIPC()
+	if a.engine != nil {
+		a.engine.StopAutomation()
+	}
 	a.unbindQuickSearchHotkey()
-	if a.tunnel != nil {
-		a.tunnel.Shutdown()
+	if a.engine != nil {
+		a.engine.ShutdownTunnels()
 	}
 }
 
 func (a *App) ensureReady() error {
-	if a.initErr != nil {
-		return a.initErr
-	}
-	if a.storage == nil || a.jumper == nil || a.group == nil || a.profile == nil || a.tunnel == nil {
+	if a == nil || a.engine == nil {
 		return fmt.Errorf("app is not initialized")
 	}
-	return nil
+	return a.engine.Ready()
 }
 
 func (a *App) GetState() (model.State, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.State{}, err
 	}
-	jumpers, err := a.jumper.List()
+	jumpers, err := a.jumper().List()
 	if err != nil {
 		return model.State{}, err
 	}
-	tunnels, err := a.tunnel.List()
+	tunnels, err := a.tunnel().List()
 	if err != nil {
 		return model.State{}, err
 	}
-	groups, err := a.group.List()
+	groups, err := a.group().List()
 	if err != nil {
 		return model.State{}, err
 	}
@@ -554,7 +411,7 @@ func (a *App) GetTrafficStats() (model.TrafficStats, error) {
 		return model.TrafficStats{}, nil
 	}
 
-	up, down := a.tunnel.TrafficSnapshot()
+	up, down := a.tunnel().TrafficSnapshot()
 	now := time.Now()
 
 	a.trafficMu.Lock()
@@ -589,7 +446,7 @@ func (a *App) ListJumpers() ([]model.Jumper, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, err
 	}
-	return a.jumper.List()
+	return a.jumper().List()
 }
 
 func (a *App) GetSSHConfigImportSources() ([]model.SSHConfigImportSource, error) {
@@ -610,98 +467,98 @@ func (a *App) CreateJumper(payload model.JumperPayload) (model.Jumper, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Jumper{}, err
 	}
-	return a.jumper.Create(payload)
+	return a.jumper().Create(payload)
 }
 
 func (a *App) UpdateJumper(id int, payload model.JumperPayload) (model.Jumper, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Jumper{}, err
 	}
-	return a.jumper.Update(id, payload)
+	return a.jumper().Update(id, payload)
 }
 
 func (a *App) TestJumperConnection(payload model.JumperPayload) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	return a.jumper.TestConnection(payload)
+	return a.jumper().TestConnection(payload)
 }
 
 func (a *App) DeleteJumper(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	return a.jumper.Delete(id)
+	return a.jumper().Delete(id)
 }
 
 func (a *App) ListTunnels() ([]model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, err
 	}
-	return a.tunnel.List()
+	return a.tunnel().List()
 }
 
 func (a *App) ListGroups() ([]model.TunnelGroup, error) {
 	if err := a.ensureReady(); err != nil {
 		return nil, err
 	}
-	return a.group.List()
+	return a.group().List()
 }
 
 func (a *App) CreateGroup(payload model.TunnelGroupPayload) (model.TunnelGroup, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.TunnelGroup{}, err
 	}
-	return a.group.Create(payload)
+	return a.group().Create(payload)
 }
 
 func (a *App) UpdateGroup(id int, payload model.TunnelGroupPayload) (model.TunnelGroup, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.TunnelGroup{}, err
 	}
-	return a.group.Update(id, payload)
+	return a.group().Update(id, payload)
 }
 
 func (a *App) DeleteGroup(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	return a.group.Delete(id)
+	return a.group().Delete(id)
 }
 
 func (a *App) ReorderGroups(ids []int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	return a.group.Reorder(ids)
+	return a.group().Reorder(ids)
 }
 
 func (a *App) CreateTunnel(payload model.TunnelPayload) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
-	return a.tunnel.Create(payload)
+	return a.tunnel().Create(payload)
 }
 
 func (a *App) UpdateTunnel(id int, payload model.TunnelPayload) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
-	return a.tunnel.Update(id, payload)
+	return a.tunnel().Update(id, payload)
 }
 
 func (a *App) MoveTunnelToGroup(id int, groupID int) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
-	return a.tunnel.MoveToGroup(id, groupID)
+	return a.tunnel().MoveToGroup(id, groupID)
 }
 
 func (a *App) TestTunnelConnection(payload model.TunnelPayload, inlineJumper *model.JumperPayload) (model.TunnelConnectionTestResult, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.TunnelConnectionTestResult{}, err
 	}
-	latency, err := a.tunnel.TestConnection(payload, inlineJumper)
+	latency, err := a.tunnel().TestConnection(payload, inlineJumper)
 	if err != nil {
 		return model.TunnelConnectionTestResult{}, err
 	}
@@ -751,7 +608,7 @@ func (a *App) DebugTunnelFailure(payload model.TunnelPayload, inlineJumper *mode
 
 	chain := make([]model.Jumper, 0, len(payload.JumperIDs)+1)
 	if len(payload.JumperIDs) > 0 {
-		cfg, err := a.storage.Load()
+		cfg, err := a.storage().Load()
 		if err != nil {
 			return model.AIDebugResult{}, err
 		}
@@ -811,7 +668,7 @@ func (a *App) DebugSavedTunnelFailure(id int, rawError string, uiLocale string) 
 		return model.AIDebugResult{}, fmt.Errorf("invalid tunnel id")
 	}
 
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return model.AIDebugResult{}, err
 	}
@@ -851,19 +708,22 @@ func (a *App) DeleteTunnel(id int) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	return a.tunnel.Delete(id)
+	return a.tunnel().Delete(id)
 }
 
 func (a *App) ToggleTunnel(id int) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
-	return a.tunnel.Toggle(id, a.tunnelStartLimit())
+	return a.tunnel().Toggle(id, a.tunnelStartLimit())
 }
 
 // tunnelStartLimit is unlimited. Tunnels are stored and started locally.
 func (a *App) tunnelStartLimit() int {
-	return 0
+	if a == nil || a.engine == nil {
+		return 0
+	}
+	return a.engine.TunnelStartLimit()
 }
 
 func collectJumpersForApp(items []model.Jumper, ids []int) ([]model.Jumper, error) {
@@ -889,11 +749,10 @@ func collectJumpersForApp(items []model.Jumper, ids []int) ([]model.Jumper, erro
 // An entry written by an older version is rewritten so it picks up
 // --norka-hidden when autostart_hidden is on, or drops it when the flag is off.
 func (a *App) syncAutoRunWithConfig() {
-	cfg, err := a.storage.Load()
-	if err != nil {
+	if a == nil || a.engine == nil {
 		return
 	}
-	_ = autostart.Sync(cfg.AutoRun, cfg.Features.Enabled(features.AutostartHidden))
+	a.engine.SyncAutoRun()
 }
 
 // GetAutoRunEnabled returns whether the app is currently set to launch at login (system state).
@@ -909,21 +768,14 @@ func (a *App) SetAutoRunEnabled(enabled bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
-		cfg.AutoRun = enabled
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return autostart.Sync(enabled, cfg.Features.Enabled(features.AutostartHidden))
+	return a.engine.SetAutoRunEnabled(enabled)
 }
 
 func (a *App) GetTrafficMonitorEnabled() (bool, error) {
 	if err := a.ensureReady(); err != nil {
 		return true, err
 	}
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return true, err
 	}
@@ -934,7 +786,7 @@ func (a *App) SetTrafficMonitorEnabled(enabled bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage().Update(func(cfg *conf.Config) error {
 		cfg.TrafficMonitorEnabled = enabled
 		return cfg.Features.Set(features.TrafficMonitor, enabled)
 	})
@@ -950,9 +802,9 @@ func (a *App) GetConfigPath() (string, error) {
 	if err := a.ensureReady(); err != nil {
 		return "", err
 	}
-	abs, err := filepath.Abs(a.storage.Path())
+	abs, err := filepath.Abs(a.storage().Path())
 	if err != nil {
-		return a.storage.Path(), nil
+		return a.storage().Path(), nil
 	}
 	return abs, nil
 }
@@ -990,11 +842,11 @@ func (a *App) ExportConfig(destPath string, includeSecrets bool) error {
 		return fmt.Errorf("destination path is empty")
 	}
 
-	cfg, err := a.storage.Load()
+	cfg, err := a.storage().Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	data := conf.MarshalTOML(secrets.PrepareExport(cfg, a.vault, includeSecrets))
+	data := conf.MarshalTOML(secrets.PrepareExport(cfg, a.vault(), includeSecrets))
 
 	if err := os.MkdirAll(filepath.Dir(destPath), conf.PrivateDirPerm); err != nil {
 		return fmt.Errorf("create destination directory: %w", err)
@@ -1045,66 +897,59 @@ func (a *App) ImportConfig(srcPath string) error {
 		return fmt.Errorf("invalid config file: %w", err)
 	}
 
-	oldCfg, err := a.storage.Load()
+	oldCfg, err := a.storage().Load()
 	if err != nil {
 		return err
 	}
 	oldRefs := secrets.SecretRefs(oldCfg.Jumpers)
 
 	// Stop all running tunnels.
-	if a.tunnel != nil {
-		a.tunnel.Shutdown()
+	if tun := a.engine.Tunnel(); tun != nil {
+		tun.Shutdown()
 	}
 
 	// Overwrite config file atomically.
-	tmpPath := a.storage.Path() + ".import.tmp"
+	tmpPath := a.engine.Storage().Path() + ".import.tmp"
 	if err := os.WriteFile(tmpPath, data, conf.PrivateFilePerm); err != nil {
 		return fmt.Errorf("write temp config: %w", err)
 	}
-	if err := os.Rename(tmpPath, a.storage.Path()); err != nil {
+	if err := os.Rename(tmpPath, a.engine.Storage().Path()); err != nil {
 		return fmt.Errorf("replace config file: %w", err)
 	}
 
 	// Reinitialise biz layer so the new config takes effect.
-	a.jumper = biz.NewJumperBiz(a.storage)
-	a.jumper.SetSecrets(a.vault)
-	a.group = biz.NewGroupBiz(a.storage)
-	a.tunnel = biz.NewTunnelBiz(a.storage)
-	a.tunnel.SetSecrets(a.vault)
-	if a.notifier != nil {
-		a.tunnel.SetEvents(a.notifier)
-	}
-	if a.vault != nil {
-		if _, err := a.vault.MigrateStorage(a.storage); err != nil {
+	a.engine.RebindAfterImport()
+	if a.engine.Vault() != nil {
+		if _, err := a.engine.Vault().MigrateStorage(a.engine.Storage()); err != nil {
 			slog.Error("imported jumper secrets were not moved to keychain", "error", err)
 		}
 	}
-	if newCfg, err := a.storage.Load(); err == nil {
+	if newCfg, err := a.engine.Storage().Load(); err == nil {
 		a.forgetRemovedSecrets(oldRefs, secrets.SecretRefs(newCfg.Jumpers))
 	}
 	a.loadNotifySettings()
 	a.bindQuickSearchHotkey()
 	a.invalidateTrayMenu()
-	if fresh, loadErr := a.storage.Load(); loadErr == nil {
+	if fresh, loadErr := a.engine.Storage().Load(); loadErr == nil {
 		a.publishFeatures(fresh.Features)
 	}
 
 	// Restart auto-start tunnels.
-	_ = a.tunnel.StartAutoStart(a.tunnelStartLimit())
+	_ = a.engine.Tunnel().StartAutoStart(a.tunnelStartLimit())
 
 	slog.Info("config imported", "src", srcPath)
 	return nil
 }
 
 func (a *App) forgetRemovedSecrets(oldRefs, newRefs map[string]struct{}) {
-	if a.vault == nil {
+	if a.vault() == nil {
 		return
 	}
 	for ref := range oldRefs {
 		if _, ok := newRefs[ref]; ok {
 			continue
 		}
-		a.vault.Forget(ref)
+		a.vault().Forget(ref)
 	}
 }
 
@@ -1114,7 +959,7 @@ func (a *App) OpenConfigDir() error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	dir := filepath.Dir(a.storage.Path())
+	dir := filepath.Dir(a.storage().Path())
 	if err := openFolder(dir); err != nil {
 		return fmt.Errorf("open config dir: %w", err)
 	}

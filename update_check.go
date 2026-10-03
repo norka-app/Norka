@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/norka-app/Norka/internal/features"
 	"github.com/norka-app/Norka/internal/update"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed wails.json
@@ -147,10 +147,10 @@ func rememberOffer(offer update.Offer) {
 }
 
 func (a *App) configDir() string {
-	if a == nil || a.storage == nil {
+	if a == nil || a.storage() == nil {
 		return ""
 	}
-	return filepath.Dir(a.storage.Path())
+	return filepath.Dir(a.storage().Path())
 }
 
 func appVersion() string {

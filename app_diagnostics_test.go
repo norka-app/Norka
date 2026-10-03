@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/norka-app/Norka/internal/biz"
 	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/engine"
 	"github.com/norka-app/Norka/internal/features"
 )
 
@@ -21,13 +21,7 @@ func TestSaveDiagnosticsStaysOffWhenFlagDisabled(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	app := &App{
-		storage: storage,
-		jumper:  biz.NewJumperBiz(storage),
-		group:   biz.NewGroupBiz(storage),
-		profile: biz.NewProfileBiz(storage),
-		tunnel:  biz.NewTunnelBiz(storage),
-	}
+	app := &App{engine: engine.New(engine.Options{Storage: storage})}
 	if _, err := app.SaveDiagnostics(true, "dark"); err == nil || !strings.Contains(err.Error(), "disabled") {
 		t.Fatalf("disabled flag returned %v", err)
 	}
