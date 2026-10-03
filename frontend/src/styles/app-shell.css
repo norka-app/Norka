@@ -541,8 +541,8 @@
 }
 
 .sidebar-mascot__logo {
-  /* поля по бокам: 8px у свёрнутой панели (72px) → 16px у развёрнутой (248px) */
-  --mascot-pad: calc(8px + (100cqw - 72px) * 0.04545);
+  /* поля по бокам: 8px у свёрнутой панели (72px) → 16px у развёрнутой (264px) */
+  --mascot-pad: calc(8px + (100cqw - 72px) * 0.0416667);
   flex: none;
   display: flex;
   width: min(100cqw - 2 * var(--mascot-pad), 100cqh);
