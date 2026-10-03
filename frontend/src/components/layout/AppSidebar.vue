@@ -208,7 +208,7 @@ const downloadSpark = computed(() => buildSparklinePath(
 
     <!-- Норка со статусом над нижней панелью: занимает оставшуюся высоту, по ширине — вся панель -->
     <div class="sidebar-mascot">
-      <div class="sidebar-mascot__logo">
+      <div class="sidebar-mascot__logo" data-onboarding="mascot">
         <NorkaStatusLogo
           :status="tunnelStatus"
           :variant="logoVariant"

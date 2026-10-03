@@ -100,11 +100,11 @@ A command you used to type in a terminal can be pasted as a whole. **Import** on
 
 ## Features in Settings
 
-**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, reconnect after sleep, automation, and tunnel statistics. Each row is a name and a one-line description, in the light and dark themes and in both languages.
+**Settings → Features** has one switch per capability: profiles, quick search, notifications, update checks, the traffic monitor, the mascot’s idle animations, the SSH command, reconnect after sleep, automation, tunnel statistics, and the first-run tour. Each row is a name and a one-line description, in the light and dark themes and in both languages.
 
 The choices live in the `[features]` table of `config.toml`. A missing key uses the default, so an older file keeps working. An explicit `false` is stored and kept. Turning a feature off hides it immediately and stops the work behind it: the hotkey, the tray item, the background check.
 
-Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Automation is off too: it opens the local commands and `norka://` links. Quick search, updates, traffic, mascot animations, the SSH command, reconnect after sleep, and tunnel statistics are on. The language setting and OS-keychain passwords are not flags.
+Profiles are **off** by default. Turning them off does not delete saved profiles and does not stop tunnels that are already running. Notifications stay off (the same master switch as before, not a second one). Automation is off too: it opens the local commands and `norka://` links. Quick search, updates, traffic, mascot animations, the SSH command, reconnect after sleep, tunnel statistics, and the first-run tour are on. The language setting and OS-keychain passwords are not flags.
 
 A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md).
 

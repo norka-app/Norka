@@ -76,9 +76,11 @@ function onImportMenu(key) {
             {{ $t('app.header.importTunnel') }}
           </n-button>
         </n-dropdown>
-        <n-button type="primary" @click="$emit('new-tunnel')">
-          {{ $t('app.header.newTunnel') }}
-        </n-button>
+        <span data-onboarding="add-tunnel" class="header-tour-anchor">
+          <n-button type="primary" @click="$emit('new-tunnel')">
+            {{ $t('app.header.newTunnel') }}
+          </n-button>
+        </span>
       </div>
     </div>
   </n-layout-header>
@@ -101,5 +103,6 @@ function onImportMenu(key) {
   cursor: pointer;
 }
 .profile-chip__mark { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.header-tour-anchor { display: inline-flex; }
 .profile-chip__state { color: var(--lt-brand); font-size: 12px; }
 </style>

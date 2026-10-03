@@ -57,13 +57,15 @@ const emit = defineEmits([
   'window-mode-change',
   'simple-on-top-change',
   'update-offer',
-  'language-change'
+  'language-change',
+  'restart-onboarding'
 ])
 
 const { t } = useI18n()
 const notificationsOn = useFeature('notifications')
 const quickSearchOn = useFeature('quick_search')
 const autoUpdateOn = useFeature('auto_update')
+const onboardingOn = useFeature('onboarding')
 const autoRunEnabled = ref(false)
 const configBusy = ref('')
 const configLocationInfo = ref(null)
@@ -450,6 +452,7 @@ async function onOpenConfigDir() {
 <template>
   <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
     <n-gi span="2">
+      <div data-onboarding="features">
       <n-card size="small" :title="t('features.title')">
         <n-space vertical :size="16">
           <n-space
@@ -470,8 +473,17 @@ async function onOpenConfigDir() {
               @update:value="(checked) => onFeatureToggle(item.id, checked)"
             />
           </n-space>
+          <button
+            v-if="onboardingOn"
+            type="button"
+            class="onboarding-replay"
+            @click="emit('restart-onboarding')"
+          >
+            {{ t('onboarding.replay') }}
+          </button>
         </n-space>
       </n-card>
+      </div>
     </n-gi>
     <n-gi span="2 l:1">
       <n-card size="small" :title="t('config.general')">
@@ -672,5 +684,26 @@ async function onOpenConfigDir() {
 
 .feature-row :deep(.n-switch) {
   flex-shrink: 0;
+}
+
+.onboarding-replay {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lt-brand);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.onboarding-replay:focus-visible {
+  outline: 2px solid var(--lt-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 </style>

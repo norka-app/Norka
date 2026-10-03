@@ -458,7 +458,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="simple" :class="`simple--${theme === 'dark' ? 'dark' : 'light'}`">
     <!-- Норка только показывает статус; клики копят пасхалку «нокаут», подключение — кнопкой справа -->
-    <div class="simple-icon">
+    <div class="simple-icon" data-onboarding="mascot">
       <NorkaStatusLogo
         :key="tunnel ? tunnel.id : 'none'"
         :status="tunnel ? state : 'stopped'"

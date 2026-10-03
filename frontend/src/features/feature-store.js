@@ -13,6 +13,7 @@ const DEFAULTS = {
   wake_reconnect: true,
   automation: false,
   tunnel_stats: true,
+  onboarding: true,
 }
 
 const COPY = {
@@ -26,6 +27,7 @@ const COPY = {
   wake_reconnect: ['features.wakeReconnect', 'features.wakeReconnectDesc'],
   automation: ['features.automation', 'features.automationDesc'],
   tunnel_stats: ['features.tunnelStats', 'features.tunnelStatsDesc'],
+  onboarding: ['features.onboarding', 'features.onboardingDesc'],
 }
 
 function fallbackItems() {

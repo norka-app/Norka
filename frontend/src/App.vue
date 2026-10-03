@@ -16,6 +16,7 @@ import {
   DebugTunnelFailure as DebugTunnelFailureAPI,
   GetSSHConfigImportSources,
   GetFeatures,
+  GetOnboardingDone,
   GetState,
   GetTrafficStats,
   GetTunnelStats,
@@ -27,6 +28,7 @@ import {
   ApplyTrayLocale,
   GetLanguage,
   SetLanguage,
+  SetOnboardingDone,
   TestJumperConnection as TestJumperConnectionAPI,
   TestTunnelConnection as TestTunnelConnectionAPI,
   ToggleTunnel,
@@ -86,6 +88,8 @@ import {
 import { setWindowShown } from './utils/window-visibility'
 import { findPortConflicts } from './utils/port-conflicts'
 import { isQuickSearchChord, matchesKey } from './utils/keyboard'
+import { shouldShowOnboarding } from './onboarding/onboarding.js'
+import OnboardingTour from './components/onboarding/OnboardingTour.vue'
 
 const { t, locale } = useI18n()
 const hasWails = typeof window !== 'undefined' && !!window.go?.main?.App
@@ -101,6 +105,12 @@ const autoUpdateOn = useFeature('auto_update')
 const sshCommandOn = useFeature('ssh_command')
 const automationOn = useFeature('automation')
 const tunnelStatsOn = useFeature('tunnel_stats')
+const onboardingOn = useFeature('onboarding')
+const onboardingDone = ref(true)
+const onboardingReady = ref(false)
+const onboardingOpen = ref(false)
+const onboardingReplay = ref(false)
+const onboardingRun = ref(0)
 
 const pages = computed(() => {
   const all = [
@@ -1026,6 +1036,69 @@ async function loadFeatures() {
     applyFeatureViews(await GetFeatures())
   } catch (_) {
     /* остаются значения каталога */
+  }
+}
+
+const showOnboarding = computed(() => shouldShowOnboarding({
+  enabled: onboardingOn.value,
+  ready: onboardingReady.value && tunnelsLoaded.value,
+  tunnelCount: tunnels.value.length,
+  done: onboardingDone.value,
+  replay: onboardingReplay.value,
+}))
+
+watch(showOnboarding, (show) => {
+  if (show) onboardingOpen.value = true
+})
+
+watch(onboardingOn, (enabled) => {
+  if (enabled) return
+  onboardingOpen.value = false
+  onboardingReplay.value = false
+})
+
+async function loadOnboarding() {
+  if (typeof window === 'undefined' || !window.go?.main?.App) {
+    onboardingDone.value = false
+    onboardingReady.value = true
+    return
+  }
+  try {
+    onboardingDone.value = (await GetOnboardingDone()) === true
+  } catch (_) {
+    onboardingDone.value = true
+  }
+  onboardingReady.value = true
+}
+
+function onOnboardingStep(step) {
+  if (!onboardingOpen.value || windowMode.value !== 'advanced') return
+  if (step?.page === 'tunnels' || step?.page === 'config') activePage.value = step.page
+}
+
+async function finishOnboarding() {
+  onboardingReplay.value = false
+  onboardingDone.value = true
+  onboardingOpen.value = false
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    await SetOnboardingDone(true)
+  } catch (err) {
+    setConfigMessage(String(err))
+  }
+}
+
+async function restartOnboarding() {
+  if (!featureEnabled('onboarding')) return
+  onboardingRun.value += 1
+  onboardingReplay.value = true
+  onboardingDone.value = false
+  onboardingOpen.value = true
+  if (typeof window === 'undefined' || !window.go?.main?.App) return
+  try {
+    await SetOnboardingDone(false)
+  } catch (err) {
+    setConfigMessage(String(err))
   }
 }
 
@@ -2441,6 +2514,7 @@ async function toggleWindowModeFromShortcut(event) {
 }
 
 function onWindowKeydown(event) {
+  if (onboardingOpen.value) return
   // Слушатель на window в фазе capture, поэтому Ctrl/Cmd+K открывает палитру и когда
   // фокус в поле ввода, и поверх открытой модалки, и в простом режиме (то же окно).
   // Намеренно не перехватываем аккорд, если флаг quick_search выключен, и если фокус
@@ -2577,6 +2651,7 @@ onMounted(async () => {
   languageReady.value = true
   await loadStateFromBackend()
   await loadFeatures()
+  await loadOnboarding()
   syncFeatureEffects()
   try {
     showAutomationPrompt(await GetAutomationPrompt())
@@ -2935,6 +3010,7 @@ watch(
           @window-mode-change="setWindowMode"
           @simple-on-top-change="simpleOnTop = $event"
           @update-offer="showUpdateOffer"
+          @restart-onboarding="restartOnboarding"
         />
       </main>
 
@@ -3130,6 +3206,16 @@ watch(
   />
   </n-message-provider>
   </n-dialog-provider>
+  <Teleport to="body">
+    <OnboardingTour
+      v-if="onboardingOn && onboardingOpen"
+      :key="onboardingRun"
+      :theme="theme"
+      @step="onOnboardingStep"
+      @skip="finishOnboarding"
+      @done="finishOnboarding"
+    />
+  </Teleport>
   <QuickSearchPalette
     v-if="quickSearchOn"
     :open="quickSearchOpen"
