@@ -99,8 +99,12 @@ jobs:
           )" >"$err" 2>&1; then
             cat "$err" >&2
             if grep -q 'not permitted to create or approve pull requests' "$err"; then
-              echo "Actions не может открывать pull request: в настройках репозитория выключено разрешение." >&2
-              echo "Ветка ${branch} уже отправлена. Правку файлов повторяет scripts/update-manifests.sh ${version}." >&2
+              compare="https://github.com/${GITHUB_REPOSITORY}/compare/${BASE}...${branch}"
+              echo "Actions не может открывать pull request: в настройках репозитория выключено разрешение."
+              echo "Ветка ${branch} уже отправлена. Сравнение: ${compare}"
+              echo "::notice title=Манифесты ${tag}::Ветка ${branch} отправлена. Pull request не создан: ${compare}"
+              rm -f "$err"
+              exit 0
             fi
             rm -f "$err"
             exit 1
