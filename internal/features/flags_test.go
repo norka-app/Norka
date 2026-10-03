@@ -6,7 +6,7 @@ func TestCatalogDefaults(t *testing.T) {
 	if Default(Profiles) {
 		t.Fatal("profiles default must be off")
 	}
-	if !Default(QuickSearch) || !Default(AutoUpdate) || !Default(TrafficMonitor) || !Default(Mascot) || !Default(SSHCommand) || !Default(WakeReconnect) || !Default(TunnelStats) || !Default(Onboarding) || !Default(Diagnostics) {
+	if !Default(QuickSearch) || !Default(AutoUpdate) || !Default(TrafficMonitor) || !Default(Mascot) || !Default(SSHCommand) || !Default(WakeReconnect) || !Default(TunnelStats) || !Default(Onboarding) || !Default(Diagnostics) || !Default(TunnelDiagnostics) {
 		t.Fatal("expected on by default")
 	}
 	if Default(Notifications) {

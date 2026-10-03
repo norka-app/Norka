@@ -60,6 +60,10 @@ const props = defineProps({
   statsNow: {
     type: Number,
     default: 0
+  },
+  diagnosticsEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -76,7 +80,8 @@ const emit = defineEmits([
   'move-tunnel-to-group',
   'copy-ssh-command',
   'copy-link',
-  'show-stats'
+  'show-stats',
+  'diagnose'
 ])
 const { t } = useI18n()
 
@@ -568,6 +573,9 @@ function tunnelMenuOptions(tunnel) {
   if (props.statsEnabled) {
     options.push({ label: t('app.tunnels.actions.stats'), key: 'stats' })
   }
+  if (props.diagnosticsEnabled) {
+    options.push({ label: t('app.tunnels.actions.diagnostics'), key: 'diagnostics' })
+  }
   const moves = showGroupedView.value ? getMoveGroupOptions(tunnel) : []
   if (moves.length > 0) {
     options.push({ type: 'divider', key: 'move-divider' })
@@ -606,6 +614,10 @@ function onTunnelMenu(key, tunnel) {
   }
   if (key === 'stats') {
     emit('show-stats', tunnel)
+    return
+  }
+  if (key === 'diagnostics') {
+    emit('diagnose', tunnel)
     return
   }
   if (key === 'delete') {

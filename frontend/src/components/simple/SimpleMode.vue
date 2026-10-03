@@ -50,10 +50,14 @@ const props = defineProps({
   stopOthers: {
     type: Boolean,
     default: false
+  },
+  diagnosticsEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['select', 'toggle', 'manage', 'port-switch-confirm', 'port-switch-cancel', 'activate-profile', 'clear-profile'])
+const emit = defineEmits(['select', 'toggle', 'manage', 'port-switch-confirm', 'port-switch-cancel', 'activate-profile', 'clear-profile', 'diagnose'])
 
 const { t } = useI18n()
 const mascotOn = useFeature('mascot')
@@ -547,6 +551,17 @@ onBeforeUnmount(() => {
           @click="toggle"
         >
           <i class="bi" :class="primary.icon" aria-hidden="true" />{{ primary.label }}
+        </button>
+        <button
+          v-if="diagnosticsEnabled"
+          type="button"
+          class="simple-ibtn"
+          :disabled="!tunnel"
+          :title="$t('app.simple.diagnostics')"
+          :aria-label="$t('app.simple.diagnostics')"
+          @click="emit('diagnose', tunnel)"
+        >
+          <i class="bi bi-activity" aria-hidden="true" />
         </button>
         <button
           type="button"
