@@ -1,13 +1,13 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
 PackageIdentifier: NorkaApp.Norka
-PackageVersion: 1.4.0
+PackageVersion: 1.5.0
 InstallerType: portable
 Commands:
   - norka
 ReleaseDate: 2026-10-03
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/norka-app/Norka/releases/download/v1.4.0/norka.exe
-    InstallerSha256: 4CE951F4BFEAB9467B75664FD222D48E72438DEE902C83D0BB0044608C3FC4F4
+    InstallerUrl: https://github.com/norka-app/Norka/releases/download/v1.5.0/norka.exe
+    InstallerSha256: E8E54A6779303BEACAB4738018F7BCF27BBD5F768DDE39C69E53FB38704458CC
 ManifestType: installer
 ManifestVersion: 1.9.0
