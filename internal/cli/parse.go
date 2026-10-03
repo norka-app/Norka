@@ -6,7 +6,8 @@ import (
 )
 
 // HiddenArg starts the GUI in the tray without showing the window.
-// It is an internal switch used when `norka connect` launches the app.
+// It is an internal switch used when `norka connect` launches the app
+// and when login autostart is set to stay in the tray.
 const HiddenArg = "--norka-hidden"
 
 // Command is a parsed CLI invocation.

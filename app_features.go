@@ -74,4 +74,5 @@ func (a *App) applyFeatureSideEffects(cfg *conf.Config) {
 	a.invalidateTrayMenu()
 	a.syncWakeWatch(cfg.Features.Enabled(features.WakeReconnect))
 	a.syncAutomation()
+	a.syncAutoRunWithConfig()
 }

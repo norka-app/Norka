@@ -31,6 +31,10 @@ const (
 	// tunnel menu without a trip to Settings. Checks run only when asked,
 	// store nothing, and never send a password. Profiles stay off.
 	TunnelDiagnostics ID = "tunnel_diagnostics"
+	// AutostartHidden adds --norka-hidden to the login entry so the window
+	// stays in the tray. Off restores the previous behavior: the window opens.
+	// Default is on. An existing entry is rewritten on the next start.
+	AutostartHidden ID = "autostart_hidden"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -79,6 +83,7 @@ func All() []Flag {
 		{ID: Onboarding, Default: true, TitleKey: "features.onboarding", DescriptionKey: "features.onboardingDesc"},
 		{ID: Diagnostics, Default: true, TitleKey: "features.diagnostics", DescriptionKey: "features.diagnosticsDesc"},
 		{ID: TunnelDiagnostics, Default: true, TitleKey: "features.tunnelDiagnostics", DescriptionKey: "features.tunnelDiagnosticsDesc"},
+		{ID: AutostartHidden, Default: true, TitleKey: "features.autostartHidden", DescriptionKey: "features.autostartHiddenDesc"},
 	}
 }
 
@@ -121,6 +126,7 @@ type Flags struct {
 	Onboarding        *bool `toml:"onboarding,omitempty" json:"onboarding,omitempty"`
 	Diagnostics       *bool `toml:"diagnostics,omitempty" json:"diagnostics,omitempty"`
 	TunnelDiagnostics *bool `toml:"tunnel_diagnostics,omitempty" json:"tunnelDiagnostics,omitempty"`
+	AutostartHidden   *bool `toml:"autostart_hidden,omitempty" json:"autostartHidden,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -167,6 +173,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.Diagnostics = &value
 	case TunnelDiagnostics:
 		f.TunnelDiagnostics = &value
+	case AutostartHidden:
+		f.AutostartHidden = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -205,6 +213,7 @@ func (f Flags) Clone() Flags {
 		Onboarding:        cloneBool(f.Onboarding),
 		Diagnostics:       cloneBool(f.Diagnostics),
 		TunnelDiagnostics: cloneBool(f.TunnelDiagnostics),
+		AutostartHidden:   cloneBool(f.AutostartHidden),
 	}
 }
 
@@ -265,6 +274,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.Diagnostics
 	case TunnelDiagnostics:
 		return f.TunnelDiagnostics
+	case AutostartHidden:
+		return f.AutostartHidden
 	default:
 		return nil
 	}

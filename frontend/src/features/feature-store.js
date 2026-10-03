@@ -16,6 +16,7 @@ const DEFAULTS = {
   onboarding: true,
   diagnostics: true,
   tunnel_diagnostics: true,
+  autostart_hidden: true,
 }
 
 const COPY = {
@@ -32,6 +33,7 @@ const COPY = {
   onboarding: ['features.onboarding', 'features.onboardingDesc'],
   diagnostics: ['features.diagnostics', 'features.diagnosticsDesc'],
   tunnel_diagnostics: ['features.tunnelDiagnostics', 'features.tunnelDiagnosticsDesc'],
+  autostart_hidden: ['features.autostartHidden', 'features.autostartHiddenDesc'],
 }
 
 function fallbackItems() {

@@ -735,7 +735,9 @@
         "diagnostics": "Diagnostics",
         "diagnosticsDesc": "The Collect diagnostics button in Settings and the tray item. A bug-report archive without passwords or keys.",
         "tunnelDiagnostics": "Check tunnel",
-        "tunnelDiagnosticsDesc": "DNS, the jump host port, key login, and a free local port, from the tunnel menu. On by default: it helps explain a failed connection. A password is never sent and nothing is stored."
+        "tunnelDiagnosticsDesc": "DNS, the jump host port, key login, and a free local port, from the tunnel menu. On by default: it helps explain a failed connection. A password is never sent and nothing is stored.",
+        "autostartHidden": "Autostart in the tray",
+        "autostartHiddenDesc": "At login the window stays closed and Norka remains in the tray. Turn this off to open the window at login."
     },
     "onboarding": {
         "replay": "Show the tour again",

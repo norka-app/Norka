@@ -4,7 +4,6 @@ package autostart
 
 import (
 	"os"
-	"strconv"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -32,7 +31,7 @@ func IsEnabled() (bool, error) {
 	return true, nil
 }
 
-func Enable() error {
+func Enable(hidden bool) error {
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -42,7 +41,27 @@ func Enable() error {
 		return err
 	}
 	defer key.Close()
-	return key.SetStringValue(appName, strconv.Quote(exe))
+	return key.SetStringValue(appName, windowsRunValue(exe, hidden))
+}
+
+func matches(hidden bool) (bool, error) {
+	key, err := openRunKey(registry.QUERY_VALUE)
+	if err != nil {
+		return false, err
+	}
+	defer key.Close()
+	got, _, err := key.GetStringValue(appName)
+	if err == registry.ErrNotExist {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false, err
+	}
+	return got == windowsRunValue(exe, hidden), nil
 }
 
 func Disable() error {

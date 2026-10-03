@@ -885,18 +885,15 @@ func collectJumpersForApp(items []model.Jumper, ids []int) ([]model.Jumper, erro
 	return result, nil
 }
 
-// syncAutoRunWithConfig aligns OS auto-run (launch at login) state with config.
+// syncAutoRunWithConfig aligns the login entry with config.
+// An entry written by an older version is rewritten so it picks up
+// --norka-hidden when autostart_hidden is on, or drops it when the flag is off.
 func (a *App) syncAutoRunWithConfig() {
 	cfg, err := a.storage.Load()
 	if err != nil {
 		return
 	}
-	enabled, _ := autostart.IsEnabled()
-	if cfg.AutoRun && !enabled {
-		_ = autostart.Enable()
-	} else if !cfg.AutoRun && enabled {
-		_ = autostart.Disable()
-	}
+	_ = autostart.Sync(cfg.AutoRun, cfg.Features.Enabled(features.AutostartHidden))
 }
 
 // GetAutoRunEnabled returns whether the app is currently set to launch at login (system state).
@@ -912,17 +909,14 @@ func (a *App) SetAutoRunEnabled(enabled bool) error {
 	if err := a.ensureReady(); err != nil {
 		return err
 	}
-	_, err := a.storage.Update(func(cfg *conf.Config) error {
+	cfg, err := a.storage.Update(func(cfg *conf.Config) error {
 		cfg.AutoRun = enabled
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	if enabled {
-		return autostart.Enable()
-	}
-	return autostart.Disable()
+	return autostart.Sync(enabled, cfg.Features.Enabled(features.AutostartHidden))
 }
 
 func (a *App) GetTrafficMonitorEnabled() (bool, error) {

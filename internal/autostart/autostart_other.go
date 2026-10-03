@@ -6,8 +6,12 @@ func IsEnabled() (bool, error) {
 	return false, nil
 }
 
-func Enable() error {
+func Enable(bool) error {
 	return nil
+}
+
+func matches(bool) (bool, error) {
+	return true, nil
 }
 
 func Disable() error {
