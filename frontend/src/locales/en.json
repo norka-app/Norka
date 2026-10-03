@@ -639,6 +639,31 @@
         "automation": "Automation",
         "automationDesc": "Terminal commands and norka:// links. Off by default: this is a local control surface for tunnels.",
         "tunnelStats": "Tunnel statistics",
-        "tunnelStatsDesc": "Connected time, reconnects, the last error, and traffic for each tunnel."
+        "tunnelStatsDesc": "Connected time, reconnects, the last error, and traffic for each tunnel.",
+        "onboarding": "First-run tour",
+        "onboardingDesc": "A short introduction while the tunnel list is empty."
+    },
+    "onboarding": {
+        "replay": "Show the tour again",
+        "next": "Next",
+        "back": "Back",
+        "skip": "Skip",
+        "done": "Done",
+        "progress": "{current} of {total}",
+        "welcomeTitle": "Hello, I'm Norka",
+        "welcomeBody": "I keep SSH tunnels up and show their status with my eyes. Here is a short look at where to start.",
+        "addTitle": "Add a tunnel",
+        "addBody": "The New tunnel button on the Tunnels page creates the first connection.",
+        "addSsh": "You can paste a ready ssh -L … command: Import → From an SSH command.",
+        "eyesTitle": "Eye colors",
+        "eyesBody": "Both eyes are always the same color. The tray icon uses that color too.",
+        "eyesGreen": "Green — running",
+        "eyesRed": "Red — error",
+        "eyesGrey": "Grey — off",
+        "trayTitle": "Tray and search",
+        "trayBody": "The tray icon uses the same color as the eyes. Open the window again from the tray.",
+        "trayQuick": "Quick search opens with Ctrl+K and with the global shortcut, even when the window is hidden.",
+        "featuresTitle": "Features",
+        "featuresBody": "Settings → Features turns extra capabilities on and off. This tour is one of them."
     }
 }

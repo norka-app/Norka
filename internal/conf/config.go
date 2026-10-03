@@ -97,6 +97,11 @@ type Config struct {
 	// disconnect without asking again. Turning the automation flag off does
 	// not clear the list. Unknown ids are dropped on the next save.
 	AutomationTrusted []int `toml:"automation_trusted,omitempty"`
+	// OnboardingDone is true after the first-run tour is finished or skipped.
+	// A missing key stays false, so an older config can still show the tour
+	// when the tunnel list is empty. Turning the onboarding flag off does not
+	// clear this mark.
+	OnboardingDone bool `toml:"onboarding_done,omitempty"`
 }
 
 // NotificationSettings controls opt-in OS notifications.
@@ -174,6 +179,7 @@ func (c *Config) Clone() *Config {
 		QuickSearchHotkey:     c.QuickSearchHotkey,
 		Features:              c.Features.Clone(),
 		AutomationTrusted:     append([]int(nil), c.AutomationTrusted...),
+		OnboardingDone:        c.OnboardingDone,
 	}
 	if c.QuickSearchEnabled != nil {
 		enabled := *c.QuickSearchEnabled
