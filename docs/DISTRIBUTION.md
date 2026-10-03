@@ -162,11 +162,43 @@ jobs:
           git push
 ```
 
-`GITHUB_TOKEN` tap-репозитория читает публичный релиз Norka без отдельного секрета. Можно вместо расписания слать `repository_dispatch` из Norka — для этого понадобится PAT с правом `contents:write` на tap. Пока его нет, обновляйте cask вручную или расписанием в tap. В Norka такой шаг не добавлен, чтобы не открывать PR и не пушить во внешний репозиторий без явного секрета.
+`GITHUB_TOKEN` tap-репозитория читает публичный релиз Norka без отдельного секрета. Можно вместо расписания слать `repository_dispatch` из Norka — для этого понадобится PAT с правом `contents:write` на tap. Пока его нет, обновляйте cask приложения вручную или расписанием в tap. Для cask `norka` такого шага нет. Клиент `norka-cli` ниже пушит свой cask и манифест Scoop только если задан секрет `TAP_GITHUB_TOKEN`.
 
 ## Каждый релиз: Homebrew
 
 Тег `v*` публикует `norka.dmg`. Образец `packaging/homebrew/norka.rb` обновляет workflow хешей. Cask в tap сам не меняется, пока не обновите `version` и `sha256` там (workflow tap выше или правка `Casks/norka.rb`). `livecheck` в cask смотрит последний релиз GitHub, поэтому `brew livecheck` покажет новую версию ещё до правки файла в tap.
+
+## norka-cli
+
+Отдельный клиент собирает GoReleaser (`.goreleaser.yaml`) в задаче `release-cli`. Она стартует после `release` и только на теге `v*`. Файлы дописываются в уже созданный выпуск (`release.mode: keep-existing`). Общий `SHA256SUMS` эта задача не создаёт и не перезаписывает: его по-прежнему пишет `release`, а `update-manifests` и автообновление читают только его. Хеши клиента лежат в `norka-cli_SHA256SUMS`.
+
+Платформы: linux, windows и darwin, amd64 и arm64. Архивы `tar.gz`, для Windows `zip`. Плюс пакеты deb и rpm. Имя бинарника `norka-cli`.
+
+Публикация cask и манифеста Scoop идёт в чужие репозитории и требует секрет `TAP_GITHUB_TOKEN` (право писать в `norka-app/homebrew-tap` и `norka-app/scoop-bucket`). Нет секрета — `skip_upload` пропускает tap и bucket, а сам выпуск с архивами и пакетами собирается.
+
+- Cask `norka-cli` в `norka-app/homebrew-tap`, каталог `Casks`. В cask один бинарник `norka-cli` и хук, который снимает `com.apple.quarantine`. Секция `brews` не используется.
+- Манифест Scoop `bucket/norka-cli.json` в `norka-app/scoop-bucket`.
+
+Пользователь, когда tap и bucket уже обновлены этим выпуском:
+
+```bash
+brew install norka-app/tap/norka-cli
+```
+
+```bash
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka-cli
+```
+
+```bash
+go install github.com/norka-app/Norka/cmd/norka-cli@latest
+```
+
+deb и rpm ставятся из файлов выпуска, например `sudo dpkg -i norka-cli_*_linux_amd64.deb`.
+
+Клиент управляет туннелями только у запущенной Norka. В **Настройки → Функции** должно быть включено «Автоматизация». Иначе команда завершается с кодом 1. `norka-cli connect` может сам запустить приложение в трее, если Norka хотя бы раз записывала `app-path` рядом с `config.toml`.
+
+Репозитории tap и bucket этот workflow не создаёт. Их по-прежнему заводят один раз, как описано выше для приложения.
 
 ## Что не делается из этого репозитория
 

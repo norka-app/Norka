@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/conf"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func TestMigratePlaintextSecrets(t *testing.T) {

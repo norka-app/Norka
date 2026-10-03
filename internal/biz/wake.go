@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"norka/internal/forward"
-	"norka/internal/netwatch"
-	"norka/internal/wake"
+	"github.com/norka-app/Norka/internal/forward"
+	"github.com/norka-app/Norka/internal/netwatch"
+	"github.com/norka-app/Norka/internal/wake"
 )
 
 // RecoverAfterWake probes every tunnel that is still supposed to be running.

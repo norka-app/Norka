@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 
 	"golang.org/x/crypto/ssh"
 )

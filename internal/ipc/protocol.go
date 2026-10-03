@@ -15,6 +15,15 @@ import (
 
 const maxMessage = 1 << 20
 
+// ProtocolVersion is the IPC dialect this build speaks.
+// MinClientVersion is the oldest numbered dialect still accepted.
+// A request that omits v (decoded as 0) is a legacy client and stays accepted,
+// so an older norka binary keeps working with a newer app.
+const (
+	ProtocolVersion  = 1
+	MinClientVersion = 1
+)
+
 // Operations spoken over the local channel.
 const (
 	OpConnect    = "connect"
@@ -34,6 +43,11 @@ const (
 	CodeUnauthorized = "unauthorized"
 	CodeBadRequest   = "bad_request"
 	CodeFailed       = "failed"
+	// CodeUpdateApp means the client speaks a newer dialect than this app.
+	CodeUpdateApp = "update_app"
+	// CodeUpdateCLI means the client is newer than the legacy dialect but older
+	// than MinClientVersion.
+	CodeUpdateCLI = "update_cli"
 
 	ExitOK         = 0
 	ExitDisabled   = 1
@@ -43,13 +57,25 @@ const (
 	ExitUsage      = 5
 	ExitIPC        = 6
 	ExitFailed     = 7
+	// ExitVersion means the client and the app do not speak the same dialect.
+	ExitVersion = 8
+)
+
+// Sentences norka-cli prints when the dialect does not match.
+// The running app returns the same text on the channel.
+const (
+	MessageUpdateApp = "This norka-cli is newer than Norka. Update Norka."
+	MessageUpdateCLI = "This norka-cli is too old for Norka. Update norka-cli."
 )
 
 // ErrNotRunning means the local channel is not accepting connections.
 var ErrNotRunning = errors.New("norka is not running")
 
 // Request is one command. Token is checked by the server and never logged.
+// V is the dialect the client speaks. Omit it (or send 0) for the legacy
+// dialect, which this server still accepts.
 type Request struct {
+	V      int    `json:"v,omitempty"`
 	Token  string `json:"token"`
 	Op     string `json:"op"`
 	Target string `json:"target,omitempty"`
@@ -69,7 +95,9 @@ type TunnelInfo struct {
 }
 
 // Response is one reply. Running is false when this process could not reach Norka.
+// V is the dialect this app speaks. A reply without v is an older Norka.
 type Response struct {
+	V        int          `json:"v,omitempty"`
 	OK       bool         `json:"ok"`
 	Code     string       `json:"code"`
 	Message  string       `json:"message,omitempty"`
@@ -123,11 +151,16 @@ func serveConn(conn net.Conn, token string, handle Handler) {
 	}
 	_ = conn.SetDeadline(time.Time{})
 	resp := Response{Code: CodeBadRequest, ExitCode: ExitIPC, Message: "bad request"}
-	if !tokenEqual(req.Token, token) {
+	version := GateVersion(req.V)
+	switch {
+	case !tokenEqual(req.Token, token):
 		resp = Response{Code: CodeUnauthorized, ExitCode: ExitIPC, Message: "unauthorized"}
-	} else if handle != nil {
+	case version.Reject:
+		resp = version.Response
+	case handle != nil:
 		resp = handle(req)
 	}
+	resp.V = ProtocolVersion
 	resp.Running = true
 	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	_ = writeJSON(conn, resp)

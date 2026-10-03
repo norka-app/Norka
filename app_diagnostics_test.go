@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/biz"
-	"norka/internal/conf"
-	"norka/internal/features"
+	"github.com/norka-app/Norka/internal/biz"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
 )
 
 func TestSaveDiagnosticsStaysOffWhenFlagDisabled(t *testing.T) {

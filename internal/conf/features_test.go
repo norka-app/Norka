@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"norka/internal/features"
+	"github.com/norka-app/Norka/internal/features"
 )
 
 func TestFeatureDefaultsAndMissingKeys(t *testing.T) {

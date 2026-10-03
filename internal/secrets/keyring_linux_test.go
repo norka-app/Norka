@@ -5,7 +5,7 @@ package secrets
 import (
 	"testing"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 // TestLinuxKeychainFallsBackWithoutSecretService checks the real Secret Service

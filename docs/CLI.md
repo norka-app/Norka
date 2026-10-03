@@ -6,7 +6,38 @@
 
 Имя туннеля ищется так: точное совпадение без учёта регистра, затем id, затем единственный префикс. Если префикс подходит нескольким туннелям, команда пишет их имена и завершается с кодом 4.
 
+## Отдельный клиент norka-cli
+
+Команды `norka connect` … по-прежнему встроены в приложение. Рядом есть тонкая программа `norka-cli`: тот же канал, без окна, Wails, связки ключей и SSH. Справка и её собственные сообщения на английском. Текст ответа Norka в режиме человека клиент тоже пишет по-английски. `--json` печатает ответ канала как есть.
+
+Установка:
+
+```bash
+brew install norka-app/tap/norka-cli
+```
+
+```bash
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka-cli
+```
+
+```bash
+go install github.com/norka-app/Norka/cmd/norka-cli@latest
+```
+
+`go install …@latest` берёт последний тег `v*`. Пока тега с этим каталогом нет, та же команда с `@main`.
+
+Пакеты deb и rpm лежат в том же выпуске GitHub, что и приложение: `norka-cli_<версия>_linux_<архитектура>.deb` и `.rpm`.
+
+Чтобы команда дошла до туннеля, Norka должна быть запущена, а в **Настройки → Функции** включено «Автоматизация». Иначе код выхода 1, канал не открывается.
+
+При старте Norka записывает путь к своему исполняемому файлу в `app-path` рядом с `config.toml`. `norka-cli connect`, если приложение не запущено, читает этот файл и запускает его скрытым, в трее. Нет файла или путь уже не существует — команда пишет, что Norka нужно запустить хотя бы один раз, и завершается с кодом 2. `disconnect`, `toggle`, `status` и `list` приложение сами не запускают.
+
+В каждом запросе `norka-cli` есть поле `v` — версия протокола. Старый клиент без этого поля по-прежнему работает с новой Norka: так устроены уже выпущенные команды `norka`. Если номера не сходятся, команда завершается с кодом 8 и просит обновить Norka или `norka-cli`, а не выполняет действие вслепую.
+
 ## Команды
+
+Встроенные, из каталога с `norka`:
 
 ```bash
 norka connect <имя|id>
@@ -16,7 +47,18 @@ norka status [--json]
 norka list [--json]
 ```
 
-`connect`, если Norka не запущена, стартует её в трее без окна и затем подключает туннель. `status` и `list` в этом случае пишут, что программа не запущена, и завершаются с кодом 2. `disconnect` и `toggle` сами программу не запускают.
+Отдельный клиент:
+
+```bash
+norka-cli connect <имя|id>
+norka-cli disconnect <имя|id>
+norka-cli toggle <имя|id>
+norka-cli status [--json]
+norka-cli list [--json]
+norka-cli --version
+```
+
+`connect`, если Norka не запущена, стартует её в трее без окна и затем подключает туннель. Встроенная команда запускает свой же файл. `norka-cli` запускает путь из `app-path`. `status` и `list` в этом случае пишут, что программа не запущена, и завершаются с кодом 2. `disconnect` и `toggle` сами программу не запускают.
 
 ```text
 $ norka status
@@ -40,6 +82,7 @@ Norka запущена. Туннелей: 2, подключено: 1.
 | 5 | неверные аргументы |
 | 6 | нет связи с локальным каналом |
 | 7 | команда туннеля не выполнена |
+| 8 | разные версии Norka и norka-cli |
 
 На Windows программа собрана без консоли. Команда присоединяется к консоли родителя (`AttachConsole`) и не открывает новое окно, поэтому `norka status` печатает текст и в cmd, и в PowerShell.
 
@@ -93,7 +136,38 @@ The channel is not TCP. On Windows it is a named pipe limited to the current use
 
 A tunnel is matched by exact name first (case-insensitive), then by id, then by a unique prefix. If the prefix matches several tunnels, the command prints their names and exits with code 4.
 
+## Standalone norka-cli
+
+The `norka connect` … commands stay inside the app. `norka-cli` is a thin program for the same channel, without the window, Wails, the keychain, or SSH. Its help and its own messages are English. In human mode it also prints Norka's reply in English. `--json` prints the channel reply unchanged.
+
+Install:
+
+```bash
+brew install norka-app/tap/norka-cli
+```
+
+```bash
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka-cli
+```
+
+```bash
+go install github.com/norka-app/Norka/cmd/norka-cli@latest
+```
+
+`go install …@latest` follows the newest `v*` tag. Until a tag contains this package, use the same command with `@main`.
+
+deb and rpm packages are attached to the same GitHub release as the app: `norka-cli_<version>_linux_<arch>.deb` and `.rpm`.
+
+Norka has to be running, and **Settings → Features** has to have Automation on. Otherwise the command exits with code 1 and does not open the channel.
+
+On startup Norka writes its executable path to `app-path` next to `config.toml`. If the app is not running, `norka-cli connect` reads that file and starts it hidden, in the tray. A missing file or a path that no longer exists asks you to start Norka once and exits with code 2. `disconnect`, `toggle`, `status`, and `list` do not start the app.
+
+Every `norka-cli` request carries `v`, the protocol version. An older client that omits the field still works with a newer Norka, which is how the `norka` commands already shipped behave. When the numbers disagree, the command exits with code 8 and asks you to update Norka or `norka-cli` instead of guessing.
+
 ## Commands
+
+Built into the app:
 
 ```bash
 norka connect <name|id>
@@ -103,7 +177,18 @@ norka status [--json]
 norka list [--json]
 ```
 
-If Norka is not running, `connect` starts it hidden in the tray and then connects the tunnel. `status` and `list` say that it is not running and exit with code 2. `disconnect` and `toggle` do not start the app.
+Standalone client:
+
+```bash
+norka-cli connect <name|id>
+norka-cli disconnect <name|id>
+norka-cli toggle <name|id>
+norka-cli status [--json]
+norka-cli list [--json]
+norka-cli --version
+```
+
+If Norka is not running, `connect` starts it hidden in the tray and then connects the tunnel. The built-in command starts its own executable. `norka-cli` starts the path stored in `app-path`. `status` and `list` say that it is not running and exit with code 2. `disconnect` and `toggle` do not start the app.
 
 ```text
 $ norka status
@@ -127,6 +212,7 @@ Norka is running. Tunnels: 2, connected: 1.
 | 5 | invalid arguments |
 | 6 | the local channel could not be reached |
 | 7 | the tunnel command failed |
+| 8 | Norka and norka-cli speak different versions |
 
 On Windows the program is built without a console. A command attaches to the parent console (`AttachConsole`) and does not open a new window, so `norka status` prints in both cmd and PowerShell.
 

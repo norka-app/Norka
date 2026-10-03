@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"norka/internal/conf"
-	"norka/internal/forward"
-	"norka/internal/model"
-	"norka/internal/secrets"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/forward"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/secrets"
 )
 
 var (

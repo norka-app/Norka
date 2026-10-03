@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"norka/internal/model"
-	"norka/internal/traytext"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/traytext"
 )
 
 func ruTrayModel(tunnels []model.Tunnel, since map[int]traySince, now time.Time) trayModel {

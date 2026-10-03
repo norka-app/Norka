@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	"norka/internal/cli"
-	"norka/internal/conf"
-	"norka/internal/ipc"
-	"norka/internal/uilocale"
+	"github.com/norka-app/Norka/internal/cli"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/uilocale"
 )
 
 func runCLI(args []string) int {

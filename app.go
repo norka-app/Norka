@@ -14,20 +14,20 @@ import (
 	"time"
 
 	"github.com/energye/systray"
-	"norka/internal/aidebug"
-	"norka/internal/automation"
-	"norka/internal/autostart"
-	"norka/internal/biz"
-	"norka/internal/conf"
-	"norka/internal/features"
-	"norka/internal/model"
-	"norka/internal/notify"
-	"norka/internal/secrets"
-	"norka/internal/sshconfig"
-	"norka/internal/traytext"
-	"norka/internal/tunnelstats"
-	"norka/internal/uilocale"
-	"norka/internal/update"
+	"github.com/norka-app/Norka/internal/aidebug"
+	"github.com/norka-app/Norka/internal/automation"
+	"github.com/norka-app/Norka/internal/autostart"
+	"github.com/norka-app/Norka/internal/biz"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/notify"
+	"github.com/norka-app/Norka/internal/secrets"
+	"github.com/norka-app/Norka/internal/sshconfig"
+	"github.com/norka-app/Norka/internal/traytext"
+	"github.com/norka-app/Norka/internal/tunnelstats"
+	"github.com/norka-app/Norka/internal/uilocale"
+	"github.com/norka-app/Norka/internal/update"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -310,6 +310,11 @@ func (a *App) SaveUILocale(locale string) error {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	slog.Info("app startup")
+	if a.storage != nil {
+		if err := conf.WriteAppPath(a.storage.Path()); err != nil {
+			slog.Warn("could not record application path", "error", err)
+		}
+	}
 	update.CleanupBackup()
 	if a.startHidden {
 		a.windowVisible.Store(false)

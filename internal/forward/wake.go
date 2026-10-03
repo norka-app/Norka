@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"norka/internal/wake"
+	"github.com/norka-app/Norka/internal/wake"
 
 	"golang.org/x/crypto/ssh"
 )

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"norka/internal/model"
-	"norka/internal/uilocale"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/uilocale"
 )
 
 const (

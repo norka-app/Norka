@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"norka/internal/features"
-	"norka/internal/model"
-	"norka/internal/sshcmd"
-	"norka/internal/sshconfig"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/sshcmd"
+	"github.com/norka-app/Norka/internal/sshconfig"
 )
 
 // PreviewSSHCommands parses pasted ssh lines into tunnels and jump hosts.

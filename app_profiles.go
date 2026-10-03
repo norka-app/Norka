@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"norka/internal/biz"
-	"norka/internal/features"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/biz"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

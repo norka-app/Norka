@@ -12,8 +12,8 @@ import (
 	"time"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
-	"norka/internal/features"
-	"norka/internal/update"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/update"
 )
 
 //go:embed wails.json

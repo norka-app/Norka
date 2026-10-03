@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log/slog"
 
-	"norka/internal/automation"
-	"norka/internal/conf"
-	"norka/internal/features"
-	"norka/internal/ipc"
-	"norka/internal/model"
-	"norka/internal/scheme"
+	"github.com/norka-app/Norka/internal/automation"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/scheme"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

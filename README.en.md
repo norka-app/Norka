@@ -110,6 +110,25 @@ A new capability is added behind a flag. See [docs/FEATURES.md](docs/FEATURES.md
 
 Automation is off by default. After it is turned on in **Settings → Features**, a tunnel can be controlled from the terminal (`norka connect`, `status`, `list`) and from an `norka://` link. The first `connect` or `disconnect` from a link asks for confirmation. Commands, exit codes, a Windows shortcut, and a shell alias: [docs/CLI.md](docs/CLI.md).
 
+## norka-cli
+
+A thin client for a Norka that is already installed. It has no window. Norka must be running, and **Settings → Features** must have Automation on. If the app is not running, `norka-cli connect` starts it in the tray. Details and exit codes: [docs/CLI.md](docs/CLI.md).
+
+```bash
+brew install norka-app/tap/norka-cli
+```
+
+```bash
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka-cli
+```
+
+```bash
+go install github.com/norka-app/Norka/cmd/norka-cli@latest
+```
+
+deb and rpm packages are attached to the GitHub release next to the app. The built-in `norka connect` … commands and `norka://` links stay in the app.
+
 ---
 
 ## English interface

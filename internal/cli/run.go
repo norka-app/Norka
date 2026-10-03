@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"norka/internal/automation"
-	"norka/internal/conf"
-	"norka/internal/features"
-	"norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/automation"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/ipc"
 )
 
 // Env is what the CLI needs from the machine. Tests replace the functions.

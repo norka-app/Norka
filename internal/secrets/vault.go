@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 // Vault moves jumper passwords between config structs and the OS keychain.

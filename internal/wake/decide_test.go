@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"norka/internal/netwatch"
+	"github.com/norka-app/Norka/internal/netwatch"
 )
 
 type staticSessions []Tunnel

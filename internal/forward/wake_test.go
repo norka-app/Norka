@@ -3,8 +3,8 @@ package forward
 import (
 	"testing"
 
-	"norka/internal/model"
-	"norka/internal/wake"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/wake"
 )
 
 func TestUnstartedForwardStaysStopped(t *testing.T) {

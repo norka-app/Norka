@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"norka/internal/biz"
-	"norka/internal/model"
-	"norka/internal/traytext"
+	"github.com/norka-app/Norka/internal/biz"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/traytext"
 )
 
 // Пункты меню трея строятся из живого состояния туннелей (internal/biz → List()).

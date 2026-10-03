@@ -3,7 +3,7 @@ package biz
 import (
 	"fmt"
 
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 // PlanProfileActivation decides how to bring a profile online.

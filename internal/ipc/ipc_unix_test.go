@@ -4,8 +4,11 @@ package ipc
 
 import (
 	"context"
+	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -53,6 +56,65 @@ func TestUnixRoundTripAndPermissions(t *testing.T) {
 	_, err = Call(ctx, filepath.Join(dir, "missing.sock"), "sekret", Request{Op: OpStatus})
 	if err == nil || !errorsIsNotRunning(err) {
 		t.Fatalf("missing socket: %v", err)
+	}
+}
+
+func TestProtocolVersionRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "norka.sock")
+	ln, err := Listen(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var handled atomic.Int32
+	go func() {
+		_ = Serve(ctx, ln, "sekret", func(req Request) Response {
+			handled.Add(1)
+			return Response{OK: true, Code: CodeOK, ExitCode: ExitOK, Message: req.Op}
+		})
+	}()
+
+	legacy := waitCall(t, ctx, path, "sekret", Request{Op: OpStatus})
+	if !legacy.OK || legacy.V != ProtocolVersion || handled.Load() != 1 {
+		t.Fatalf("legacy: %+v handled %d", legacy, handled.Load())
+	}
+
+	current := waitCall(t, ctx, path, "sekret", Request{V: ProtocolVersion, Op: OpList})
+	if !current.OK || current.V != ProtocolVersion || handled.Load() != 2 {
+		t.Fatalf("current: %+v handled %d", current, handled.Load())
+	}
+
+	newer, err := Call(ctx, path, "sekret", Request{V: ProtocolVersion + 1, Op: OpStatus})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newer.OK || newer.Code != CodeUpdateApp || newer.ExitCode != ExitVersion || newer.V != ProtocolVersion || handled.Load() != 2 {
+		t.Fatalf("newer: %+v handled %d", newer, handled.Load())
+	}
+	if newer.Message != MessageUpdateApp {
+		t.Fatalf("newer message: %q", newer.Message)
+	}
+
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(map[string]string{"token": "sekret", "op": OpStatus})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write(append(payload, '\n')); err != nil {
+		t.Fatal(err)
+	}
+	var raw Response
+	if err := readJSON(conn, &raw); err != nil {
+		t.Fatal(err)
+	}
+	_ = conn.Close()
+	if !raw.OK || raw.V != ProtocolVersion || handled.Load() != 3 {
+		t.Fatalf("raw legacy: %+v handled %d", raw, handled.Load())
 	}
 }
 

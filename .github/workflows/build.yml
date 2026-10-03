@@ -477,3 +477,62 @@ jobs:
     with:
       version: ${{ github.ref_name }}
     secrets: inherit
+
+  # Отдельный клиент norka-cli. На pull request только проверка конфига
+  # и короткая сборка snapshot: шесть платформ, без публикации.
+  cli:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Check GoReleaser config
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
+
+      - name: Snapshot build norka-cli
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: build --snapshot --clean
+
+  # Публикация norka-cli в уже созданный выпуск. Задача release выше
+  # кладёт файлы GUI и SHA256SUMS. Здесь только архивы клиента,
+  # пакеты deb/rpm и файл norka-cli_SHA256SUMS. Общий SHA256SUMS не трогаем.
+  # Без секрета TAP_GITHUB_TOKEN tap и bucket пропускаются, выпуск собирается.
+  release-cli:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: true
+
+      - name: Publish norka-cli
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

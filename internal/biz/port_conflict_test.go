@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"norka/internal/conf"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func TestPortConflicts(t *testing.T) {

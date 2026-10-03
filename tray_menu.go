@@ -10,9 +10,9 @@ import (
 
 	"github.com/energye/systray"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
-	"norka/internal/features"
-	"norka/internal/model"
-	"norka/internal/traytext"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/model"
+	"github.com/norka-app/Norka/internal/traytext"
 )
 
 // Иконки трея по агрегированному статусу (connected / connecting / error / stopped).

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"norka/internal/conf"
-	"norka/internal/model"
+	"github.com/norka-app/Norka/internal/conf"
+	"github.com/norka-app/Norka/internal/model"
 )
 
 func TestToggleCancelsInProgressStart(t *testing.T) {

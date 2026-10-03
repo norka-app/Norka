@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"norka/internal/netwatch"
+	"github.com/norka-app/Norka/internal/netwatch"
 )
 
 const (

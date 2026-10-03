@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"norka/internal/features"
-	"norka/internal/tunneldiag"
+	"github.com/norka-app/Norka/internal/features"
+	"github.com/norka-app/Norka/internal/tunneldiag"
 )
 
 var errTunnelCheckDisabled = errors.New("tunnel check is turned off")
