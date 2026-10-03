@@ -125,7 +125,7 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
   user-select: none;
   -webkit-user-select: none;
   --wails-draggable: drag;
-  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--norka-font-family);
 }
 
 .titlebar--dark {

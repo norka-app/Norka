@@ -2,7 +2,10 @@ import { createApp } from 'vue'
 import naive from 'naive-ui'
 import App from './App.vue'
 import i18n from './i18n'
+import { APP_FONT_FAMILY } from './theme/naive-theme'
 import './style.css';
+
+document.documentElement.style.setProperty('--norka-font-family', APP_FONT_FAMILY)
 import './styles/form-kit.css';
 import './styles/frameless.css';
 import { LogError } from '../wailsjs/runtime/runtime'

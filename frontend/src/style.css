@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --norka-font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", Selawik, system-ui, sans-serif;
   --lt-bg: #f4f4f5;
   --lt-bg-radial-a: transparent;
   --lt-bg-radial-b: transparent;
@@ -55,10 +56,6 @@
   --lt-hint-bg: #fafafa;
   --lt-hint-border: #d4d4d8;
   --lt-hint-ink: #52525b;
-  --lt-switch-off: #d4d4d8;
-  --lt-switch-on: #18181b;
-  --lt-switch-thumb-off: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%2352525b'/%3e%3c/svg%3e");
-  --lt-switch-thumb-on: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23ffffff'/%3e%3c/svg%3e");
   --lt-traffic-up: #15803d;
   --lt-traffic-down: #b91c1c;
   --lt-radius-md: 8px;
@@ -113,10 +110,6 @@
   --lt-primary: #f4f4f5;
   --lt-primary-hover: #e4e4e7;
   --lt-on-primary: #1c1c22;
-  --lt-switch-off: #7a7a88;
-  --lt-switch-on: #f4f4f5;
-  --lt-switch-thumb-off: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23f4f4f5'/%3e%3c/svg%3e");
-  --lt-switch-thumb-on: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%231c1c22'/%3e%3c/svg%3e");
   --lt-traffic-up: #4ade80;
   --lt-traffic-down: #f87171;
   --lt-positive-bg: #052e16;
@@ -168,16 +161,50 @@ body,
   min-height: 100%;
 }
 
+/* Selawik — запасной шрифт, когда Segoe UI нет (превью на Linux и сборки без Segoe). */
+@font-face {
+  font-family: Selawik;
+  src: url('./assets/fonts/selawik-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Selawik;
+  src: url('./assets/fonts/selawik-semibold.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Selawik;
+  src: url('./assets/fonts/selawik-semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Selawik;
+  src: url('./assets/fonts/selawik-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 html {
   background: var(--lt-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: var(--norka-font-family);
 }
 
 body {
   margin: 0;
   color: var(--lt-ink);
-  font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--norka-font-family);
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
@@ -343,4 +370,56 @@ body {
   .skip-link:focus {
     outline: 2px solid CanvasText;
   }
+}
+
+/*
+  Кнопки и поля не наследуют шрифт сами: в WebView2 у <button> системное начертание
+  (жирнее Segoe UI Variable) и серая системная заливка у disabled, а у input — чёрная
+  обводка :focus-visible. Стек задан и на html/body, и прямо на контролах: модалки
+  Naive телепортируются в body, вне #app.
+*/
+html body button,
+html body input,
+html body textarea,
+html body select,
+html body .n-button,
+html body .n-input,
+html body .n-base-selection,
+html body .n-popover,
+html body .n-dropdown-menu,
+html body .n-base-select-menu,
+html body .n-tooltip {
+  font-family: var(--norka-font-family);
+}
+
+html body button,
+html body .n-button {
+  appearance: none;
+  -webkit-appearance: none;
+  font-synthesis: none;
+}
+
+html body .n-button {
+  font-weight: var(--n-font-weight, 400);
+}
+
+html body .n-button:focus,
+html body .n-button:focus-visible,
+html body .n-input__input-el,
+html body .n-input__input-el:focus,
+html body .n-input__input-el:focus-visible,
+html body .n-input__textarea-el,
+html body .n-input__textarea-el:focus,
+html body .n-input__textarea-el:focus-visible,
+html body .n-base-selection-input,
+html body .n-base-selection-input:focus,
+html body .n-base-selection-input:focus-visible {
+  outline: none;
+}
+
+.action-dialog-message {
+  margin: 0;
+  color: var(--lt-ink);
+  line-height: 1.5;
+  white-space: pre-line;
 }

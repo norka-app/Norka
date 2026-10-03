@@ -293,7 +293,15 @@ async function detectCustomTitleBar() {
 
 async function detectWindowChrome() {
   if (typeof window === 'undefined' || !window.go?.main?.App?.GetWindowChrome) {
-    applyWindowChrome({ frameless: false, platform: '', backdrop: 'native' })
+    // Vite-превью без бэкенда: lt.preview.frameless=1 рисует безрамный Windows-вид.
+    // В собранном приложении эта ветка не выполняется — рамку отдаёт GetWindowChrome.
+    const previewFrameless =
+      typeof localStorage !== 'undefined' && localStorage.getItem('lt.preview.frameless') === '1'
+    applyWindowChrome({
+      frameless: previewFrameless,
+      platform: previewFrameless ? 'windows' : '',
+      backdrop: 'native',
+    })
     return
   }
   try {
