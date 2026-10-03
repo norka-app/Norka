@@ -1,9 +1,9 @@
 import { darkTheme } from 'naive-ui'
 
-// Один стек на всё приложение: Windows берёт Segoe, превью и Linux — Selawik
-// (метрически близкий к Segoe UI). Тот же список в style.css (--norka-font-family).
+// Системный шрифт каждой ОС. Selawik не входит: в файле нет кириллицы.
+// Тот же список в style.css (--norka-font-family).
 export const APP_FONT_FAMILY =
-  '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", Selawik, system-ui, sans-serif'
+  '-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, "Noto Sans", Ubuntu, Cantarell, sans-serif'
 
 // Шапка и подвал модалки: 16 по вертикали, 24 по горизонтали. Зазор кнопок — 8 (form-layout).
 const cardOverrides = {

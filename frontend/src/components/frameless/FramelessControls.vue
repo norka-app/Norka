@@ -74,6 +74,7 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
   height: 40px;
   --wails-draggable: no-drag;
   color: var(--lt-ink, #18181b);
+  font-family: var(--norka-font-family);
 }
 
 .flc--dark { color: #e8eaed; }

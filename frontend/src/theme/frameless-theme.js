@@ -1,6 +1,7 @@
 // Токены темы Naive UI для вида «окно без рамки».
 // Подключаются только когда процесс открылся с этим флагом.
 // Раскладка и отступы остаются в styles/frameless.css.
+import { APP_FONT_FAMILY } from './naive-theme'
 
 const LIGHT = {
   hover: 'rgba(24, 24, 27, 0.045)',
@@ -35,6 +36,9 @@ function tagFill(hex, alpha) {
 export function framelessNaiveOverrides(mode) {
   const tone = mode === 'dark' ? DARK : LIGHT
   return {
+    common: {
+      fontFamily: APP_FONT_FAMILY,
+    },
     Card: {
       color: 'transparent',
       colorModal: tone.pop,
