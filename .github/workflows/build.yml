@@ -395,7 +395,7 @@ jobs:
             artifacts/linux/*.tar.gz
 
       # К заметкам дописывается общий хвост про SmartScreen.
-      # Если заголовок уже есть в файле заметок, второй раз он не добавляется.
+      # Если маркер хвоста уже есть в файле заметок, второй раз он не добавляется.
       # Файла заметок нет — в описании остаётся только этот хвост.
       - name: Compose release body
         id: body
@@ -409,7 +409,7 @@ jobs:
             cat "${NOTES_FILE}" >> "$body"
           fi
           snippet="docs/releases/windows-smartscreen.md"
-          if [ -f "$snippet" ] && ! grep -Fqx '## Windows: неизвестный издатель' "$body"; then
+          if [ -f "$snippet" ] && ! grep -Fq '<!-- norka:release-footer -->' "$body"; then
             if [ -s "$body" ]; then
               printf '\n\n' >> "$body"
             fi

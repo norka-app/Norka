@@ -230,6 +230,47 @@ func TestVersionNewer(t *testing.T) {
 	}
 }
 
+func TestTrimNotes_StripsReleaseFooter(t *testing.T) {
+	const marker = "<!-- norka:release-footer -->"
+	footer := marker + "\n## Windows: неизвестный издатель\n\nПодробнее\n"
+	cases := []struct {
+		raw  string
+		want string
+	}{
+		{raw: "  hello  ", want: "hello"},
+		{raw: "Заметки\n\n" + footer, want: "Заметки"},
+		{raw: "Заметки  \n\n" + footer, want: "Заметки"},
+		{raw: "\n\n" + footer, want: ""},
+		{raw: "text " + marker + " rest", want: "text"},
+		{raw: "a  b", want: "a  b"},
+	}
+	for _, tc := range cases {
+		if got := trimNotes(tc.raw); got != tc.want {
+			t.Fatalf("trimNotes(%q) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+}
+
+func TestCheck_StripsReleaseFooter(t *testing.T) {
+	srv := releaseServer(t, `{
+		"tag_name": "v1.4.0",
+		"html_url": "https://github.com/norka-app/Norka/releases/tag/v1.4.0",
+		"body": "Заметки\n\n<!-- norka:release-footer -->\n## Windows: неизвестный издатель\n",
+		"assets": [
+			{"name": "norka.dmg", "browser_download_url": "https://github.com/norka-app/Norka/releases/download/v1.4.0/norka.dmg"}
+		]
+	}`)
+	defer srv.Close()
+
+	offer, err := check(context.Background(), "1.0.2", "darwin", srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if offer.Notes != "Заметки" {
+		t.Fatalf("notes = %q", offer.Notes)
+	}
+}
+
 func TestCheck_IncludesNotesAndDigest(t *testing.T) {
 	const sum = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	srv := releaseServer(t, `{

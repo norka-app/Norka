@@ -98,11 +98,11 @@ jobs:
             if gh release view "$tag" --json tagName >/dev/null 2>"$err"; then
               # Описание заменяется файлом целиком. Хвост про SmartScreen
               # дописываем снова, иначе правка заметок его сотрёт.
-              # Тот же заголовок уже в файле — второй раз не добавляем.
+              # Тот же маркер уже в файле — второй раз не добавляем.
               notes_tmp="$(mktemp)"
               cat "$file" > "$notes_tmp"
               snippet="docs/releases/windows-smartscreen.md"
-              if [ -f "$snippet" ] && ! grep -Fqx '## Windows: неизвестный издатель' "$file"; then
+              if [ -f "$snippet" ] && ! grep -Fq '<!-- norka:release-footer -->' "$file"; then
                 if [ -s "$notes_tmp" ]; then
                   printf '\n\n' >> "$notes_tmp"
                 fi

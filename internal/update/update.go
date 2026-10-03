@@ -11,13 +11,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
 const (
-	releaseURL = "https://api.github.com/repos/norka-app/Norka/releases/latest"
-	repoPrefix = "/norka-app/Norka/"
-	notesLimit = 20_000
+	releaseURL          = "https://api.github.com/repos/norka-app/Norka/releases/latest"
+	repoPrefix          = "/norka-app/Norka/"
+	notesLimit          = 20_000
+	releaseFooterMarker = "<!-- norka:release-footer -->"
 )
 
 // Offer is the result of comparing the running app with the latest GitHub release.
@@ -385,6 +387,9 @@ func parseVersion(raw string) ([3]int, bool) {
 }
 
 func trimNotes(raw string) string {
+	if cut := strings.Index(raw, releaseFooterMarker); cut >= 0 {
+		raw = strings.TrimRightFunc(raw[:cut], unicode.IsSpace)
+	}
 	raw = strings.TrimSpace(raw)
 	if len(raw) <= notesLimit {
 		return raw
