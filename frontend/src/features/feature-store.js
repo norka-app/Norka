@@ -15,6 +15,7 @@ const DEFAULTS = {
   tunnel_stats: true,
   onboarding: true,
   diagnostics: true,
+  tunnel_diagnostics: true,
 }
 
 const COPY = {
@@ -30,6 +31,7 @@ const COPY = {
   tunnel_stats: ['features.tunnelStats', 'features.tunnelStatsDesc'],
   onboarding: ['features.onboarding', 'features.onboardingDesc'],
   diagnostics: ['features.diagnostics', 'features.diagnosticsDesc'],
+  tunnel_diagnostics: ['features.tunnelDiagnostics', 'features.tunnelDiagnosticsDesc'],
 }
 
 function fallbackItems() {

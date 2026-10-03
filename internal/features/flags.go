@@ -27,6 +27,10 @@ const (
 	TunnelStats    ID = "tunnel_stats"
 	Onboarding     ID = "onboarding"
 	Diagnostics    ID = "diagnostics"
+	// TunnelDiagnostics is on so a failed connect can be explained from the
+	// tunnel menu without a trip to Settings. Checks run only when asked,
+	// store nothing, and never send a password. Profiles stay off.
+	TunnelDiagnostics ID = "tunnel_diagnostics"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -74,6 +78,7 @@ func All() []Flag {
 		{ID: TunnelStats, Default: true, TitleKey: "features.tunnelStats", DescriptionKey: "features.tunnelStatsDesc"},
 		{ID: Onboarding, Default: true, TitleKey: "features.onboarding", DescriptionKey: "features.onboardingDesc"},
 		{ID: Diagnostics, Default: true, TitleKey: "features.diagnostics", DescriptionKey: "features.diagnosticsDesc"},
+		{ID: TunnelDiagnostics, Default: true, TitleKey: "features.tunnelDiagnostics", DescriptionKey: "features.tunnelDiagnosticsDesc"},
 	}
 }
 
@@ -103,18 +108,19 @@ func find(id ID) (Flag, bool) {
 
 // Flags holds explicit overrides. A nil pointer means "use the default".
 type Flags struct {
-	Profiles       *bool `toml:"profiles,omitempty" json:"profiles,omitempty"`
-	QuickSearch    *bool `toml:"quick_search,omitempty" json:"quickSearch,omitempty"`
-	Notifications  *bool `toml:"notifications,omitempty" json:"notifications,omitempty"`
-	AutoUpdate     *bool `toml:"auto_update,omitempty" json:"autoUpdate,omitempty"`
-	TrafficMonitor *bool `toml:"traffic_monitor,omitempty" json:"trafficMonitor,omitempty"`
-	Mascot         *bool `toml:"mascot,omitempty" json:"mascot,omitempty"`
-	SSHCommand     *bool `toml:"ssh_command,omitempty" json:"sshCommand,omitempty"`
-	WakeReconnect  *bool `toml:"wake_reconnect,omitempty" json:"wakeReconnect,omitempty"`
-	Automation     *bool `toml:"automation,omitempty" json:"automation,omitempty"`
-	TunnelStats    *bool `toml:"tunnel_stats,omitempty" json:"tunnelStats,omitempty"`
-	Onboarding     *bool `toml:"onboarding,omitempty" json:"onboarding,omitempty"`
-	Diagnostics    *bool `toml:"diagnostics,omitempty" json:"diagnostics,omitempty"`
+	Profiles          *bool `toml:"profiles,omitempty" json:"profiles,omitempty"`
+	QuickSearch       *bool `toml:"quick_search,omitempty" json:"quickSearch,omitempty"`
+	Notifications     *bool `toml:"notifications,omitempty" json:"notifications,omitempty"`
+	AutoUpdate        *bool `toml:"auto_update,omitempty" json:"autoUpdate,omitempty"`
+	TrafficMonitor    *bool `toml:"traffic_monitor,omitempty" json:"trafficMonitor,omitempty"`
+	Mascot            *bool `toml:"mascot,omitempty" json:"mascot,omitempty"`
+	SSHCommand        *bool `toml:"ssh_command,omitempty" json:"sshCommand,omitempty"`
+	WakeReconnect     *bool `toml:"wake_reconnect,omitempty" json:"wakeReconnect,omitempty"`
+	Automation        *bool `toml:"automation,omitempty" json:"automation,omitempty"`
+	TunnelStats       *bool `toml:"tunnel_stats,omitempty" json:"tunnelStats,omitempty"`
+	Onboarding        *bool `toml:"onboarding,omitempty" json:"onboarding,omitempty"`
+	Diagnostics       *bool `toml:"diagnostics,omitempty" json:"diagnostics,omitempty"`
+	TunnelDiagnostics *bool `toml:"tunnel_diagnostics,omitempty" json:"tunnelDiagnostics,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -159,6 +165,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.Onboarding = &value
 	case Diagnostics:
 		f.Diagnostics = &value
+	case TunnelDiagnostics:
+		f.TunnelDiagnostics = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -184,18 +192,19 @@ func (f Flags) Views() []View {
 // Clone returns a detached copy so later Set calls do not alias stored config.
 func (f Flags) Clone() Flags {
 	return Flags{
-		Profiles:       cloneBool(f.Profiles),
-		QuickSearch:    cloneBool(f.QuickSearch),
-		Notifications:  cloneBool(f.Notifications),
-		AutoUpdate:     cloneBool(f.AutoUpdate),
-		TrafficMonitor: cloneBool(f.TrafficMonitor),
-		Mascot:         cloneBool(f.Mascot),
-		SSHCommand:     cloneBool(f.SSHCommand),
-		WakeReconnect:  cloneBool(f.WakeReconnect),
-		Automation:     cloneBool(f.Automation),
-		TunnelStats:    cloneBool(f.TunnelStats),
-		Onboarding:     cloneBool(f.Onboarding),
-		Diagnostics:    cloneBool(f.Diagnostics),
+		Profiles:          cloneBool(f.Profiles),
+		QuickSearch:       cloneBool(f.QuickSearch),
+		Notifications:     cloneBool(f.Notifications),
+		AutoUpdate:        cloneBool(f.AutoUpdate),
+		TrafficMonitor:    cloneBool(f.TrafficMonitor),
+		Mascot:            cloneBool(f.Mascot),
+		SSHCommand:        cloneBool(f.SSHCommand),
+		WakeReconnect:     cloneBool(f.WakeReconnect),
+		Automation:        cloneBool(f.Automation),
+		TunnelStats:       cloneBool(f.TunnelStats),
+		Onboarding:        cloneBool(f.Onboarding),
+		Diagnostics:       cloneBool(f.Diagnostics),
+		TunnelDiagnostics: cloneBool(f.TunnelDiagnostics),
 	}
 }
 
@@ -254,6 +263,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.Onboarding
 	case Diagnostics:
 		return f.Diagnostics
+	case TunnelDiagnostics:
+		return f.TunnelDiagnostics
 	default:
 		return nil
 	}

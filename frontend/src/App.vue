@@ -14,6 +14,7 @@ import {
   DebugJumperFailure as DebugJumperFailureAPI,
   DebugSavedTunnelFailure as DebugSavedTunnelFailureAPI,
   DebugTunnelFailure as DebugTunnelFailureAPI,
+  DiagnoseTunnel,
   GetSSHConfigImportSources,
   GetFeatures,
   GetOnboardingDone,
@@ -58,6 +59,7 @@ import AppTitleBar from './components/layout/AppTitleBar.vue'
 import AppTopHeader from './components/layout/AppTopHeader.vue'
 import OverviewPage from './components/pages/OverviewPage.vue'
 import TunnelStatsModal from './components/modals/TunnelStatsModal.vue'
+import TunnelDiagnosticsModal from './components/modals/TunnelDiagnosticsModal.vue'
 import JumpersPage from './components/pages/JumpersPage.vue'
 import TunnelsPage from './components/pages/TunnelsPage.vue'
 import LogsPage from './components/pages/LogsPage.vue'
@@ -106,6 +108,7 @@ const autoUpdateOn = useFeature('auto_update')
 const sshCommandOn = useFeature('ssh_command')
 const automationOn = useFeature('automation')
 const tunnelStatsOn = useFeature('tunnel_stats')
+const tunnelCheckOn = useFeature('tunnel_diagnostics')
 const onboardingOn = useFeature('onboarding')
 const onboardingDone = ref(true)
 const onboardingReady = ref(false)
@@ -392,6 +395,10 @@ const trafficMonitorEnabled = ref(true)
 const tunnelStats = ref([])
 const statsNow = ref(Date.now())
 const statsTunnel = ref(null)
+const tunnelCheckTarget = ref(null)
+const tunnelCheckReport = ref(null)
+const tunnelCheckLoading = ref(false)
+const tunnelCheckError = ref('')
 let statsClock = null
 const traffic = ref({ upBps: 0, downBps: 0 })
 const trafficHistoryUp = ref([])
@@ -1149,6 +1156,48 @@ function closeTunnelStats() {
   statsTunnel.value = null
 }
 
+function tunnelCheckErrorMessage(err) {
+  const message = errorMessage(err, '')
+  if (/turned off|disabled/i.test(message)) return t('app.tunnels.diagnostics.disabled')
+  return message || t('app.tunnels.diagnostics.failed')
+}
+
+async function runTunnelCheck(tunnel) {
+  if (!tunnelCheckOn.value || !tunnel) return
+  const id = tunnel.id
+  tunnelCheckLoading.value = true
+  tunnelCheckError.value = ''
+  tunnelCheckReport.value = null
+  if (typeof window === 'undefined' || !window.go?.main?.App) {
+    tunnelCheckError.value = t('app.tunnels.diagnostics.failed')
+    tunnelCheckLoading.value = false
+    return
+  }
+  try {
+    const report = await DiagnoseTunnel(id)
+    if (tunnelCheckTarget.value?.id !== id) return
+    tunnelCheckReport.value = report
+  } catch (err) {
+    if (tunnelCheckTarget.value?.id !== id) return
+    tunnelCheckError.value = tunnelCheckErrorMessage(err)
+  } finally {
+    if (tunnelCheckTarget.value?.id === id) tunnelCheckLoading.value = false
+  }
+}
+
+function openTunnelCheck(tunnel) {
+  if (!tunnelCheckOn.value || !tunnel) return
+  tunnelCheckTarget.value = tunnel
+  void runTunnelCheck(tunnel)
+}
+
+function closeTunnelCheck() {
+  tunnelCheckTarget.value = null
+  tunnelCheckReport.value = null
+  tunnelCheckError.value = ''
+  tunnelCheckLoading.value = false
+}
+
 const statsTunnelStat = computed(() => {
   const id = statsTunnel.value?.id
   if (!id) return null
@@ -1177,6 +1226,7 @@ function syncFeatureEffects() {
     tunnelStats.value = []
     statsTunnel.value = null
   }
+  if (!tunnelCheckOn.value) closeTunnelCheck()
   if (trafficMonitorEnabled.value) startTrafficSync()
   else stopTrafficSync()
   if (featureEnabled('auto_update')) startUpdateChecks()
@@ -1185,7 +1235,7 @@ function syncFeatureEffects() {
   if (!quickSearchOn.value && quickSearchOpen.value) void closeQuickSearch()
 }
 
-watch([profilesOn, quickSearchOn, trafficOn, autoUpdateOn, tunnelStatsOn], () => {
+watch([profilesOn, quickSearchOn, trafficOn, autoUpdateOn, tunnelStatsOn, tunnelCheckOn], () => {
   syncFeatureEffects()
 })
 
@@ -2471,6 +2521,7 @@ const dialogOpen = computed(() => (
   || showTunnelModal.value
   || showJumperModal.value
   || !!selectedAIDebugTunnel.value
+  || !!tunnelCheckTarget.value
 ))
 
 function dismissTopDialog() {
@@ -2506,7 +2557,9 @@ function dismissTopDialog() {
   }
   if (selectedAIDebugTunnel.value) {
     closeSavedTunnelAIDebug()
+    return
   }
+  if (tunnelCheckTarget.value) closeTunnelCheck()
 }
 
 // WebView2 на Windows не ставит event.shiftKey у Ctrl+Shift+буква (Escape при этом приходит
@@ -2909,6 +2962,7 @@ watch(
     :profiles-enabled="profilesOn"
     :active-profile-id="activeProfileId"
     :stop-others="profileStopOthers"
+    :diagnostics-enabled="tunnelCheckOn"
     :theme="theme"
     :get-running-since="getTunnelRunningSince"
     :port-switch-pending="simplePortSwitchPending"
@@ -2919,6 +2973,7 @@ watch(
     @manage="openTunnelsFromSimple"
     @activate-profile="activateProfile"
     @clear-profile="clearActiveProfile"
+    @diagnose="openTunnelCheck"
   />
   <template v-else>
   <a class="skip-link" href="#page-main">{{ $t('app.common.skipToContent') }}</a>
@@ -2997,7 +3052,9 @@ watch(
           :stats-enabled="tunnelStatsOn"
           :tunnel-stats="tunnelStats"
           :stats-now="statsNow"
+          :diagnostics-enabled="tunnelCheckOn"
           @show-stats="openTunnelStats"
+          @diagnose="openTunnelCheck"
           @update-search-query="tunnelSearchQuery = $event"
           @toggle-tunnel="toggleTunnel"
           @copy-tunnel="copyTunnel"
@@ -3140,6 +3197,17 @@ watch(
     @retry-debug="retrySavedTunnelAIDebug"
     @test-again="retestSavedTunnelFromAIDebug"
     @report-content="reportAIDebugContent('saved_tunnel', selectedAIDebugTunnelState)"
+  />
+
+  <TunnelDiagnosticsModal
+    v-if="tunnelCheckOn"
+    :show="!!tunnelCheckTarget"
+    :tunnel="tunnelCheckTarget"
+    :report="tunnelCheckReport"
+    :loading="tunnelCheckLoading"
+    :error="tunnelCheckError"
+    @close="closeTunnelCheck"
+    @retry="runTunnelCheck(tunnelCheckTarget)"
   />
 
   <TunnelStatsModal
