@@ -49,7 +49,8 @@ import {
   FormatTunnelSSHCommand,
   GetAutomationPrompt,
   ConfirmAutomation,
-  DismissAutomationPrompt
+  DismissAutomationPrompt,
+  ShowDiagnosticsInFolder
 } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
@@ -170,6 +171,7 @@ const hideEmptyUngrouped = ref(savedHideEmptyUngrouped !== '0' && savedHideEmpty
 const activePage = ref('overview')
 const selectedLogLevel = ref('all')
 const configMessage = ref('')
+const configToastActions = ref([])
 const showOverviewActive = ref(true)
 const showOverviewActivity = ref(true)
 const showConfigToast = ref(false)
@@ -338,7 +340,8 @@ function subscribeTrayEvents() {
       if (!key) return
       logEvent(entry.level || 'info', t(key))
     }),
-    EventsOn('automation:prompt', (payload) => showAutomationPrompt(payload))
+    EventsOn('automation:prompt', (payload) => showAutomationPrompt(payload)),
+    EventsOn('diagnostics:saved', (result) => showDiagnosticsToast(result))
   ]
 }
 
@@ -351,19 +354,25 @@ function setHideEmptyUngrouped(enabled) {
   hideEmptyUngrouped.value = !!enabled
 }
 
-watch(configMessage, (message) => {
-  if (!message) {
+function presentConfigToast() {
+  if (!configMessage.value) {
     hideConfigToast()
     return
   }
   showConfigToast.value = true
   if (configToastTimer !== null) {
     window.clearTimeout(configToastTimer)
+    configToastTimer = null
   }
+  if (configToastActions.value.length > 0) return
   configToastTimer = window.setTimeout(() => {
     showConfigToast.value = false
     configToastTimer = null
   }, CONFIG_TOAST_DURATION_MS)
+}
+
+watch(configMessage, () => {
+  presentConfigToast()
 })
 
 const jumpers = ref([])
@@ -966,7 +975,7 @@ async function loadStateFromBackend(options = {}) {
   } catch (err) {
     if (silent) return
     const message = errorMessage(err, 'Failed to load config from backend.')
-    configMessage.value = message
+    setConfigMessage(message)
     logEvent('error', message)
   }
 }
@@ -1195,15 +1204,42 @@ function setThemeBySwitch(enabled) {
 }
 
 function setConfigMessage(msg) {
-  configMessage.value = msg || ''
+  if (msg && typeof msg === 'object') {
+    configToastActions.value = Array.isArray(msg.actions) ? msg.actions : []
+    configMessage.value = msg.text || ''
+  } else {
+    configToastActions.value = []
+    configMessage.value = typeof msg === 'string' ? msg : ''
+  }
+  presentConfigToast()
 }
 
 function hideConfigToast() {
   showConfigToast.value = false
+  configToastActions.value = []
   if (configToastTimer !== null) {
     window.clearTimeout(configToastTimer)
     configToastTimer = null
   }
+}
+
+function showDiagnosticsToast(result) {
+  if (!result || result.cancelled || !result.path) return
+  setConfigMessage({
+    text: t('config.diagnosticsSaved'),
+    actions: [
+      {
+        label: t('config.diagnosticsShowFolder'),
+        run: () => {
+          void ShowDiagnosticsInFolder(result.path).catch((err) => setConfigMessage(String(err)))
+        }
+      },
+      {
+        label: t('config.diagnosticsCreateIssue'),
+        run: () => openExternal(result.issueUrl)
+      }
+    ]
+  })
 }
 
 function resetJumperValidation() {
@@ -3011,17 +3047,29 @@ watch(
           @simple-on-top-change="simpleOnTop = $event"
           @update-offer="showUpdateOffer"
           @restart-onboarding="restartOnboarding"
+          @diagnostics-saved="showDiagnosticsToast"
         />
       </main>
 
       <n-alert
         v-if="showConfigToast && configMessage"
         class="config-toast"
-        type="info"
+        :type="configToastActions.length ? 'success' : 'info'"
         closable
         @close="hideConfigToast"
       >
-        {{ configMessage }}
+        <div>{{ configMessage }}</div>
+        <n-space v-if="configToastActions.length" class="config-toast-actions" :size="8" :wrap="true">
+          <n-button
+            v-for="(action, index) in configToastActions"
+            :key="`${action.label}-${index}`"
+            size="small"
+            secondary
+            @click="action.run()"
+          >
+            {{ action.label }}
+          </n-button>
+        </n-space>
       </n-alert>
     </n-layout>
   </n-layout>

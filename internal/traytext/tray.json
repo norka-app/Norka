@@ -41,7 +41,11 @@
     "selectConfigDir": "Выберите каталог конфигурации",
     "exportConfigTitle": "Экспорт конфигурации",
     "importConfigTitle": "Импорт конфигурации",
-    "tomlFilter": "Конфигурация TOML (*.toml)"
+    "tomlFilter": "Конфигурация TOML (*.toml)",
+    "diagnostics": "Собрать диагностику",
+    "diagnosticsTooltip": "Сохранить zip для отчёта об ошибке",
+    "diagnosticsSaveTitle": "Сохранить диагностику",
+    "zipFilter": "Архив ZIP (*.zip)"
   },
   "en": {
     "showMainTitle": "Show window",
@@ -85,6 +89,10 @@
     "selectConfigDir": "Select configuration folder",
     "exportConfigTitle": "Export configuration",
     "importConfigTitle": "Import configuration",
-    "tomlFilter": "TOML config (*.toml)"
+    "tomlFilter": "TOML config (*.toml)",
+    "diagnostics": "Collect diagnostics",
+    "diagnosticsTooltip": "Save a zip for a bug report",
+    "diagnosticsSaveTitle": "Save diagnostics",
+    "zipFilter": "ZIP archive (*.zip)"
   }
 }

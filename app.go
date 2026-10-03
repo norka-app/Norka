@@ -87,6 +87,9 @@ type App struct {
 	ipcCancel        context.CancelFunc
 	automationMu     sync.Mutex
 	automationPrompt AutomationPrompt
+
+	diagMu    sync.Mutex
+	diagPaths map[string]struct{}
 }
 
 // SecretsStatus tells Settings whether jumper passwords live in the OS keychain.
