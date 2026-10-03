@@ -6,10 +6,6 @@ version: 2
 
 project_name: norka-cli
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: norka-cli
     main: ./cmd/norka-cli

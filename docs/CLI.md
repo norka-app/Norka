@@ -27,7 +27,7 @@ go install github.com/norka-app/Norka/cmd/norka-cli@latest
 
 `go install …@latest` берёт последний тег `v*`. Пока тега с этим каталогом нет, та же команда с `@main`.
 
-Пакеты deb и rpm лежат в том же выпуске GitHub, что и приложение: `norka-cli_<версия>_linux_<архитектура>.deb` и `.rpm`.
+Пакеты deb и rpm лежат в том же выпуске GitHub, что и приложение: `norka-cli_<версия>_linux_<архитектура>.deb` и `.rpm`. Архив, zip, deb или rpm можно сверить с аттестацией сборки: `gh attestation verify <файл> --repo norka-app/Norka`.
 
 Чтобы команда дошла до туннеля, Norka должна быть запущена, а в **Настройки → Функции** включено «Автоматизация». Иначе код выхода 1, канал не открывается.
 
@@ -157,7 +157,7 @@ go install github.com/norka-app/Norka/cmd/norka-cli@latest
 
 `go install …@latest` follows the newest `v*` tag. Until a tag contains this package, use the same command with `@main`.
 
-deb and rpm packages are attached to the same GitHub release as the app: `norka-cli_<version>_linux_<arch>.deb` and `.rpm`.
+deb and rpm packages are attached to the same GitHub release as the app: `norka-cli_<version>_linux_<arch>.deb` and `.rpm`. An archive, zip, deb, or rpm can be checked against the build attestation: `gh attestation verify <file> --repo norka-app/Norka`.
 
 Norka has to be running, and **Settings → Features** has to have Automation on. Otherwise the command exits with code 1 and does not open the channel.
 
