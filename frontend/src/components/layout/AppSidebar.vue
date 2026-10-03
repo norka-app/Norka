@@ -172,7 +172,7 @@ const downloadSpark = computed(() => buildSparklinePath(
     collapse-mode="width"
     :collapsed="collapsed"
     :collapsed-width="72"
-    :width="248"
+    :width="264"
     :native-scrollbar="false"
     :style="siderStyle"
   >

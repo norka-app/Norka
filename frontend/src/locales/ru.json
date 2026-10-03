@@ -5,7 +5,7 @@
             "subtitle": "Менеджер SSH-туннелей",
             "overview": "Обзор",
             "overviewSubtitle": "Основное состояние и недавняя активность",
-            "jumpers": "Jump hosts",
+            "jumpers": "Промежуточные хосты",
             "jumpersSubtitle": "Управление SSH jump host",
             "tunnels": "Туннели",
             "tunnelsSubtitle": "Создание и управление SSH-туннелями",
