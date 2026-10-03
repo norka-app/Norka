@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { BUTTON_GAP, FIELD_GAP } from '../../theme/form-layout'
+import { FlagOutline, Refresh, SyncOutline } from '../../icons'
 
 const props = defineProps({
   state: {
@@ -46,7 +48,7 @@ const confidenceBadgeLabel = computed(() => {
         <div class="ai-debug-title">{{ $t('app.aiDebug.panelTitle') }}</div>
         <div class="ai-debug-subtitle">{{ $t('app.aiDebug.panelHint') }}</div>
       </div>
-      <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true" />
+      <n-spin size="small" />
     </div>
     <ol class="ai-debug-progress mt-3 mb-0">
       <li v-for="step in progressSteps" :key="step">{{ step }}</li>
@@ -60,12 +62,12 @@ const confidenceBadgeLabel = computed(() => {
         <div class="ai-debug-subtitle text-danger">{{ state.error }}</div>
       </div>
     </div>
-    <div v-if="showActions" class="ai-debug-actions mt-3">
-      <button type="button" class="btn btn-sm btn-outline-primary" @click="emit('retry-debug')">
-        <i class="bi bi-arrow-repeat" />
-        <span>{{ $t('app.aiDebug.retryDebug') }}</span>
-      </button>
-    </div>
+    <n-space v-if="showActions" :size="BUTTON_GAP" :style="{ marginTop: FIELD_GAP + 'px' }">
+      <n-button @click="emit('retry-debug')">
+        <template #icon><n-icon aria-hidden="true" :component="SyncOutline" /></template>
+        {{ $t('app.aiDebug.retryDebug') }}
+      </n-button>
+    </n-space>
   </div>
 
   <div v-else-if="hasResult" class="ai-debug-card mt-2">
@@ -74,7 +76,7 @@ const confidenceBadgeLabel = computed(() => {
         <div class="ai-debug-title">{{ $t('app.aiDebug.resultTitle') }}</div>
         <div class="ai-debug-reason">{{ state.result.reason }}</div>
       </div>
-      <span v-if="confidenceBadgeLabel" class="badge text-bg-light ai-debug-confidence">{{ confidenceBadgeLabel }}</span>
+      <n-tag v-if="confidenceBadgeLabel" :bordered="false">{{ confidenceBadgeLabel }}</n-tag>
     </div>
 
     <div v-if="state.result.summary" class="ai-debug-summary mt-2">{{ state.result.summary }}</div>
@@ -88,24 +90,24 @@ const confidenceBadgeLabel = computed(() => {
 
     <div v-if="state.result.usedFallback" class="small text-muted mt-2">{{ $t('app.aiDebug.fallbackHint') }}</div>
 
-    <div v-if="showActions" class="ai-debug-actions-wrap mt-3">
-      <div class="ai-debug-actions">
-        <div class="ai-debug-actions-main">
-          <button type="button" class="btn btn-sm btn-primary" @click="emit('test-again')">
-            <i class="bi bi-arrow-clockwise" />
-            <span>{{ $t('app.aiDebug.testAgain') }}</span>
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('retry-debug')">
-            <i class="bi bi-arrow-repeat" />
-            <span>{{ $t('app.aiDebug.retryDebug') }}</span>
-          </button>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-danger ai-debug-report-btn" @click="emit('report-content')">
-          <i class="bi bi-flag" />
-          <span>{{ $t('app.aiDebug.reportAction') }}</span>
-        </button>
-      </div>
-      <div class="ai-debug-report-hint text-muted">{{ $t('app.aiDebug.reportHint') }}</div>
+    <div v-if="showActions" :style="{ marginTop: FIELD_GAP + 'px' }">
+      <n-space justify="space-between" align="center" :size="BUTTON_GAP" :wrap="true">
+        <n-space :size="BUTTON_GAP" :wrap="true">
+          <n-button type="primary" @click="emit('test-again')">
+            <template #icon><n-icon aria-hidden="true" :component="Refresh" /></template>
+            {{ $t('app.aiDebug.testAgain') }}
+          </n-button>
+          <n-button @click="emit('retry-debug')">
+            <template #icon><n-icon aria-hidden="true" :component="SyncOutline" /></template>
+            {{ $t('app.aiDebug.retryDebug') }}
+          </n-button>
+        </n-space>
+        <n-button type="error" quaternary @click="emit('report-content')">
+          <template #icon><n-icon aria-hidden="true" :component="FlagOutline" /></template>
+          {{ $t('app.aiDebug.reportAction') }}
+        </n-button>
+      </n-space>
+      <n-text depth="3" class="kit-note">{{ $t('app.aiDebug.reportHint') }}</n-text>
     </div>
 
     <details class="ai-debug-details mt-3">

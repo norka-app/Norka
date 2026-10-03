@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PreviewSSHCommands } from '../../../wailsjs/go/main/App'
+import { BUTTON_GAP, SECTION_GAP, plainInputProps } from '../../theme/form-layout'
 
 const props = defineProps({
   show: {
@@ -173,33 +174,34 @@ watch(
     :content-style="{ maxHeight: 'calc(100vh - 180px)', overflow: 'auto' }"
     @update:show="(visible) => { if (!visible) handleClose() }"
   >
-    <div class="dialog-body modal-form">
-      <label class="form-label">{{ $t('app.modals.importTunnel.sshCommand') }}</label>
-      <n-input
-        v-model:value="sshCommand"
-        class="ssh-command-textarea"
-        type="textarea"
-        :rows="4"
-        :placeholder="$t('app.modals.importTunnel.sshCommandPlaceholder')"
-        :input-props="{ autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' }"
-      />
-      <p class="field-note">{{ $t('app.modals.importTunnel.hint') }}</p>
-      <div class="d-flex justify-content-end mt-2">
+    <n-form class="kit-form" label-placement="top" :show-feedback="false" :show-require-mark="false">
+      <n-form-item :label="$t('app.modals.importTunnel.sshCommand')" :show-feedback="false">
+        <n-input
+          v-model:value="sshCommand"
+          class="kit-mono"
+          type="textarea"
+          :rows="4"
+          :placeholder="$t('app.modals.importTunnel.sshCommandPlaceholder')"
+          :input-props="plainInputProps"
+        />
+        <n-text depth="3" class="kit-note">{{ $t('app.modals.importTunnel.hint') }}</n-text>
+      </n-form-item>
+      <n-space justify="end" :size="BUTTON_GAP">
         <n-button secondary :loading="parsing" @click="handleParse">
           {{ $t('app.modals.importTunnel.parseCmd') }}
         </n-button>
-      </div>
+      </n-space>
 
-      <p v-if="parseError" class="form-error import-parse-error mb-2">{{ parseError }}</p>
-      <p v-if="props.importError" class="form-error import-parse-error mb-2">{{ props.importError }}</p>
-      <div v-if="warnings.length > 0" class="import-parse-warnings mb-2">
-        <div v-for="(item, index) in warnings" :key="`warn-${index}`" class="import-parse-warning-item">
+      <n-alert v-if="parseError" type="error" :show-icon="false">{{ parseError }}</n-alert>
+      <n-alert v-if="props.importError" type="error" :show-icon="false">{{ props.importError }}</n-alert>
+      <n-alert v-if="warnings.length > 0" type="warning" :show-icon="false">
+        <div v-for="(item, index) in warnings" :key="`warn-${index}`">
           {{ warningText(item) }}
         </div>
-      </div>
+      </n-alert>
 
-      <div v-if="hosts.length > 0" class="parsed-tunnels-section">
-        <label class="form-label">{{ $t('app.modals.importTunnel.hostsTitle') }}</label>
+      <div v-if="hosts.length > 0" class="kit-section" :style="{ marginTop: SECTION_GAP + 'px' }">
+        <n-text strong>{{ $t('app.modals.importTunnel.hostsTitle') }}</n-text>
         <div class="table-responsive parsed-tunnels-table">
           <table class="table align-middle mb-0 tunnels-table import-tunnels-table">
             <thead>
@@ -212,19 +214,18 @@ watch(
             <tbody>
               <tr v-for="host in hosts" :key="host.key">
                 <td>
-                  <input
+                  <n-input
                     v-if="!host.existingId"
-                    v-model="host.name"
-                    class="form-control form-control-sm"
-                    type="text"
+                    v-model:value="host.name"
                     :maxlength="nameMax"
+                    :input-props="plainInputProps"
                   />
                   <span v-else>{{ host.existingName || host.name }}</span>
-                  <div v-if="host.alias" class="field-note">{{ $t('app.modals.importTunnel.alias', { alias: host.alias }) }}</div>
+                  <n-text v-if="host.alias" depth="3" class="kit-note">{{ $t('app.modals.importTunnel.alias', { alias: host.alias }) }}</n-text>
                 </td>
                 <td>
                   <div>{{ host.user }}@{{ host.host }}:{{ host.port }}</div>
-                  <div v-if="host.keyPath" class="field-note">{{ $t('app.modals.importTunnel.keyPath', { path: host.keyPath }) }}</div>
+                  <n-text v-if="host.keyPath" depth="3" class="kit-note">{{ $t('app.modals.importTunnel.keyPath', { path: host.keyPath }) }}</n-text>
                 </td>
                 <td>{{ $t(hostStatusKey(host)) }}</td>
               </tr>
@@ -233,8 +234,8 @@ watch(
         </div>
       </div>
 
-      <div v-if="tunnels.length > 0" class="parsed-tunnels-section">
-        <label class="form-label">{{ $t('app.modals.importTunnel.parsedTunnels') }}</label>
+      <div v-if="tunnels.length > 0" class="kit-section" :style="{ marginTop: SECTION_GAP + 'px' }">
+        <n-text strong>{{ $t('app.modals.importTunnel.parsedTunnels') }}</n-text>
         <div class="table-responsive parsed-tunnels-table">
           <table class="table align-middle mb-0 tunnels-table import-tunnels-table">
             <thead>
@@ -249,21 +250,20 @@ watch(
             <tbody>
               <tr v-for="tunnel in tunnels" :key="tunnel.id" :class="{ 'import-row-error': tunnel.blocked }">
                 <td class="text-center">
-                  <input v-model="tunnel.selected" type="checkbox" :disabled="tunnel.blocked" />
+                  <n-checkbox v-model:checked="tunnel.selected" :disabled="tunnel.blocked" />
                 </td>
                 <td>
-                  <input
-                    v-model="tunnel.name"
-                    class="form-control form-control-sm"
-                    type="text"
+                  <n-input
+                    v-model:value="tunnel.name"
                     :maxlength="nameMax"
                     :disabled="tunnel.blocked"
+                    :input-props="plainInputProps"
                   />
                 </td>
                 <td class="tunnel-mode-cell">{{ getModeLabel(tunnel.mode) }}</td>
                 <td>
                   <div>{{ routeTop(tunnel) }}</div>
-                  <div class="field-note">{{ routeBottom(tunnel) }}</div>
+                  <n-text depth="3" class="kit-note">{{ routeBottom(tunnel) }}</n-text>
                 </td>
                 <td>{{ tunnel.chainLabel }}</td>
               </tr>
@@ -271,32 +271,19 @@ watch(
           </table>
         </div>
       </div>
-    </div>
+    </n-form>
     <template #footer>
-      <div class="dialog-footer modal-footer import-dialog-footer">
-        <div class="dialog-right-actions">
-          <n-button @click="handleClose">{{ $t('app.common.cancel') }}</n-button>
-          <n-button type="primary" :disabled="!hasPreview || !hasSelection" @click="handleImport">
-            {{ $t('app.modals.importTunnel.importBtn') }}
-          </n-button>
-        </div>
-      </div>
+      <n-space justify="end" :size="BUTTON_GAP" style="width: 100%">
+        <n-button @click="handleClose">{{ $t('app.common.cancel') }}</n-button>
+        <n-button type="primary" :disabled="!hasPreview || !hasSelection" @click="handleImport">
+          {{ $t('app.modals.importTunnel.importBtn') }}
+        </n-button>
+      </n-space>
     </template>
   </n-modal>
 </template>
 
 <style scoped>
-.ssh-command-textarea {
-  font-family: monospace;
-  font-size: 0.82rem;
-  min-height: 72px;
-  resize: vertical;
-}
-
-.parsed-tunnels-section {
-  margin-top: 0.75rem;
-}
-
 .parsed-tunnels-table {
   max-height: 220px;
   overflow: auto;
@@ -304,10 +291,6 @@ watch(
 
 .import-tunnels-table .import-select-col {
   width: 40px;
-}
-
-.import-tunnels-table .form-control.form-control-sm {
-  min-height: 30px;
 }
 
 .import-parse-error {
@@ -335,11 +318,5 @@ watch(
 
 .import-row-error td {
   background: rgba(239, 200, 141, 0.16);
-}
-
-.field-note {
-  margin-top: 0.2rem;
-  color: var(--lt-muted, #6b7280);
-  font-size: 0.75rem;
 }
 </style>

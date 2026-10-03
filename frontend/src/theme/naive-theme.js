@@ -13,6 +13,13 @@ function commonOverrides(primary, hover, pressed) {
   }
 }
 
+/** One label rhythm for every n-form (see form-layout.js for grid gaps). */
+const formOverrides = {
+  labelFontWeight: '600',
+  labelPaddingVertical: '0 0 6px 0',
+  feedbackPadding: '4px 0 0 0',
+}
+
 export function naiveThemeFor(mode) {
   return mode === 'dark' ? darkTheme : null
 }
@@ -22,9 +29,11 @@ export function naiveThemeOverrides(mode) {
   if (mode === 'dark') {
     return {
       common: commonOverrides('#7dd3fc', '#bae6fd', '#38bdf8'),
+      Form: formOverrides,
     }
   }
   return {
     common: commonOverrides('#1d4ed8', '#1e40af', '#1e3a8a'),
+    Form: formOverrides,
   }
 }

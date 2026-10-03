@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
+import { BUTTON_GAP } from '../../theme/form-layout'
 import {
   ActivateProfile,
   ClearActiveProfile,
@@ -221,70 +222,66 @@ function remove(profile) {
       </article>
     </div>
 
-    <section v-if="editorOpen" class="profile-editor">
-      <h2>{{ editingId ? t('app.profiles.editTitle') : t('app.profiles.createTitle') }}</h2>
-      <label class="profile-field">
-        <span>{{ t('app.profiles.name') }}</span>
-        <n-input v-model:value="draft.name" :placeholder="t('app.profiles.namePlaceholder')" maxlength="40" />
-      </label>
-      <div class="profile-field">
-        <span>{{ t('app.profiles.emoji') }}</span>
-        <div class="profile-emojis">
-          <button
-            v-for="emoji in EMOJI_PRESETS"
-            :key="emoji"
-            type="button"
-            class="emoji-btn"
-            :class="{ 'is-on': draft.emoji === emoji }"
-            @click="draft.emoji = draft.emoji === emoji ? '' : emoji"
-          >{{ emoji }}</button>
-          <n-input v-model:value="draft.emoji" class="emoji-input" :placeholder="t('app.profiles.emojiPlaceholder')" maxlength="8" />
-        </div>
-      </div>
-      <div class="profile-field">
-        <span>{{ t('app.profiles.color') }}</span>
-        <div class="profile-colors">
-          <button
-            v-for="color in PROFILE_COLORS"
-            :key="color"
-            type="button"
-            class="color-btn"
-            :class="{ 'is-on': draft.color === color }"
-            :style="{ background: color }"
-            :aria-label="color"
-            :aria-pressed="draft.color === color ? 'true' : 'false'"
-            @click="draft.color = color"
-          />
-        </div>
-      </div>
-      <div class="profile-field">
-        <span>{{ t('app.profiles.tunnels') }}</span>
-        <p v-if="!tunnels.length" class="profile-hint">{{ t('app.profiles.noTunnelsToPick') }}</p>
-        <ul v-else class="tunnel-pick">
-          <li v-for="tunnel in tunnels" :key="tunnel.id">
-            <label>
-              <input
-                type="checkbox"
-                :checked="draft.tunnelIds.includes(tunnel.id)"
-                @change="toggleTunnel(tunnel.id)"
-              >
-              <span>{{ tunnel.name }}</span>
-              <span class="tunnel-pick__port">{{ tunnel.localPort }}</span>
-            </label>
-          </li>
-        </ul>
-      </div>
-      <p v-if="formError" class="profile-error" role="alert">{{ formError }}</p>
-      <div class="profile-editor__actions">
-        <n-button type="primary" :disabled="busy" @click="save">{{ t('app.common.save') }}</n-button>
-        <n-button secondary :disabled="busy" @click="cancelEdit">{{ t('app.common.cancel') }}</n-button>
-      </div>
-    </section>
+    <n-card v-if="editorOpen" size="small" :title="editingId ? t('app.profiles.editTitle') : t('app.profiles.createTitle')">
+      <n-form class="kit-form" label-placement="top" :show-feedback="false" :show-require-mark="false">
+        <n-form-item :label="t('app.profiles.name')" :show-feedback="false">
+          <n-input v-model:value="draft.name" :placeholder="t('app.profiles.namePlaceholder')" maxlength="40" />
+        </n-form-item>
+        <n-form-item :label="t('app.profiles.emoji')" :show-feedback="false">
+          <n-space :size="BUTTON_GAP" align="center" :wrap="true">
+            <n-button
+              v-for="emoji in EMOJI_PRESETS"
+              :key="emoji"
+              :type="draft.emoji === emoji ? 'primary' : 'default'"
+              :secondary="draft.emoji !== emoji"
+              :aria-pressed="draft.emoji === emoji ? 'true' : 'false'"
+              @click="draft.emoji = draft.emoji === emoji ? '' : emoji"
+            >{{ emoji }}</n-button>
+            <n-input v-model:value="draft.emoji" class="emoji-input" :placeholder="t('app.profiles.emojiPlaceholder')" maxlength="8" />
+          </n-space>
+        </n-form-item>
+        <n-form-item :label="t('app.profiles.color')" :show-feedback="false">
+          <n-space :size="BUTTON_GAP" align="center" :wrap="true">
+            <n-button
+              v-for="color in PROFILE_COLORS"
+              :key="color"
+              circle
+              :color="color"
+              :ghost="draft.color !== color"
+              :aria-label="color"
+              :aria-pressed="draft.color === color ? 'true' : 'false'"
+              @click="draft.color = color"
+            />
+          </n-space>
+        </n-form-item>
+        <n-form-item :label="t('app.profiles.tunnels')" :show-feedback="false">
+          <n-text v-if="!tunnels.length" depth="3">{{ t('app.profiles.noTunnelsToPick') }}</n-text>
+          <n-space v-else vertical :size="BUTTON_GAP" class="tunnel-pick">
+            <n-checkbox
+              v-for="tunnel in tunnels"
+              :key="tunnel.id"
+              :checked="draft.tunnelIds.includes(tunnel.id)"
+              @update:checked="toggleTunnel(tunnel.id)"
+            >
+              <n-space :size="BUTTON_GAP" justify="space-between" style="width: 100%">
+                <span>{{ tunnel.name }}</span>
+                <n-text depth="3">{{ tunnel.localPort }}</n-text>
+              </n-space>
+            </n-checkbox>
+          </n-space>
+        </n-form-item>
+        <n-alert v-if="formError" type="error" :show-icon="false">{{ formError }}</n-alert>
+        <n-space :size="BUTTON_GAP">
+          <n-button type="primary" :disabled="busy" @click="save">{{ t('app.common.save') }}</n-button>
+          <n-button secondary :disabled="busy" @click="cancelEdit">{{ t('app.common.cancel') }}</n-button>
+        </n-space>
+      </n-form>
+    </n-card>
   </div>
 </template>
 
 <style scoped>
-.profiles { display: flex; flex-direction: column; gap: 16px; }
+.profiles { display: flex; flex-direction: column; gap: var(--kit-field-gap); }
 .profiles-pref, .profile-editor, .profile-card, .profiles-empty {
   border: 1px solid var(--lt-border);
   border-radius: 12px;
@@ -303,7 +300,7 @@ function remove(profile) {
   color: var(--lt-muted);
   font-size: 13px;
 }
-.profiles-toolbar { display: flex; gap: 8px; }
+.profiles-toolbar { display: flex; gap: var(--kit-button-gap); }
 .profiles-empty {
   display: flex;
   flex-direction: column;
@@ -342,23 +339,7 @@ function remove(profile) {
   font-weight: 650;
 }
 .profile-card__members { min-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.profile-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.profile-editor { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-.profile-field { display: flex; flex-direction: column; gap: 8px; }
-.profile-emojis, .profile-colors, .profile-editor__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.emoji-btn, .color-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--lt-border);
-  border-radius: 8px;
-  background: var(--lt-surface-soft);
-  cursor: pointer;
-}
-.emoji-btn.is-on, .color-btn.is-on { outline: 2px solid var(--lt-brand); outline-offset: 1px; }
-.color-btn { border: 0; }
+.profile-card__actions { display: flex; flex-wrap: wrap; gap: var(--kit-button-gap); }
 .emoji-input { width: 120px; }
-.tunnel-pick { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; }
-.tunnel-pick label { display: flex; align-items: center; gap: 8px; padding: 4px 2px; cursor: pointer; }
-.tunnel-pick__port { margin-left: auto; color: var(--lt-muted); font-variant-numeric: tabular-nums; }
-.profile-error { margin: 0; color: var(--lt-danger-ink, #991b1b); }
+.tunnel-pick { max-height: 220px; overflow: auto; width: 100%; }
 </style>

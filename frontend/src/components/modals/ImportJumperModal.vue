@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import AppSelect from '../common/AppSelect.vue'
+import { BUTTON_GAP, plainInputProps } from '../../theme/form-layout'
+import { ChevronDown, ChevronUp } from '../../icons'
 
 const props = defineProps({
   show: {
@@ -209,6 +211,12 @@ function handleImport() {
   })))
 }
 
+function setAllSelected(checked) {
+  for (const row of rows.value) {
+    row.selected = checked && row.importStatus === 'success'
+  }
+}
+
 function handleClose() {
   localValidationError.value = ''
   expandedDetailIds.value = new Set()
@@ -241,57 +249,54 @@ watch(
 </script>
 
 <template>
-  <div v-if="show" class="overlay">
-    <div class="dialog-card dialog-large compact-dialog import-jumper-dialog">
-      <div class="dialog-head">
-        <h3 class="dialog-title">{{ $t('app.modals.importJumper.title') }}</h3>
-        <button type="button" class="dialog-close" :aria-label="$t('app.common.close')" @click="$emit('close')">
-          <i class="bi bi-x-lg" aria-hidden="true" />
-        </button>
-      </div>
-
-      <div class="dialog-body">
-        <div class="mb-2">
-          <label class="form-label">{{ $t('app.modals.importJumper.source') }}</label>
-          <div class="import-jumper-source-row">
+  <n-modal
+    :show="show"
+    preset="card"
+    class="app-modal import-jumper-dialog"
+    :title="$t('app.modals.importJumper.title')"
+    :style="{ width: 'min(1020px, calc(100vw - 32px))' }"
+    :mask-closable="false"
+    :segmented="{ content: true, footer: 'soft' }"
+    :content-style="{ maxHeight: 'calc(100vh - 180px)', overflow: 'auto' }"
+    @update:show="(visible) => { if (!visible) handleClose() }"
+  >
+      <n-form class="kit-form" label-placement="top" :show-feedback="false" :show-require-mark="false">
+        <n-form-item :label="$t('app.modals.importJumper.source')" :show-feedback="false">
+          <n-input-group>
             <AppSelect
               :model-value="selectedSourcePath"
               :options="sources.map((source) => ({ value: source.path, label: source.label }))"
               @update:model-value="$emit('update:selectedSourcePath', $event)"
             />
-            <button type="button" class="btn btn-outline-primary parse-btn import-jumper-load-btn" :disabled="!canLoad" @click="$emit('load')">
+            <n-button :disabled="!canLoad" :loading="loading" @click="$emit('load')">
               {{ loading ? $t('app.modals.importJumper.loading') : $t('app.modals.importJumper.load') }}
-            </button>
-          </div>
-        </div>
+            </n-button>
+          </n-input-group>
+        </n-form-item>
 
-        <p v-if="loadError" class="form-error import-parse-error mb-2">{{ loadError }}</p>
-        <p v-if="importError && importError !== loadError" class="form-error import-parse-error mb-2">{{ importError }}</p>
-        <p v-if="localValidationError" class="form-error import-parse-error mb-2">{{ localValidationError }}</p>
+        <n-alert v-if="loadError" type="error" :show-icon="false">{{ loadError }}</n-alert>
+        <n-alert v-if="importError && importError !== loadError" type="error" :show-icon="false">{{ importError }}</n-alert>
+        <n-alert v-if="localValidationError" type="error" :show-icon="false">{{ localValidationError }}</n-alert>
 
-        <div v-if="loading" class="import-jumper-loading">
-          <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+        <n-space v-if="loading" align="center" :size="BUTTON_GAP">
+          <n-spin size="small" />
           <span>{{ $t('app.modals.importJumper.loading') }}</span>
-        </div>
+        </n-space>
 
         <template v-else-if="hasLoaded">
           <div v-if="!hasRows" class="import-jumper-empty-state">
             <div class="import-jumper-empty-title">{{ $t('app.modals.importJumper.emptyTitle') }}</div>
-            <div class="field-note mt-1">{{ $t('app.modals.importJumper.emptyDesc') }}</div>
+            <n-text depth="3" class="kit-note">{{ $t('app.modals.importJumper.emptyDesc') }}</n-text>
           </div>
 
-          <div v-else>
-            <label class="form-label">{{ $t('app.modals.importJumper.loadResult') }}</label>
+          <div v-else class="kit-section">
+            <n-text strong>{{ $t('app.modals.importJumper.loadResult') }}</n-text>
             <div class="table-responsive parsed-tunnels-table">
             <table class="table align-middle mb-0 tunnels-table import-jumpers-table">
               <thead>
                 <tr>
                   <th class="text-center import-select-col">
-                    <input
-                      type="checkbox"
-                      :checked="allSelectableSelected"
-                      @change="$event.target.checked ? rows.forEach(row => { if (row.importStatus === 'success') row.selected = true }) : rows.forEach(row => { row.selected = false })"
-                    />
+                    <n-checkbox :checked="allSelectableSelected" @update:checked="setAllSelected" />
                   </th>
                   <th class="import-jumper-name-col">{{ $t('app.modals.importJumper.jumperName') }}</th>
                   <th class="import-jumper-conn-col">{{ $t('app.jumpers.table.connection') }}</th>
@@ -303,18 +308,17 @@ watch(
                 <template v-for="row in rows" :key="row.id">
                   <tr :class="{ 'import-row-error': row.importStatus === 'error' }">
                     <td class="text-center">
-                      <input v-model="row.selected" type="checkbox" :disabled="row.importStatus === 'error'" />
+                      <n-checkbox v-model:checked="row.selected" :disabled="row.importStatus === 'error'" />
                     </td>
                     <td class="import-jumper-name-col">
-                      <input
-                        v-model="row.name"
-                        class="form-control form-control-sm"
-                        type="text"
+                      <n-input
+                        v-model:value="row.name"
                         :disabled="row.importStatus === 'error'"
+                        :input-props="plainInputProps"
                       />
-                      <div class="field-note mt-1">
+                      <n-text depth="3" class="kit-note">
                         {{ $t('app.modals.importJumper.aliasLabel', { alias: row.alias }) }}
-                      </div>
+                      </n-text>
                     </td>
                     <td class="import-jumper-conn-col">
                       <div class="cell-ellipsis" :title="`${row.user}@${row.host}:${row.port}`">
@@ -332,9 +336,9 @@ watch(
                       <div v-else-if="row.agentSocketPath" class="text-muted small cell-ellipsis" :title="row.agentSocketPath">
                         {{ row.agentSocketPath }}
                       </div>
-                      <div v-else-if="row.importWarnings.length > 0" class="field-note mt-1">
+                      <n-text v-else-if="row.importWarnings.length > 0" depth="3" class="kit-note">
                         {{ $t(row.importWarnings[0].key, row.importWarnings[0].params || {}) }}
-                      </div>
+                      </n-text>
                     </td>
                     <td class="import-jumper-status-col">
                       <div class="tunnel-status-wrap">
@@ -349,10 +353,10 @@ watch(
                           @keydown.space.prevent="toggleDetails(row)"
                         >
                           <span>{{ $t(getImportStatusLabelKey(row)) }}</span>
-                          <i
+                          <n-icon aria-hidden="true"
                             v-if="canToggleDetails(row)"
-                            class="bi status-badge-toggle-icon"
-                            :class="isDetailExpanded(row.id) ? 'bi-chevron-up' : 'bi-chevron-down'"
+                            class="status-badge-toggle-icon"
+                            :component="isDetailExpanded(row.id) ? ChevronUp : ChevronDown"
                           />
                         </span>
                       </div>
@@ -382,49 +386,31 @@ watch(
             </div>
           </div>
         </template>
-      </div>
-
-      <div class="dialog-footer import-dialog-footer">
-        <div class="import-jumper-footer-status">
-          <span v-if="footerSummary">{{ footerSummary }}</span>
-        </div>
-        <div class="dialog-right-actions">
-          <button type="button" class="btn btn-outline-secondary" @click="handleClose">
+      </n-form>
+    <template #footer>
+      <n-space justify="space-between" align="center" :size="BUTTON_GAP" :wrap="true" style="width: 100%">
+        <n-text v-if="footerSummary" depth="3">{{ footerSummary }}</n-text>
+        <span v-else />
+        <n-space :size="BUTTON_GAP">
+          <n-button @click="handleClose">
             {{ $t('app.common.cancel') }}
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary"
+          </n-button>
+          <n-button
+            type="primary"
             :disabled="loading || !hasSelectableRows || selectedRows.length === 0"
             @click="handleImport"
           >
             {{ $t('app.modals.importJumper.importBtn', { count: selectedRows.length }) }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+          </n-button>
+        </n-space>
+      </n-space>
+    </template>
+  </n-modal>
 </template>
 
 <style scoped>
 .import-jumper-dialog {
   max-width: 1020px;
-}
-
-.import-jumper-source-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.import-jumper-loading {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.7rem 0.1rem 0.2rem;
-  color: var(--lt-ink-soft);
-  font-size: 0.84rem;
 }
 
 .import-jumper-empty-state {
@@ -460,53 +446,5 @@ watch(
 .import-jumpers-table .import-jumper-status-col {
   width: 124px;
   max-width: 124px;
-}
-
-.import-jumpers-table .form-control.form-control-sm {
-  min-height: 30px;
-}
-
-.import-jumper-load-btn {
-  white-space: nowrap;
-  min-width: 92px;
-  font-size: 0.8rem;
-  padding: 0.375rem 0.75rem;
-  min-height: 32px;
-}
-
-.import-dialog-footer {
-  padding: 0.72rem 0.92rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.import-dialog-footer .btn {
-  font-size: 0.8rem;
-  padding: 0.375rem 0.75rem;
-  min-height: 32px;
-}
-
-.import-jumper-footer-status {
-  min-height: 20px;
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--lt-success-ink, #0f5132);
-}
-
-@media (max-width: 767px) {
-  .import-jumper-source-row {
-    grid-template-columns: 1fr;
-  }
-
-  .import-dialog-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .import-jumper-footer-status {
-    order: 2;
-  }
 }
 </style>

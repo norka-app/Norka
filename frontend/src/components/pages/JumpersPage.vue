@@ -2,6 +2,7 @@
 import { computed, h, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NEllipsis } from 'naive-ui'
+import { CopyOutline, OptionsOutline, Search, TrashOutline, renderIcon } from '../../icons'
 
 const props = defineProps({
   jumpers: {
@@ -21,7 +22,7 @@ const props = defineProps({
 const emit = defineEmits(['copy-jumper', 'edit-jumper', 'delete-jumper', 'update-search-query'])
 const { t } = useI18n()
 
-function actionButton(iconClass, type, label, onClick) {
+function actionButton(icon, type, label, onClick) {
   return h(NButton, {
     size: 'small',
     quaternary: true,
@@ -29,7 +30,7 @@ function actionButton(iconClass, type, label, onClick) {
     title: label,
     'aria-label': label,
     onClick,
-  }, { icon: () => h('i', { class: ['bi', iconClass] }) })
+  }, { icon: renderIcon(icon) })
 }
 
 const columns = computed(() => [
@@ -62,9 +63,9 @@ const columns = computed(() => [
     align: 'right',
     width: 140,
     render: (row) => h('div', { style: 'display:flex;justify-content:flex-end;gap:4px' }, [
-      actionButton('bi-copy', 'primary', t('app.jumpers.actions.copy'), () => emit('copy-jumper', row)),
-      actionButton('bi-sliders', 'default', t('app.jumpers.actions.edit'), () => emit('edit-jumper', row)),
-      actionButton('bi-trash3', 'error', t('app.jumpers.actions.delete'), () => emit('delete-jumper', row)),
+      actionButton(CopyOutline, 'primary', t('app.jumpers.actions.copy'), () => emit('copy-jumper', row)),
+      actionButton(OptionsOutline, 'default', t('app.jumpers.actions.edit'), () => emit('edit-jumper', row)),
+      actionButton(TrashOutline, 'error', t('app.jumpers.actions.delete'), () => emit('delete-jumper', row)),
     ]),
   },
 ])
@@ -91,7 +92,7 @@ watch(localSearchQuery, (newValue) => {
         style="width: 240px"
       >
         <template #prefix>
-          <i class="bi bi-search" />
+          <n-icon aria-hidden="true" :component="Search" />
         </template>
       </n-input>
     </template>

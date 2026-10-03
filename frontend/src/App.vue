@@ -2,6 +2,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { darkTheme, dateEnUS, dateRuRU, enUS, ruRU } from 'naive-ui'
+import {
+  AlbumsOutline,
+  GitNetworkOutline,
+  OptionsOutline,
+  ReaderOutline,
+  ServerOutline,
+  SpeedometerOutline,
+} from './icons'
 import { guessLocale, LOCALE_STORAGE_KEY, LANGUAGE_STORAGE_KEY, readStoredPreference } from './i18n'
 import { naiveThemeOverrides } from './theme/naive-theme'
 import {
@@ -118,12 +126,12 @@ const onboardingRun = ref(0)
 
 const pages = computed(() => {
   const all = [
-    { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: 'bi-speedometer2' },
-    { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: 'bi-hdd-network' },
-    { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: 'bi-diagram-3' },
-    { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: 'bi-collection' },
-    { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: 'bi-journal-text' },
-    { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: 'bi-sliders2' },
+    { key: 'overview', title: t('app.sidebar.overview'), subtitle: t('app.sidebar.overviewSubtitle'), icon: SpeedometerOutline },
+    { key: 'jumpers', title: t('app.sidebar.jumpers'), subtitle: t('app.sidebar.jumpersSubtitle'), icon: ServerOutline },
+    { key: 'tunnels', title: t('app.sidebar.tunnels'), subtitle: t('app.sidebar.tunnelsSubtitle'), icon: GitNetworkOutline },
+    { key: 'profiles', title: t('app.sidebar.profiles'), subtitle: t('app.sidebar.profilesSubtitle'), icon: AlbumsOutline },
+    { key: 'logs', title: t('app.sidebar.logs'), subtitle: t('app.sidebar.logsSubtitle'), icon: ReaderOutline },
+    { key: 'config', title: t('app.sidebar.config'), subtitle: t('app.sidebar.configSubtitle'), icon: OptionsOutline },
   ]
   if (profilesOn.value) return all
   return all.filter((page) => page.key !== 'profiles')
@@ -2663,8 +2671,8 @@ watch(dialogOpen, (open) => {
 watch(dialogOpen, (open) => {
   if (!open || typeof document === 'undefined') return
   requestAnimationFrame(() => {
-    const dialog = document.querySelector('.overlay .dialog-card')
-    const field = dialog?.querySelector('input:not([type="hidden"]):not([type="file"]), select, textarea, .app-select-trigger')
+    const dialog = document.querySelector('.n-modal-body-wrapper:not([style*="display: none"]) .n-card, .overlay .dialog-card')
+    const field = dialog?.querySelector('input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea')
     if (field instanceof HTMLElement) {
       field.focus()
       return
@@ -3157,12 +3165,14 @@ watch(
     :mask-closable="true"
     @update:show="(open) => { if (!open) closeActionDialog() }"
   >
-    <p class="action-dialog-message">{{ actionDialog.message }}</p>
-    <n-checkbox v-if="actionDialog.rememberLabel" v-model:checked="actionDialog.remember">
-      {{ actionDialog.rememberLabel }}
-    </n-checkbox>
+    <n-space vertical :size="16">
+      <p class="action-dialog-message">{{ actionDialog.message }}</p>
+      <n-checkbox v-if="actionDialog.rememberLabel" v-model:checked="actionDialog.remember">
+        {{ actionDialog.rememberLabel }}
+      </n-checkbox>
+    </n-space>
     <template #footer>
-      <n-space justify="end">
+      <n-space justify="end" :size="8" :wrap="true">
         <n-button v-if="actionDialog.mode === 'confirm'" @click="closeActionDialog">
           {{ $t('app.common.cancel') }}
         </n-button>

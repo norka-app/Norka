@@ -8,6 +8,20 @@ import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
 import { useFeature } from '../../features/feature-store'
 import { findPortConflicts } from '../../utils/port-conflicts'
 import { matchesKey, physicalKey } from '../../utils/keyboard'
+import {
+  Checkmark,
+  ChevronDown,
+  Close,
+  CopyOutline,
+  GitNetworkOutline,
+  OpenOutline,
+  OptionsOutline,
+  Power,
+  Pulse,
+  Refresh,
+  SwapHorizontal,
+  Warning,
+} from '../../icons'
 
 const COPIED_FEEDBACK_MS = 1500
 const TYPEAHEAD_RESET_MS = 600
@@ -132,13 +146,13 @@ const primary = computed(() => {
   switch (rawStatus.value) {
     case 'running':
     case 'reconnecting':
-      return { label: t('app.simple.actions.disconnect'), icon: 'bi-power', variant: 'outline' }
+      return { label: t('app.simple.actions.disconnect'), icon: Power, variant: 'outline' }
     case 'busy':
-      return { label: t('app.simple.actions.cancel'), icon: 'bi-x-lg', variant: 'outline' }
+      return { label: t('app.simple.actions.cancel'), icon: Close, variant: 'outline' }
     case 'error':
-      return { label: t('app.simple.actions.retry'), icon: 'bi-arrow-clockwise', variant: 'primary' }
+      return { label: t('app.simple.actions.retry'), icon: Refresh, variant: 'primary' }
     default:
-      return { label: t('app.simple.actions.connect'), icon: 'bi-power', variant: 'primary' }
+      return { label: t('app.simple.actions.connect'), icon: Power, variant: 'primary' }
   }
 })
 
@@ -165,11 +179,16 @@ const portConflict = computed(() => (
 const dontAsk = ref(false)
 const switchBtnRef = ref(null)
 
+function focusKitControl(target) {
+  const el = target?.$el ?? target
+  if (el instanceof HTMLElement) el.focus({ preventScroll: true })
+}
+
 watch(portConflict, async (text, previous) => {
   if (!text || previous) return
   dontAsk.value = false
   await nextTick()
-  if (!listOpen.value) switchBtnRef.value?.focus({ preventScroll: true })
+  if (!listOpen.value) focusKitControl(switchBtnRef.value)
 })
 
 function confirmPortSwitch() {
@@ -490,7 +509,7 @@ onBeforeUnmount(() => {
       >
         <span class="simple-select__emoji" aria-hidden="true">{{ activeProfile?.emoji || '•' }}</span>
         <span class="simple-select__name">{{ activeProfile ? activeProfile.name : $t('app.simple.noProfile') }}</span>
-        <i class="bi bi-chevron-down simple-select__chev" aria-hidden="true" />
+        <n-icon aria-hidden="true" class="simple-select__chev" :component="ChevronDown" />
       </button>
       <button
         ref="triggerRef"
@@ -503,21 +522,19 @@ onBeforeUnmount(() => {
         @click="listOpen ? closeList() : openList()"
         @keydown="onTriggerKeydown"
       >
-        <i class="bi bi-diagram-3 simple-select__lead" aria-hidden="true" />
+        <n-icon aria-hidden="true" class="simple-select__lead" :component="GitNetworkOutline" />
         <span class="simple-select__name">{{ tunnel ? tunnel.name : $t('app.simple.noTunnels') }}</span>
         <span v-if="tunnel" class="simple-select__port">· {{ tunnel.localPort }}</span>
-        <i class="bi bi-chevron-down simple-select__chev" aria-hidden="true" />
+        <n-icon aria-hidden="true" class="simple-select__chev" :component="ChevronDown" />
       </button>
 
       <div v-if="!tunnel" class="simple-info simple-empty">{{ $t('app.simple.noTunnelsHint') }}</div>
       <div v-else-if="portConflict" class="simple-info">
         <div class="simple-status s-warning" role="alert">
-          <i class="bi bi-exclamation-triangle-fill simple-warn-icon" aria-hidden="true" />
+          <n-icon aria-hidden="true" class="simple-warn-icon" :component="Warning" />
           <span class="simple-detail simple-warn-text" :title="portConflict">{{ portConflict }}</span>
         </div>
-        <label class="simple-dontask">
-          <input v-model="dontAsk" type="checkbox">{{ $t('app.tunnels.portSwitch.dontAsk') }}
-        </label>
+        <n-checkbox v-model:checked="dontAsk" size="small">{{ $t('app.tunnels.portSwitch.dontAsk') }}</n-checkbox>
       </div>
       <div v-else class="simple-info">
         <div class="simple-status" :class="`s-${state}`" role="status">
@@ -534,56 +551,55 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-if="portConflict" class="simple-acts">
-        <button ref="switchBtnRef" type="button" class="simple-btn simple-btn--primary" @click="confirmPortSwitch">
-          <i class="bi bi-arrow-left-right" aria-hidden="true" />{{ $t('app.tunnels.portSwitch.confirm') }}
-        </button>
-        <button type="button" class="simple-btn simple-btn--outline simple-btn--secondary" @click="cancelPortSwitch">
+      <n-space v-if="portConflict" class="simple-acts" :size="8" :wrap="false">
+        <n-button ref="switchBtnRef" size="small" type="primary" class="simple-main-btn" @click="confirmPortSwitch">
+          <template #icon><n-icon aria-hidden="true" :component="SwapHorizontal" /></template>
+          {{ $t('app.tunnels.portSwitch.confirm') }}
+        </n-button>
+        <n-button size="small" @click="cancelPortSwitch">
           {{ $t('app.common.cancel') }}
-        </button>
-      </div>
-      <div v-else class="simple-acts">
-        <button
-          type="button"
-          class="simple-btn"
-          :class="`simple-btn--${primary.variant}`"
+        </n-button>
+      </n-space>
+      <n-space v-else class="simple-acts" :size="8" :wrap="false">
+        <n-button
+          size="small"
+          class="simple-main-btn"
+          :type="primary.variant === 'primary' ? 'primary' : 'default'"
           :disabled="!tunnel"
           @click="toggle"
         >
-          <i class="bi" :class="primary.icon" aria-hidden="true" />{{ primary.label }}
-        </button>
-        <button
+          <template #icon><n-icon aria-hidden="true" :component="primary.icon" /></template>
+          {{ primary.label }}
+        </n-button>
+        <n-button
           v-if="diagnosticsEnabled"
-          type="button"
-          class="simple-ibtn"
+          size="small"
           :disabled="!tunnel"
           :title="$t('app.simple.diagnostics')"
           :aria-label="$t('app.simple.diagnostics')"
           @click="emit('diagnose', tunnel)"
         >
-          <i class="bi bi-activity" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="simple-ibtn"
+          <template #icon><n-icon aria-hidden="true" :component="Pulse" /></template>
+        </n-button>
+        <n-button
+          size="small"
           :disabled="!canCopy"
           :title="copied ? $t('app.simple.copied') : $t('app.simple.copyAddress')"
           :aria-label="$t('app.simple.copyAddress')"
           @click="copyAddress"
         >
-          <i class="bi" :class="copied ? 'bi-check2' : 'bi-copy'" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="simple-ibtn"
+          <template #icon><n-icon aria-hidden="true" :component="copied ? Checkmark : CopyOutline" /></template>
+        </n-button>
+        <n-button
+          size="small"
           :disabled="!canOpen"
           :title="$t('app.simple.openBrowser')"
           :aria-label="$t('app.simple.openBrowser')"
           @click="openInBrowser"
         >
-          <i class="bi bi-box-arrow-up-right" aria-hidden="true" />
-        </button>
-      </div>
+          <template #icon><n-icon aria-hidden="true" :component="OpenOutline" /></template>
+        </n-button>
+      </n-space>
     </div>
 
     <div v-if="listOpen || profileOpen" class="simple-backdrop" aria-hidden="true" @pointerdown.prevent="closeList(); closeProfileList()" />
@@ -672,7 +688,7 @@ onBeforeUnmount(() => {
             @mousemove="activeIndex = manageIndex"
             @click="chooseOption(manageIndex)"
           >
-            <i class="bi bi-sliders2" aria-hidden="true" />
+            <n-icon aria-hidden="true" :component="OptionsOutline" />
             <span class="simple-option__name">{{ $t('app.simple.manageTunnels') }}</span>
           </li>
         </ul>
@@ -818,73 +834,11 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.simple-dontask {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  max-width: 100%;
-  height: 17px;
-  margin-top: 2px;
-  padding-left: 3px;
-  color: var(--s-muted);
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-  user-select: none;
-}
-.simple-dontask input {
-  width: 13px;
-  height: 13px;
-  margin: 0;
-  flex: none;
-  accent-color: var(--s-accent);
-  cursor: pointer;
-}
 .simple-empty { padding-left: 3px; color: var(--s-muted); font-size: 12.5px; line-height: 18px; }
 .simple-arrow { color: var(--s-faint); margin: 0 3px; font-family: "Segoe UI", system-ui, sans-serif; }
 
-.simple-acts { display: flex; gap: 6px; }
-.simple-btn,
-.simple-ibtn {
-  height: 32px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  cursor: pointer;
-  color: var(--s-text);
-  background: var(--s-ctrl);
-  border: 1px solid var(--s-ctrl-b);
-  border-bottom-color: var(--s-ctrl-bb);
-  transition: background-color 0.12s ease;
-}
-.simple-btn {
-  flex: 1;
-  min-width: 0;
-  gap: 7px;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.simple-btn .bi { font-size: 14px; }
-.simple-btn--secondary { flex: none; padding: 0 16px; }
-.simple-btn--primary { background: var(--s-accent); border-color: var(--s-accent-h); color: var(--s-on-accent); }
-.simple-btn--primary:hover:not(:disabled) { background: var(--s-accent-h); }
-.simple-btn--outline:hover:not(:disabled),
-.simple-ibtn:hover:not(:disabled) { background: var(--s-ctrl-h); }
-.simple-ibtn { width: 32px; flex: none; padding: 0; font-size: 15px; }
-.simple-btn:disabled,
-.simple-ibtn:disabled { opacity: 0.42; cursor: default; }
-.simple-btn:focus-visible,
-.simple-ibtn:focus-visible {
-  outline: 2px solid var(--s-accent);
-  outline-offset: 1px;
-}
+.simple-acts { width: 100%; }
+.simple-acts :deep(.simple-main-btn) { flex: 1 1 auto; min-width: 0; }
 
 /* панель списка: по высоте содержимого, но не выше окна (8px сверху и снизу) */
 .simple-backdrop { position: absolute; inset: 0; z-index: 10; }
@@ -970,7 +924,7 @@ onBeforeUnmount(() => {
   color: var(--s-accent);
 }
 .simple-option--manage.is-active { background: var(--s-ctrl-h); }
-.simple-option--manage .bi { font-size: 14px; }
+.simple-option--manage .n-icon { font-size: 14px; }
 .visually-hidden {
   position: absolute;
   width: 1px;

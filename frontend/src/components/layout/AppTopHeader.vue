@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { DocumentTextOutline } from '../../icons'
 
 defineProps({
   currentPage: {
@@ -54,7 +55,7 @@ function onImportMenu(key) {
       <div v-if="activePage === 'jumpers'" class="header-actions-group">
         <n-button secondary @click="$emit('import-jumper')">
           <template #icon>
-            <i class="bi bi-file-earmark-plus" />
+            <n-icon aria-hidden="true" :component="DocumentTextOutline" />
           </template>
           {{ $t('app.header.importTunnel') }}
         </n-button>
@@ -71,7 +72,7 @@ function onImportMenu(key) {
         >
           <n-button secondary>
             <template #icon>
-              <i class="bi bi-file-earmark-plus" />
+              <n-icon aria-hidden="true" :component="DocumentTextOutline" />
             </template>
             {{ $t('app.header.importTunnel') }}
           </n-button>

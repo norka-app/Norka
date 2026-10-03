@@ -3,6 +3,18 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AIDebugResultCard from '../common/AIDebugResultCard.vue'
 import AppSelect from '../common/AppSelect.vue'
+import JumperFields from './JumperFields.vue'
+import { Add, ArrowDown, ArrowUp, ColorWandOutline, HourglassOutline, TrashOutline } from '../../icons'
+import {
+  BUTTON_GAP,
+  FIELD_GAP,
+  FORM_COLS,
+  SPAN_FULL,
+  SPAN_HALF,
+  SPAN_THIRD,
+  plainInputProps,
+  requiredInputProps,
+} from '../../theme/form-layout'
 
 const props = defineProps({
   show: {
@@ -180,7 +192,8 @@ watch(
       return
     }
     showMoreJumpers.value = additionalSelectedJumperIds.value.length > 0
-  }
+  },
+  { immediate: true }
 )
 
 watch(showMoreJumpers, (enabled) => {
@@ -233,378 +246,239 @@ function onPrimaryJumperChange(value) {
     :content-style="{ maxHeight: 'calc(100vh - 180px)', overflow: 'auto' }"
     @update:show="(visible) => { if (!visible) $emit('close') }"
   >
-      <form
-        id="tunnel-form"
-        class="dialog-body modal-form"
-        autocapitalize="none"
-        autocorrect="off"
-        spellcheck="false"
-        @submit.prevent="$emit('submit')"
-      >
-        <div class="row g-3">
-          <div :class="groups.length > 0 ? 'col-md-4' : 'col-md-6'">
-            <label class="form-label">{{ $t('app.modals.tunnel.name') }}</label>
-            <n-input
-              v-model:value="tunnelForm.name"
-              :maxlength="20"
-              :input-props="{ autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', required: true }"
+    <n-form
+      id="tunnel-form"
+      class="kit-form"
+      label-placement="top"
+      :show-require-mark="false"
+      :show-feedback="false"
+      @submit.prevent="$emit('submit')"
+    >
+      <n-grid :cols="FORM_COLS" :x-gap="FIELD_GAP" :y-gap="FIELD_GAP" item-responsive>
+        <n-form-item-gi :span="groups.length > 0 ? SPAN_THIRD : SPAN_HALF" :label="$t('app.modals.tunnel.name')" :show-feedback="false">
+          <n-input v-model:value="tunnelForm.name" :maxlength="20" :input-props="requiredInputProps" />
+        </n-form-item-gi>
+        <n-form-item-gi v-if="groups.length > 0" :span="SPAN_THIRD" :label="$t('app.modals.tunnel.group')" :show-feedback="false">
+          <AppSelect v-model="tunnelForm.groupId" :options="groupSelectOptions" />
+        </n-form-item-gi>
+        <n-form-item-gi :span="groups.length > 0 ? SPAN_THIRD : SPAN_HALF" :label="$t('app.modals.tunnel.mode')" :show-feedback="false">
+          <AppSelect v-model="tunnelForm.mode" :options="modeOptions" />
+        </n-form-item-gi>
+        <n-form-item-gi :span="SPAN_FULL" :show-label="false" :show-feedback="false">
+          <n-grid cols="1 520:3" :x-gap="FIELD_GAP" :y-gap="FIELD_GAP" item-responsive>
+            <n-form-item-gi span="1 520:2" :label="$t('app.modals.tunnel.localHost')" :show-feedback="false">
+              <n-input v-model:value="tunnelForm.localHost" :input-props="requiredInputProps" />
+            </n-form-item-gi>
+            <n-form-item-gi
+              span="1 520:1"
+              :label="$t('app.modals.tunnel.localPort')"
+              :show-feedback="!!localPortConflictWarning"
+              :feedback="localPortConflictWarning"
+              :validation-status="localPortConflictWarning ? 'warning' : undefined"
+            >
+              <n-input-number
+                v-model:value="tunnelForm.localPort"
+                :min="1"
+                :show-button="false"
+                :status="localPortConflictWarning ? 'warning' : undefined"
+                style="width: 100%"
+              />
+            </n-form-item-gi>
+            <n-form-item-gi span="1 520:2" :label="$t('app.modals.tunnel.remoteHost')" :show-feedback="false">
+              <n-input
+                v-model:value="tunnelForm.remoteHost"
+                :disabled="tunnelForm.mode === 'dynamic'"
+                :input-props="tunnelForm.mode === 'dynamic' ? plainInputProps : requiredInputProps"
+              />
+            </n-form-item-gi>
+            <n-form-item-gi span="1 520:1" :label="$t('app.modals.tunnel.remotePort')" :show-feedback="false">
+              <n-input-number
+                v-model:value="tunnelForm.remotePort"
+                :min="1"
+                :show-button="false"
+                :disabled="tunnelForm.mode === 'dynamic'"
+                style="width: 100%"
+              />
+            </n-form-item-gi>
+          </n-grid>
+        </n-form-item-gi>
+        <n-form-item-gi :span="SPAN_FULL" :label="$t('app.modals.tunnel.jumpers')" :show-feedback="false">
+          <div class="kit-inline">
+            <n-tag>#1</n-tag>
+            <AppSelect
+              class="kit-grow"
+              :model-value="primaryJumperId"
+              :options="jumperSelectOptions"
+              :disabled="jumpers.length === 0"
+              :placeholder="$t('app.modals.tunnel.selectPrimaryJumperPlaceholder')"
+              @update:model-value="onPrimaryJumperChange"
             />
           </div>
-          <div v-if="groups.length > 0" class="col-md-4">
-            <label class="form-label">{{ $t('app.modals.tunnel.group') }}</label>
-            <AppSelect v-model="tunnelForm.groupId" :options="groupSelectOptions" />
+          <n-text depth="3" class="kit-note">{{ $t('app.modals.tunnel.primaryJumperHint') }}</n-text>
+          <div class="kit-switch-line" :style="{ marginTop: FIELD_GAP + 'px' }">
+            <span>{{ $t('app.modals.tunnel.addMoreJumpers') }}</span>
+            <n-switch
+              v-model:value="showMoreJumpers"
+              :disabled="jumpers.length === 0"
+              :aria-expanded="showJumperChainEditor"
+            />
           </div>
-          <div :class="groups.length > 0 ? 'col-md-4' : 'col-md-6'">
-            <label class="form-label">{{ $t('app.modals.tunnel.mode') }}</label>
-            <AppSelect v-model="tunnelForm.mode" :options="modeOptions" />
-          </div>
-          <div class="col-md-12">
-            <div class="tunnel-endpoint-grid">
-              <div>
-                <label class="form-label">{{ $t('app.modals.tunnel.localHost') }}</label>
-                <n-input
-                  v-model:value="tunnelForm.localHost"
-                  :input-props="{ autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', required: true }"
-                />
-              </div>
-              <div class="tunnel-port-field">
-                <label class="form-label">{{ $t('app.modals.tunnel.localPort') }}</label>
-                <n-input-number
-                  v-model:value="tunnelForm.localPort"
-                  :min="1"
-                  :show-button="false"
-                  :status="localPortConflictWarning ? 'warning' : undefined"
-                  style="width: 100%"
-                />
-              </div>
-            </div>
-            <div v-if="localPortConflictWarning" class="field-warning mt-1">{{ localPortConflictWarning }}</div>
-          </div>
-          <div class="col-md-12">
-            <div class="tunnel-endpoint-grid">
-              <div>
-                <label class="form-label">{{ $t('app.modals.tunnel.remoteHost') }}</label>
-                <n-input
-                  v-model:value="tunnelForm.remoteHost"
-                  :disabled="tunnelForm.mode === 'dynamic'"
-                  :input-props="{ autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', required: tunnelForm.mode !== 'dynamic' }"
-                />
-              </div>
-              <div class="tunnel-port-field">
-                <label class="form-label">{{ $t('app.modals.tunnel.remotePort') }}</label>
-                <n-input-number
-                  v-model:value="tunnelForm.remotePort"
-                  :min="1"
-                  :show-button="false"
-                  :disabled="tunnelForm.mode === 'dynamic'"
-                  style="width: 100%"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="col-md-12">
-            <label class="form-label">{{ $t('app.modals.tunnel.jumpers') }}</label>
-            <div class="jumper-primary-row">
-              <span class="jumper-primary-index">#1</span>
+        </n-form-item-gi>
+        <n-gi v-if="showJumperChainEditor" :span="SPAN_FULL">
+          <n-card size="small" embedded>
+            <n-space align="center" :size="BUTTON_GAP">
+              <span>{{ $t('app.modals.tunnel.selectedJumpers') }}</span>
+              <n-tooltip>
+                <template #trigger>
+                  <n-button text size="tiny" aria-label="?">?</n-button>
+                </template>
+                {{ $t('app.modals.tunnel.selectedJumpersOrderTooltip') }}
+              </n-tooltip>
+            </n-space>
+            <n-input-group :style="{ marginTop: FIELD_GAP + 'px' }">
               <AppSelect
-                class="jumper-primary-select"
-                :model-value="primaryJumperId"
-                :options="jumperSelectOptions"
-                :disabled="jumpers.length === 0"
-                :placeholder="$t('app.modals.tunnel.selectPrimaryJumperPlaceholder')"
-                @update:model-value="onPrimaryJumperChange"
+                v-model="tunnelForm.nextJumperId"
+                :options="additionalJumperOptions"
+                :disabled="availableAdditionalJumpers.length === 0"
+                :placeholder="$t('app.modals.tunnel.selectAdditionalJumperPlaceholder')"
               />
-            </div>
-            <div class="field-note mt-1">{{ $t('app.modals.tunnel.primaryJumperHint') }}</div>
-            <div class="form-check form-switch mt-2">
-              <input
-                id="addMoreJumpersSwitch"
-                v-model="showMoreJumpers"
-                class="form-check-input"
-                type="checkbox"
-                :disabled="jumpers.length === 0"
-                :aria-expanded="showJumperChainEditor"
-              />
-              <label for="addMoreJumpersSwitch" class="form-check-label">{{ $t('app.modals.tunnel.addMoreJumpers') }}</label>
-            </div>
-          </div>
-          <div v-if="showJumperChainEditor" class="col-md-12">
-            <div class="jumper-chain-editor">
-              <div class="d-flex align-items-center gap-2">
-                <div class="form-label mb-2">{{ $t('app.modals.tunnel.selectedJumpers') }}</div>
-                <n-tooltip>
-                  <template #trigger>
-                    <span class="hint-dot mb-2">?</span>
-                  </template>
-                  {{ $t('app.modals.tunnel.selectedJumpersOrderTooltip') }}
-                </n-tooltip>
-              </div>
-              <div class="input-group">
-                <AppSelect
-                  v-model="tunnelForm.nextJumperId"
-                  :options="additionalJumperOptions"
-                  :disabled="availableAdditionalJumpers.length === 0"
-                  :placeholder="$t('app.modals.tunnel.selectAdditionalJumperPlaceholder')"
-                />
-                <button
-                  type="button"
-                  class="btn btn-outline-primary"
-                  :disabled="!tunnelForm.nextJumperId"
-                  :aria-label="$t('app.modals.tunnel.addJumper')"
-                  @click="$emit('add-jumper', tunnelForm.nextJumperId)"
-                >
-                  <i class="bi bi-plus-lg" />
-                </button>
-              </div>
-              <div class="field-note mt-1">{{ $t('app.modals.tunnel.jumpersHint') }}</div>
-              <div v-if="selectedJumperIds.length === 0" class="text-muted selected-jumper-empty">
-                {{ $t('app.modals.tunnel.noSelectedJumpers') }}
-              </div>
-              <div v-else class="list-group selected-jumper-list mt-2">
-                <div
-                  v-for="(jumperId, index) in selectedJumperIds"
-                  :key="`selected-jumper-${index}-${jumperId}`"
-                  class="list-group-item py-2 selected-jumper-item"
-                >
-                  <div class="selected-jumper-main">
-                    <span class="badge text-bg-light">{{ index + 1 }}</span>
-                    <div class="selected-jumper-text-wrap" :title="getJumperTooltipLabel(jumperId)">
-                      <div class="selected-jumper-name cell-ellipsis">
-                        {{
-                          getJumperById(jumperId)
-                            ? getJumperDisplayName(jumperId)
-                            : `${$t('app.options.jumper.unknown')} (#${jumperId})`
-                        }}
-                      </div>
-                      <div v-if="getJumperById(jumperId)" class="text-muted selected-jumper-conn cell-ellipsis">
-                        {{ getJumperConnectionLabel(jumperId) }}
-                      </div>
+              <n-button
+                :disabled="!tunnelForm.nextJumperId"
+                :aria-label="$t('app.modals.tunnel.addJumper')"
+                @click="$emit('add-jumper', tunnelForm.nextJumperId)"
+              >
+                <template #icon>
+                  <n-icon aria-hidden="true" :component="Add" />
+                </template>
+              </n-button>
+            </n-input-group>
+            <n-text depth="3" class="kit-note">{{ $t('app.modals.tunnel.jumpersHint') }}</n-text>
+            <n-text v-if="selectedJumperIds.length === 0" depth="3" class="kit-note">
+              {{ $t('app.modals.tunnel.noSelectedJumpers') }}
+            </n-text>
+            <n-list v-else bordered class="kit-jumper-list" :style="{ marginTop: FIELD_GAP + 'px' }">
+              <n-list-item v-for="(jumperId, index) in selectedJumperIds" :key="`selected-jumper-${index}-${jumperId}`">
+                <n-space align="center" :size="BUTTON_GAP" :wrap="false">
+                  <n-tag round :bordered="false">{{ index + 1 }}</n-tag>
+                  <div :title="getJumperTooltipLabel(jumperId)">
+                    <div>
+                      {{
+                        getJumperById(jumperId)
+                          ? getJumperDisplayName(jumperId)
+                          : `${$t('app.options.jumper.unknown')} (#${jumperId})`
+                      }}
                     </div>
+                    <n-text v-if="getJumperById(jumperId)" depth="3">{{ getJumperConnectionLabel(jumperId) }}</n-text>
                   </div>
-                  <div class="selected-jumper-actions">
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-secondary selected-jumper-order-btn"
+                </n-space>
+                <template #suffix>
+                  <n-button-group>
+                    <n-button
                       :disabled="index === 0"
                       :aria-label="$t('app.modals.tunnel.moveJumperUp')"
                       @click="$emit('move-jumper', index, -1)"
                     >
-                      <i class="bi bi-arrow-up" />
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-secondary selected-jumper-order-btn"
+                      <template #icon><n-icon aria-hidden="true" :component="ArrowUp" /></template>
+                    </n-button>
+                    <n-button
                       :disabled="index === selectedJumperIds.length - 1"
                       :aria-label="$t('app.modals.tunnel.moveJumperDown')"
                       @click="$emit('move-jumper', index, 1)"
                     >
-                      <i class="bi bi-arrow-down" />
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-danger selected-jumper-remove-btn"
+                      <template #icon><n-icon aria-hidden="true" :component="ArrowDown" /></template>
+                    </n-button>
+                    <n-button
+                      type="error"
+                      quaternary
                       :aria-label="$t('app.modals.tunnel.removeJumper')"
                       @click="$emit('remove-jumper', index)"
                     >
-                      <i class="bi bi-trash3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+                      <template #icon><n-icon aria-hidden="true" :component="TrashOutline" /></template>
+                    </n-button>
+                  </n-button-group>
+                </template>
+              </n-list-item>
+            </n-list>
+          </n-card>
+        </n-gi>
+        <n-gi :span="SPAN_FULL">
+          <div class="kit-switch-line">
+            <span>{{ $t('app.modals.tunnel.appendNewJumper') }}</span>
+            <n-switch v-model:value="tunnelForm.appendNewJumper" />
           </div>
-          <div class="col-md-12">
-            <div class="form-check form-switch">
-              <input id="appendNewJumperSwitch" v-model="tunnelForm.appendNewJumper" class="form-check-input" type="checkbox" />
-              <label for="appendNewJumperSwitch" class="form-check-label">{{ $t('app.modals.tunnel.appendNewJumper') }}</label>
-            </div>
-          </div>
+        </n-gi>
+      </n-grid>
+
+      <n-card v-if="tunnelForm.appendNewJumper" size="small" :title="$t('app.modals.tunnel.quickCreateJumper')">
+        <JumperFields
+          :form="inlineJumperForm"
+          :limits="jumperLimits"
+          :auth-options="authOptions"
+          :needs-key-file="inlineJumperNeedsKeyFile"
+          :shows-password="inlineJumperShowsPassword"
+          :password-placeholder="inlineJumperNeedsKeyFile || !inlineJumperNeedsPassword ? $t('app.modals.jumper.passwordOptionalPlaceholder') : $t('app.modals.jumper.passwordPlaceholder')"
+          :password-required="inlineJumperNeedsPassword"
+          @key-file-change="$emit('inline-key-file-change', $event)"
+        />
+        <div class="kit-switch-line" :style="{ marginTop: FIELD_GAP + 'px' }">
+          <span>{{ $t('app.modals.jumper.bypassHostCheck') }}</span>
+          <n-switch v-model:value="inlineJumperForm.bypassHostVerification" />
         </div>
+        <n-alert v-if="inlineJumperValidationError" type="error" :show-icon="false" :style="{ marginTop: FIELD_GAP + 'px' }">
+          {{ inlineJumperValidationError }}
+        </n-alert>
+      </n-card>
 
-        <div v-if="tunnelForm.appendNewJumper" class="inline-jumper-block mt-3">
-          <div class="block-title">{{ $t('app.modals.tunnel.quickCreateJumper') }}</div>
-          <div class="row g-2 mt-0 inline-jumper-form-grid">
-            <div class="col-md-6">
-              <label class="form-label">{{ $t('app.modals.jumper.name') }}</label>
-              <input
-                v-model="inlineJumperForm.name"
-                class="form-control"
-                type="text"
-                autocapitalize="none"
-                autocorrect="off"
-                spellcheck="false"
-                :maxlength="jumperLimits.name"
-                required
-              />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">{{ $t('app.modals.jumper.user') }}</label>
-              <input
-                v-model="inlineJumperForm.user"
-                class="form-control"
-                type="text"
-                autocapitalize="none"
-                autocorrect="off"
-                spellcheck="false"
-                :maxlength="jumperLimits.user"
-                required
-              />
-            </div>
-            <div class="col-md-8">
-              <label class="form-label">{{ $t('app.modals.jumper.host') }}</label>
-              <input
-                v-model="inlineJumperForm.host"
-                class="form-control"
-                type="text"
-                autocapitalize="none"
-                autocorrect="off"
-                spellcheck="false"
-                :maxlength="jumperLimits.host"
-                required
-              />
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">{{ $t('app.modals.jumper.port') }}</label>
-              <input v-model.number="inlineJumperForm.port" class="form-control" type="number" min="1" max="65535" required />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">{{ $t('app.modals.jumper.authMethod') }}</label>
-              <AppSelect v-model="inlineJumperForm.authType" :options="authOptions" />
-              <div v-if="inlineJumperForm.authType === 'ssh_agent'" class="field-note mt-1">
-                {{ $t('app.modals.jumper.sshAgentNote') }}
-              </div>
-            </div>
-            <div v-if="inlineJumperForm.authType === 'ssh_agent'" class="col-md-6">
-              <label class="form-label">{{ $t('app.modals.jumper.agentSocketPath') }}</label>
-              <input
-                v-model="inlineJumperForm.agentSocketPath"
-                class="form-control"
-                type="text"
-                autocapitalize="none"
-                autocorrect="off"
-                spellcheck="false"
-                :maxlength="jumperLimits.agentSocketPath"
-                :placeholder="$t('app.modals.jumper.agentSocketPlaceholder')"
-              />
-              <div class="field-note">{{ $t('app.modals.jumper.agentSocketNote') }}</div>
-            </div>
-            <template v-if="inlineJumperNeedsKeyFile">
-              <div class="col-md-7">
-                <label class="form-label">{{ $t('app.modals.jumper.sshKeyFile') }}</label>
-                <div class="input-group">
-                  <input
-                    v-model="inlineJumperForm.keyPath"
-                    class="form-control"
-                    type="text"
-                    autocapitalize="none"
-                    autocorrect="off"
-                    spellcheck="false"
-                    :maxlength="jumperLimits.keyPath"
-                    :placeholder="$t('app.modals.jumper.keyPathPlaceholder')"
-                    :required="inlineJumperNeedsKeyFile"
-                  />
-                  <label class="btn btn-outline-secondary mb-0">
-                    {{ $t('app.modals.jumper.browse') }}
-                    <input class="d-none" type="file" @change="$emit('inline-key-file-change', $event)" />
-                  </label>
-                </div>
-                <div class="field-note">{{ $t('app.modals.jumper.keyFileNote') }}</div>
-              </div>
-              <div class="col-md-5">
-                <label class="form-label">{{ $t('app.modals.jumper.password') }}</label>
-                <input
-                  v-model="inlineJumperForm.password"
-                  class="form-control"
-                  type="password"
-                  autocapitalize="none"
-                  autocorrect="off"
-                  spellcheck="false"
-                  :maxlength="jumperLimits.password"
-                  :placeholder="$t('app.modals.jumper.passwordOptionalPlaceholder')"
-                  :required="inlineJumperNeedsPassword"
-                />
-              </div>
-            </template>
-            <div v-else-if="inlineJumperShowsPassword" class="col-md-12">
-              <label class="form-label">{{ $t('app.modals.jumper.password') }}</label>
-              <input
-                v-model="inlineJumperForm.password"
-                class="form-control"
-                type="password"
-                autocapitalize="none"
-                autocorrect="off"
-                spellcheck="false"
-                :maxlength="jumperLimits.password"
-                :placeholder="$t('app.modals.jumper.passwordPlaceholder')"
-                :required="inlineJumperNeedsPassword"
-              />
-            </div>
-            <div class="col-md-12">
-              <div class="form-check form-switch m-0">
-                <input
-                  id="inlineBypassHostSwitch"
-                  v-model="inlineJumperForm.bypassHostVerification"
-                  class="form-check-input"
-                  type="checkbox"
-                />
-                <label class="form-check-label" for="inlineBypassHostSwitch">{{ $t('app.modals.jumper.bypassHostCheck') }}</label>
-              </div>
-            </div>
-          </div>
-          <p v-if="inlineJumperValidationError" class="form-error mb-0 mt-3">{{ inlineJumperValidationError }}</p>
-        </div>
-
-        <div class="row g-3 mt-1">
-          <div class="col-md-12">
-            <label class="form-label">{{ $t('app.modals.tunnel.description') }}</label>
-            <n-input
-              v-model:value="tunnelForm.description"
-              type="textarea"
-              :rows="2"
-              :input-props="{ autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' }"
-            />
-          </div>
-          <div class="col-md-12">
-            <div class="form-check form-switch">
-              <input id="autoStartSwitch" v-model="tunnelForm.autoStart" class="form-check-input" type="checkbox" />
-              <label for="autoStartSwitch" class="form-check-label">{{ $t('app.modals.tunnel.autoStart') }}</label>
-            </div>
-          </div>
-        </div>
-
-        <p v-if="tunnelValidationError" class="form-error mb-0 mt-3">{{ tunnelValidationError }}</p>
-
-        <div v-if="aiDebugEnabled && tunnelTest.message && tunnelTest.status === 'error'" class="ai-debug-inline-panel mt-3">
-          <div class="ai-debug-inline-head">
-            <div>
-              <div class="ai-debug-inline-title">{{ $t('app.aiDebug.connectionFailed') }}</div>
-              <div class="ai-debug-inline-error">{{ tunnelTest.message }}</div>
-              <div v-if="tunnelTest.debuggable" class="ai-debug-inline-hint">{{ $t('app.aiDebug.inlineHint') }}</div>
-            </div>
-            <button
-              v-if="tunnelTest.debuggable"
-              type="button"
-              class="btn btn-sm btn-outline-primary ai-debug-action-btn"
-              :disabled="tunnelAiDebug.status === 'analyzing'"
-              @click="$emit('ai-debug')"
-            >
-              <i class="bi" :class="tunnelAiDebug.status === 'analyzing' ? 'bi-hourglass-split' : 'bi-magic'" />
-              <span>{{ tunnelAiDebug.status === 'analyzing' ? $t('app.aiDebug.analyzing') : $t('app.aiDebug.action') }}</span>
-            </button>
-          </div>
-          <AIDebugResultCard
-            v-if="tunnelAiDebug.status !== 'idle'"
-            :state="tunnelAiDebug"
-            show-actions
-            @retry-debug="$emit('ai-debug')"
-            @test-again="$emit('test-connection')"
-            @report-content="$emit('report-ai-content')"
+      <n-grid :cols="FORM_COLS" :x-gap="FIELD_GAP" :y-gap="FIELD_GAP" item-responsive>
+        <n-form-item-gi :span="SPAN_FULL" :label="$t('app.modals.tunnel.description')" :show-feedback="false">
+          <n-input
+            v-model:value="tunnelForm.description"
+            type="textarea"
+            :rows="2"
+            :input-props="plainInputProps"
           />
-        </div>
-      </form>
+        </n-form-item-gi>
+        <n-gi :span="SPAN_FULL">
+          <div class="kit-switch-line">
+            <span>{{ $t('app.modals.tunnel.autoStart') }}</span>
+            <n-switch v-model:value="tunnelForm.autoStart" />
+          </div>
+        </n-gi>
+      </n-grid>
+
+      <n-alert v-if="tunnelValidationError" type="error" :show-icon="false">{{ tunnelValidationError }}</n-alert>
+
+      <n-card v-if="aiDebugEnabled && tunnelTest.message && tunnelTest.status === 'error'" size="small">
+        <n-space justify="space-between" align="start" :size="FIELD_GAP" :wrap="true">
+          <div>
+            <div>{{ $t('app.aiDebug.connectionFailed') }}</div>
+            <n-text type="error">{{ tunnelTest.message }}</n-text>
+            <n-text v-if="tunnelTest.debuggable" depth="3" class="kit-note">{{ $t('app.aiDebug.inlineHint') }}</n-text>
+          </div>
+          <n-button
+            v-if="tunnelTest.debuggable"
+            :disabled="tunnelAiDebug.status === 'analyzing'"
+            @click="$emit('ai-debug')"
+          >
+            <template #icon>
+              <n-icon aria-hidden="true" :component="tunnelAiDebug.status === 'analyzing' ? HourglassOutline : ColorWandOutline" />
+            </template>
+            {{ tunnelAiDebug.status === 'analyzing' ? $t('app.aiDebug.analyzing') : $t('app.aiDebug.action') }}
+          </n-button>
+        </n-space>
+        <AIDebugResultCard
+          v-if="tunnelAiDebug.status !== 'idle'"
+          :state="tunnelAiDebug"
+          show-actions
+          @retry-debug="$emit('ai-debug')"
+          @test-again="$emit('test-connection')"
+          @report-content="$emit('report-ai-content')"
+        />
+      </n-card>
+    </n-form>
     <template #footer>
-      <div class="dialog-footer modal-footer">
-        <div class="dialog-left-actions">
+      <n-space justify="space-between" align="center" :size="BUTTON_GAP" :wrap="true" style="width: 100%">
+        <n-space :size="BUTTON_GAP" align="center" :wrap="true">
           <n-button
             v-if="sshCommandEnabled && !editingTunnelId"
             quaternary
@@ -618,19 +492,18 @@ function onPrimaryJumperChange(value) {
           >
             {{ tunnelTest.status === 'testing' ? $t('app.modals.tunnel.testing') : $t('app.modals.tunnel.testConnection') }}
           </n-button>
-          <p
+          <n-text
             v-if="showInlineTestResult"
-            class="test-result dialog-test-result"
-            :class="{ success: tunnelTest.status === 'success', error: tunnelTest.status === 'error' }"
+            :type="tunnelTest.status === 'error' ? 'error' : tunnelTest.status === 'success' ? 'success' : undefined"
           >
             {{ tunnelTest.message }}
-          </p>
-        </div>
-        <div class="dialog-right-actions">
+          </n-text>
+        </n-space>
+        <n-space :size="BUTTON_GAP">
           <n-button @click="$emit('close')">{{ $t('app.common.cancel') }}</n-button>
           <n-button type="primary" attr-type="submit" form="tunnel-form">{{ $t('app.common.save') }}</n-button>
-        </div>
-      </div>
+        </n-space>
+      </n-space>
     </template>
   </n-modal>
 </template>

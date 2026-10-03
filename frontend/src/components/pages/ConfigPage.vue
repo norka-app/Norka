@@ -494,14 +494,14 @@ async function onCollectDiagnostics() {
               @update:value="(checked) => onFeatureToggle(item.id, checked)"
             />
           </n-space>
-          <button
+          <n-button
             v-if="onboardingOn"
-            type="button"
-            class="onboarding-replay"
+            text
+            type="primary"
             @click="emit('restart-onboarding')"
           >
             {{ t('onboarding.replay') }}
-          </button>
+          </n-button>
         </n-space>
       </n-card>
       </div>
@@ -517,7 +517,6 @@ async function onCollectDiagnostics() {
             <n-radio-group
               class="language-options"
               :value="language"
-              size="small"
               @update:value="$emit('language-change', $event)"
             >
               <n-radio-button value="auto">{{ t('config.languageAuto') }}</n-radio-button>
@@ -537,7 +536,7 @@ async function onCollectDiagnostics() {
               <div class="config-name">{{ t('config.windowMode') }}</div>
               <div class="config-desc">{{ t('config.windowModeDesc') }}</div>
             </div>
-            <n-radio-group :value="windowMode" size="small" @update:value="$emit('window-mode-change', $event)">
+            <n-radio-group :value="windowMode" @update:value="$emit('window-mode-change', $event)">
               <n-radio-button value="advanced">{{ t('config.windowModeAdvanced') }}</n-radio-button>
               <n-radio-button value="simple">{{ t('config.windowModeSimple') }}</n-radio-button>
             </n-radio-group>
@@ -567,7 +566,6 @@ async function onCollectDiagnostics() {
             <n-space align="center">
               <n-button
                 ref="hotkeyButtonRef"
-                size="small"
                 :disabled="!quickSearchOn"
                 :data-hotkey-capture="capturingHotkey ? '1' : undefined"
                 :type="capturingHotkey ? 'primary' : 'default'"
@@ -576,7 +574,7 @@ async function onCollectDiagnostics() {
               >
                 {{ capturingHotkey ? t('config.quickSearchPress') : (quickSearchLabel || t('config.quickSearchCapture')) }}
               </n-button>
-              <n-button size="small" quaternary :disabled="!quickSearchOn" @click="saveQuickSearch({ hotkey: '' })">{{ t('config.quickSearchReset') }}</n-button>
+              <n-button quaternary :disabled="!quickSearchOn" @click="saveQuickSearch({ hotkey: '' })">{{ t('config.quickSearchReset') }}</n-button>
             </n-space>
           </n-space>
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
@@ -586,9 +584,9 @@ async function onCollectDiagnostics() {
             </div>
             <n-space vertical align="end" :size="8">
               <n-space>
-                <n-button size="small" :disabled="configBusy !== ''" @click="onImportConfig">{{ t('config.importConfigBtn') }}</n-button>
-                <n-button size="small" :disabled="configBusy !== ''" @click="onExportConfig">{{ t('config.exportConfigBtn') }}</n-button>
-                <n-button size="small" @click="onOpenConfigDir">{{ t('config.openConfigDirBtn') }}</n-button>
+                <n-button :disabled="configBusy !== ''" @click="onImportConfig">{{ t('config.importConfigBtn') }}</n-button>
+                <n-button :disabled="configBusy !== ''" @click="onExportConfig">{{ t('config.exportConfigBtn') }}</n-button>
+                <n-button @click="onOpenConfigDir">{{ t('config.openConfigDirBtn') }}</n-button>
               </n-space>
               <div>
                 <n-checkbox v-model:checked="includePasswords">{{ t('config.includePasswords') }}</n-checkbox>
@@ -615,10 +613,9 @@ async function onCollectDiagnostics() {
               </div>
             </div>
             <n-space>
-              <n-button size="small" :disabled="configBusy !== ''" @click="onChooseConfigDataDir">{{ t('config.chooseConfigDirBtn') }}</n-button>
+              <n-button :disabled="configBusy !== ''" @click="onChooseConfigDataDir">{{ t('config.chooseConfigDirBtn') }}</n-button>
               <n-button
                 v-if="configLocationInfo?.isCustomConfigDir"
-                size="small"
                 secondary
                 :disabled="configBusy !== ''"
                 @click="onResetConfigDataDir"
@@ -680,7 +677,7 @@ async function onCollectDiagnostics() {
               <div class="config-name">{{ t('config.checkUpdates') }}</div>
               <div class="config-desc">{{ updateStatus || t('config.checkUpdatesDesc') }}</div>
             </div>
-            <n-button size="small" :disabled="!autoUpdateOn" :loading="updateChecking" @click="onCheckUpdates">
+            <n-button :disabled="!autoUpdateOn" :loading="updateChecking" @click="onCheckUpdates">
               {{ t('config.checkUpdatesBtn') }}
             </n-button>
           </n-space>
@@ -692,7 +689,7 @@ async function onCollectDiagnostics() {
             <n-checkbox v-model:checked="includeServerAddresses">{{ t('config.diagnosticsIncludeHosts') }}</n-checkbox>
             <div class="config-desc">{{ t('config.diagnosticsIncludeHostsDesc') }}</div>
           </div>
-          <n-button id="collect-diagnostics" size="small" :loading="diagnosticsBusy" @click="onCollectDiagnostics">
+          <n-button id="collect-diagnostics" :loading="diagnosticsBusy" @click="onCollectDiagnostics">
             {{ t('config.diagnosticsCollect') }}
           </n-button>
         </n-card>
@@ -718,28 +715,7 @@ async function onCollectDiagnostics() {
   flex-shrink: 0;
 }
 
-.onboarding-replay {
-  align-self: flex-start;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--lt-brand);
-  font: inherit;
-  font-size: 13px;
-  line-height: 1.4;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.onboarding-replay:focus-visible {
-  outline: 2px solid var(--lt-focus);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
 .diagnostics-option {
-  margin: 12px 0;
+  margin: var(--kit-field-gap) 0;
 }
 </style>

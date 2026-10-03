@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { CheckmarkCircle, CloseCircle, RemoveCircleOutline } from '../../icons'
 
 const props = defineProps({
   show: {
@@ -65,10 +66,10 @@ const tone = computed(() => {
   return 'neutral'
 })
 
-function iconClass(status) {
-  if (status === 'ok') return 'bi-check-circle-fill'
-  if (status === 'error') return 'bi-x-circle-fill'
-  return 'bi-dash-circle'
+function statusIcon(status) {
+  if (status === 'ok') return CheckmarkCircle
+  if (status === 'error') return CloseCircle
+  return RemoveCircleOutline
 }
 
 function toggleDetail(id) {
@@ -89,7 +90,7 @@ function toggleDetail(id) {
   >
     <div class="diag-body" :aria-busy="loading ? 'true' : 'false'">
       <p v-if="loading" class="diag-running" role="status">
-        <span class="diag-spin" aria-hidden="true" />
+        <n-spin size="small" />
         {{ $t('app.tunnels.diagnostics.running') }}
       </p>
       <p v-else-if="error" class="diag-failed" role="alert">{{ error }}</p>
@@ -97,19 +98,19 @@ function toggleDetail(id) {
         <p class="diag-summary" :class="`diag-summary--${tone}`" role="status">{{ summary }}</p>
         <ul class="diag-list">
           <li v-for="check in checks" :key="check.id" class="diag-row" :class="`diag-row--${check.status}`">
-            <i class="bi diag-icon" :class="iconClass(check.status)" aria-hidden="true" />
+            <n-icon aria-hidden="true" class="diag-icon" :component="statusIcon(check.status)" />
             <div class="diag-copy">
               <div class="diag-title">{{ titleOf(check) }}</div>
               <p class="diag-sentence">{{ sentence(check) }}</p>
-              <button
+              <n-button
                 v-if="check.detail"
-                type="button"
-                class="diag-more"
+                text
+                size="small"
                 :aria-expanded="openDetails[check.id] ? 'true' : 'false'"
                 @click="toggleDetail(check.id)"
               >
                 {{ openDetails[check.id] ? $t('app.tunnels.diagnostics.hideDetails') : $t('app.tunnels.diagnostics.details') }}
-              </button>
+              </n-button>
               <p v-if="check.detail && openDetails[check.id]" class="diag-detail">{{ check.detail }}</p>
             </div>
           </li>
@@ -118,7 +119,7 @@ function toggleDetail(id) {
       </template>
     </div>
     <template #footer>
-      <n-space justify="end">
+      <n-space justify="end" :size="8">
         <n-button secondary :loading="loading" :disabled="loading" @click="emit('retry')">
           {{ $t('app.tunnels.diagnostics.retry') }}
         </n-button>
@@ -148,15 +149,6 @@ function toggleDetail(id) {
   gap: 8px;
   color: var(--lt-muted);
   font-size: 14px;
-}
-
-.diag-spin {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--lt-border-strong);
-  border-top-color: var(--lt-ink);
-  border-radius: 50%;
-  animation: diag-spin 0.8s linear infinite;
 }
 
 .diag-failed {
@@ -272,9 +264,5 @@ function toggleDetail(id) {
   color: var(--lt-muted);
   font-size: 12px;
   line-height: 1.4;
-}
-
-@keyframes diag-spin {
-  to { transform: rotate(360deg); }
 }
 </style>

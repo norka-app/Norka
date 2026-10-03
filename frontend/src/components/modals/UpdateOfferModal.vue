@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { renderSafeMarkdown } from '../../utils/safe-markdown'
+import { BUTTON_GAP } from '../../theme/form-layout'
 
 const props = defineProps({
   show: {
@@ -132,14 +133,14 @@ function onNotesClick(event) {
         v-html="safeNotes"
       />
       <p v-else class="update-notes-empty">{{ t('app.update.notesEmpty') }}</p>
-      <button
+      <n-button
         v-if="showPageLink"
-        type="button"
-        class="update-release-link"
+        text
+        type="primary"
         @click="emit('open-url', pageUrl)"
       >
         {{ t('app.update.releasePage') }}
-      </button>
+      </n-button>
     </section>
 
     <div v-if="phaseLabel" class="update-progress">
@@ -156,11 +157,11 @@ function onNotesClick(event) {
     <p v-if="error" class="update-error" role="alert">{{ error }}</p>
 
     <template #footer>
-      <div class="update-actions">
+      <n-space justify="space-between" align="center" :size="BUTTON_GAP" :wrap="true" style="width: 100%">
         <n-button quaternary :disabled="phase === 'restart'" @click="emit('skip')">
           {{ t('app.update.skip') }}
         </n-button>
-        <div class="update-actions-main">
+        <n-space :size="BUTTON_GAP" :wrap="true">
           <n-button :disabled="phase === 'restart'" @click="emit('close')">
             {{ t('app.update.later') }}
           </n-button>
@@ -173,8 +174,8 @@ function onNotesClick(event) {
           >
             {{ canApply ? t('app.update.restart') : t('app.update.download') }}
           </n-button>
-        </div>
-      </div>
+        </n-space>
+      </n-space>
     </template>
   </n-modal>
 </template>
@@ -247,18 +248,6 @@ function onNotesClick(event) {
   background: var(--lt-inline-bg);
 }
 
-.update-release-link {
-  margin-top: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--lt-brand);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 
 .update-progress {
   margin-top: 14px;
@@ -276,18 +265,4 @@ function onNotesClick(event) {
   font-size: 13px;
 }
 
-.update-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-}
-
-.update-actions-main {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-left: auto;
-}
 </style>

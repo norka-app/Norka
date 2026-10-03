@@ -26,6 +26,11 @@ const { t } = useI18n()
 const index = ref(0)
 const cardRef = ref(null)
 const primaryRef = ref(null)
+
+function focusKitControl(target) {
+  const el = target?.$el ?? target
+  if (el instanceof HTMLElement) el.focus({ preventScroll: true })
+}
 const cardStyle = ref({})
 const spotStyle = ref(null)
 let resizeObserver = null
@@ -132,7 +137,7 @@ async function layout(focusPrimary) {
     : null
   if (focusPrimary) {
     await nextTick()
-    primaryRef.value?.focus({ preventScroll: true })
+    focusKitControl(primaryRef.value)
   }
 }
 
@@ -212,24 +217,24 @@ onBeforeUnmount(() => {
           </li>
         </ul>
       </div>
-      <div class="onboarding-actions">
+      <n-space class="onboarding-actions" align="center" :size="8" :wrap="true">
         <span class="onboarding-progress">{{ t('onboarding.progress', { current: index + 1, total: steps.length }) }}</span>
-        <button type="button" class="onboarding-btn onboarding-btn--ghost" @click="apply('skip')">
+        <n-button quaternary size="small" @click="apply('skip')">
           {{ t('onboarding.skip') }}
-        </button>
-        <button type="button" class="onboarding-btn" :disabled="isFirst" @click="apply('back')">
+        </n-button>
+        <n-button size="small" :disabled="isFirst" @click="apply('back')">
           {{ t('onboarding.back') }}
-        </button>
-        <button
+        </n-button>
+        <n-button
           ref="primaryRef"
-          type="button"
-          class="onboarding-btn onboarding-btn--primary"
+          size="small"
+          type="primary"
           data-onboarding-primary
           @click="apply(isLast ? 'done' : 'next')"
         >
           {{ isLast ? t('onboarding.done') : t('onboarding.next') }}
-        </button>
-      </div>
+        </n-button>
+      </n-space>
     </div>
   </div>
 </template>
@@ -342,11 +347,7 @@ onBeforeUnmount(() => {
 }
 
 .onboarding-actions {
-  display: flex;
   flex: 0 0 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
   margin-top: 12px;
   padding-top: 8px;
   background: var(--lt-surface);
@@ -358,39 +359,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.onboarding-btn {
-  font: inherit;
-  font-size: 13px;
-  line-height: 1.2;
-  border-radius: 8px;
-  padding: 7px 12px;
-  cursor: pointer;
-  border: 1px solid var(--lt-border-strong);
-  background: var(--lt-surface);
-  color: var(--lt-ink);
-}
-
-.onboarding-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.onboarding-btn--primary {
-  background: var(--lt-primary);
-  color: var(--lt-on-primary);
-  border-color: transparent;
-}
-
-.onboarding-btn--ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--lt-muted);
-}
-
-.onboarding-btn:focus-visible {
-  outline: 2px solid var(--lt-focus);
-  outline-offset: 2px;
-}
 
 @media (max-height: 220px) {
   .onboarding-card {
@@ -406,8 +374,7 @@ onBeforeUnmount(() => {
     font-size: 14px;
   }
 
-  .onboarding-body,
-  .onboarding-btn {
+  .onboarding-body {
     font-size: 12.5px;
   }
 }
