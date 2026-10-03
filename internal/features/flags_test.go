@@ -18,6 +18,9 @@ func TestCatalogDefaults(t *testing.T) {
 	if Default(BackgroundMode) {
 		t.Fatal("background mode default must be off")
 	}
+	if Default(FramelessWindow) {
+		t.Fatal("frameless window default must be off")
+	}
 	if Default(ID("language")) {
 		t.Fatal("unknown flag must be off")
 	}

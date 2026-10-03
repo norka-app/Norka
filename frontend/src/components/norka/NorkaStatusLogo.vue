@@ -46,6 +46,11 @@ const props = defineProps({
   easterEgg: {
     type: Boolean,
     default: false
+  },
+  // вид «без рамки»: глаза всегда зелёные, миндалевидные, с вертикальным зрачком
+  steadyEyes: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -53,6 +58,7 @@ const props = defineProps({
 const winkAnimations = import.meta.glob('../../assets/norka/*.json')
 
 const iconStatus = computed(() => props.status || 'stopped')
+const eyeStatus = computed(() => (props.steadyEyes ? 'connected' : iconStatus.value))
 const boxSize = computed(() => (typeof props.size === 'number' ? `${props.size}px` : props.size))
 const root = ref(null)
 const winkHost = ref(null)
@@ -127,7 +133,7 @@ watch(() => [props.variant, props.theme], stopWink)
 onBeforeUnmount(stopWink)
 
 // пока играет подмигивание или нокаут, поведение в простое ждёт
-useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value && !knockout.value)
+useNorkaIdle(root, () => eyeStatus.value, () => props.idle && !winking.value && !knockout.value)
 </script>
 
 <template>
@@ -140,7 +146,7 @@ useNorkaIdle(root, () => iconStatus.value, () => props.idle && !winking.value &&
   >
     <NorkaIcon
       class="norka-status-logo__icon"
-      :status="iconStatus"
+      :status="eyeStatus"
       :variant="variant"
       :theme="theme"
       :size="size"

@@ -16,7 +16,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	wailslinux "github.com/wailsapp/wails/v2/pkg/options/linux"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -63,6 +62,8 @@ func main() {
 	app.SetStartHidden(startHidden)
 	localeTag := app.ResolvedUILocale()
 	app.useUILocale(localeTag)
+	// Рамка окна читается один раз: Wails применяет её в Run и не меняет потом.
+	app.loadStartupChrome()
 	trayLabels := traytext.ForLocale(localeTag)
 
 	showMainWindow := func() {
@@ -147,7 +148,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour:  &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		BackgroundColour:  windowBackground(startupChrome),
 		OnStartup:         app.startup,
 		OnBeforeClose:     app.beforeClose,
 		OnShutdown:        app.shutdown,
@@ -156,10 +157,11 @@ func main() {
 		// for packaged Windows builds, whose install location is not writable.
 		// GPU acceleration is disabled because this application is a form/list UI;
 		// it avoids WebView2 renderer blank-screen failures on some Windows builds.
-		Windows: &windows.Options{
-			WebviewUserDataPath:  webviewUserDataPath(),
-			WebviewGpuIsDisabled: true,
-		},
+		// Mica is the exception: WebviewGpuIsDisabled adds --disable-gpu, and that
+		// software frame is opaque, so it covers the DWM backdrop. Mica therefore
+		// leaves the GPU on. Older than Windows 11 22H2 gets a solid sidebar instead.
+		Windows: windowsWindowOptions(startupChrome),
+		Mac:     macWindowOptions(startupChrome),
 		// Linux: нативные рамка и иконка окна. GPU выключен так же, как если Linux == nil:
 		// интерфейс — формы и списки, программный рендеринг устойчивее на Xvfb и части дистрибутивов.
 		Linux: &wailslinux.Options{

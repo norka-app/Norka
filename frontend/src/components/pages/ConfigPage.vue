@@ -25,6 +25,8 @@ import {
   SaveDiagnostics
 } from '../../../wailsjs/go/main/App'
 import { applyFeatureViews, featureEnabled, featureState, setFeatureEnabled, useFeature } from '../../features/feature-store'
+import { isLinuxChrome, windowChrome } from '../../features/window-chrome'
+import FlSettingsTabs from '../frameless/FlSettingsTabs.vue'
 import { hotkeyChord, matchesKey } from '../../utils/keyboard'
 
 const props = defineProps({
@@ -64,6 +66,22 @@ const emit = defineEmits([
 ])
 
 const { t } = useI18n()
+const flSection = computed({
+  get: () => windowChrome.settingsTab || 'general',
+  set: (value) => { windowChrome.settingsTab = value },
+})
+const framelessLook = computed(() => windowChrome.frameless)
+const visibleFeatures = computed(() => (
+  isLinuxChrome()
+    ? featureState.items.filter((item) => item.id !== 'frameless_window')
+    : featureState.items
+))
+const framelessNeedsRestart = computed(() => {
+  if (!windowChrome.ready) return false
+  const item = featureState.items.find((entry) => entry.id === 'frameless_window')
+  if (!item) return false
+  return !!item.enabled !== windowChrome.frameless
+})
 const notificationsOn = useFeature('notifications')
 const quickSearchOn = useFeature('quick_search')
 const autoUpdateOn = useFeature('auto_update')
@@ -471,14 +489,14 @@ async function onCollectDiagnostics() {
 </script>
 
 <template>
+  <FlSettingsTabs v-if="framelessLook" v-model="flSection" />
   <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-    <n-gi span="2">
+    <n-gi span="2" :class="{ 'fl-sec': framelessLook, 'fl-sec--off': framelessLook && flSection !== 'features' }">
       <div data-onboarding="features">
-      <n-card size="small" :title="t('features.title')">
+      <n-card size="small" :title="framelessLook ? undefined : t('features.title')">
         <n-space vertical :size="16">
+          <template v-for="item in visibleFeatures" :key="item.id">
           <n-space
-            v-for="item in featureState.items"
-            :key="item.id"
             class="settings-row feature-row"
             justify="space-between"
             align="center"
@@ -494,6 +512,13 @@ async function onCollectDiagnostics() {
               @update:value="(checked) => onFeatureToggle(item.id, checked)"
             />
           </n-space>
+          <div v-if="item.id === 'frameless_window' && framelessNeedsRestart" class="feature-restart">
+            <span>{{ t('features.framelessRestartHint') }}</span>
+            <n-button size="small" type="primary" @click="QuitApplication">
+              {{ t('features.framelessRestart') }}
+            </n-button>
+          </div>
+          </template>
           <n-button
             v-if="onboardingOn"
             text
@@ -506,8 +531,8 @@ async function onCollectDiagnostics() {
       </n-card>
       </div>
     </n-gi>
-    <n-gi span="2 l:1">
-      <n-card size="small" :title="t('config.general')">
+    <n-gi span="2 l:1" :class="{ 'fl-sec': framelessLook, 'fl-sec--off': framelessLook && flSection !== 'general' }">
+      <n-card size="small" :title="framelessLook ? undefined : t('config.general')">
         <n-space vertical :size="16">
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
             <div class="settings-label">
@@ -627,7 +652,7 @@ async function onCollectDiagnostics() {
         </n-space>
       </n-card>
     </n-gi>
-    <n-gi span="2 l:1">
+    <n-gi span="2 l:1" :class="{ 'fl-sec': framelessLook, 'fl-sec--off': framelessLook && flSection !== 'notify' }">
       <div class="config-stack">
         <n-card size="small" :title="t('config.notifications')">
           <n-space vertical :size="16">
@@ -700,6 +725,19 @@ async function onCollectDiagnostics() {
 
 <style scoped>
 .config-desc--warn { color: var(--lt-warning-ink, #92400e); }
+
+.feature-restart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--lt-warning-bg);
+  color: var(--lt-warning-ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
 
 .feature-row {
   width: 100%;

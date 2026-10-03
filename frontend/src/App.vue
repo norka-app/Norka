@@ -12,6 +12,8 @@ import {
 } from './icons'
 import { guessLocale, LOCALE_STORAGE_KEY, LANGUAGE_STORAGE_KEY, readStoredPreference } from './i18n'
 import { naiveThemeOverrides } from './theme/naive-theme'
+import { framelessNaiveOverrides, mergeNaiveTheme } from './theme/frameless-theme'
+import { applyWindowChrome, windowChrome } from './features/window-chrome'
 import {
   CreateGroup,
   CreateJumper,
@@ -49,6 +51,7 @@ import {
   UpdateTunnel,
   CloseMainWindow,
   HasCustomTitleBar,
+  GetWindowChrome,
   ShiftDown,
   GetAppVersion,
   CheckForUpdate,
@@ -64,6 +67,7 @@ import {
 import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTitleBar from './components/layout/AppTitleBar.vue'
+import FramelessControls from './components/frameless/FramelessControls.vue'
 import AppTopHeader from './components/layout/AppTopHeader.vue'
 import OverviewPage from './components/pages/OverviewPage.vue'
 import TunnelStatsModal from './components/modals/TunnelStatsModal.vue'
@@ -161,7 +165,12 @@ function themeFromOs() {
 
 const theme = ref(savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : themeFromOs())
 const naiveTheme = computed(() => (theme.value === 'dark' ? darkTheme : null))
-const themeOverrides = computed(() => naiveThemeOverrides(theme.value))
+const framelessActive = computed(() => windowChrome.frameless)
+const themeOverrides = computed(() => {
+  const base = naiveThemeOverrides(theme.value)
+  if (!framelessActive.value) return base
+  return mergeNaiveTheme(base, framelessNaiveOverrides(theme.value))
+})
 const sidebarCollapsed = ref(savedSidebarCollapsed === '1')
 const windowMode = ref(
   typeof window !== 'undefined' && window.localStorage.getItem(WINDOW_MODE_STORAGE_KEY) === 'simple' ? 'simple' : 'advanced'
@@ -265,7 +274,7 @@ async function enterSimpleWindow() {
   await captureAdvancedBounds()
   windowMode.value = 'simple'
   await nextTick()
-  await applySimpleWindow({ onTop: simpleOnTop.value, titleBar: customTitleBar.value })
+  await applySimpleWindow({ onTop: simpleOnTop.value, titleBar: customTitleBar.value || framelessActive.value })
 }
 
 // Окно без системной рамки (Windows): заголовок рисует AppTitleBar. Первое значение — по
@@ -278,6 +287,18 @@ async function detectCustomTitleBar() {
     customTitleBar.value = (await HasCustomTitleBar()) === true
   } catch (_) {
     /* оставляем значение по User-Agent */
+  }
+}
+
+async function detectWindowChrome() {
+  if (typeof window === 'undefined' || !window.go?.main?.App?.GetWindowChrome) {
+    applyWindowChrome({ frameless: false, platform: '', backdrop: 'native' })
+    return
+  }
+  try {
+    applyWindowChrome(await GetWindowChrome())
+  } catch (_) {
+    applyWindowChrome({ frameless: false, platform: '', backdrop: 'native' })
   }
 }
 
@@ -1098,6 +1119,7 @@ async function loadOnboarding() {
 function onOnboardingStep(step) {
   if (!onboardingOpen.value || windowMode.value !== 'advanced') return
   if (step?.page === 'tunnels' || step?.page === 'config') activePage.value = step.page
+  if (step?.target === 'features') windowChrome.settingsTab = 'features'
 }
 
 async function finishOnboarding() {
@@ -2738,6 +2760,7 @@ onMounted(async () => {
     onBeforeUnmount(() => media.removeEventListener('change', onOsTheme))
   }
   await detectCustomTitleBar()
+  await detectWindowChrome()
   await loadAppVersion()
   await ensureWindowOnScreen()
   if (windowMode.value === 'simple') {
@@ -2951,15 +2974,21 @@ watch(
   <n-message-provider>
   <div
     class="app-frame"
-    :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar }]"
+    :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar && !framelessActive }]"
   >
   <AppTitleBar
-    v-if="customTitleBar"
+    v-if="customTitleBar && !framelessActive"
     :mode="windowMode"
     :theme="theme"
     :status="norkaStatus"
     @minimise="minimiseWindow"
     @toggle-mode="setWindowMode(windowMode === 'simple' ? 'advanced' : 'simple')"
+    @close="closeWindow"
+  />
+  <FramelessControls
+    v-if="customTitleBar && framelessActive"
+    :theme="theme"
+    @minimise="minimiseWindow"
     @close="closeWindow"
   />
   <SimpleMode
@@ -2997,8 +3026,14 @@ watch(
       :traffic="traffic"
       :traffic-history-up="trafficHistoryUp"
       :traffic-history-down="trafficHistoryDown"
+      :frameless="framelessActive"
+      :groups="tunnelGroups"
+      :tunnels="tunnels"
       @switch-page="switchPage"
       @toggle-collapse="toggleSidebar"
+      @toggle-mode="setWindowMode('simple')"
+      @manage-groups="openTunnelGroupModal()"
+      @select-group="switchPage('tunnels')"
     />
 
     <n-layout class="content-shell">

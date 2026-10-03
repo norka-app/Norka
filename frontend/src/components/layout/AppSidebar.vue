@@ -2,8 +2,11 @@
 import { computed, h, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
+import { ContractOutline } from '@vicons/ionicons5'
 import { ArrowDown, ArrowUp, ChevronBack, ChevronForward } from '../../icons'
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
+import NorkaIcon from '../norka/NorkaIcon.vue'
+import FlSidebarGroups from '../frameless/FlSidebarGroups.vue'
 import { useFeature } from '../../features/feature-store'
 
 const SPARKLINE_WIDTH = 200
@@ -57,10 +60,22 @@ const props = defineProps({
   logoVariant: {
     type: String,
     default: 'A'
+  },
+  frameless: {
+    type: Boolean,
+    default: false
+  },
+  groups: {
+    type: Array,
+    default: () => []
+  },
+  tunnels: {
+    type: Array,
+    default: () => []
   }
 })
 
-const emit = defineEmits(['switch-page', 'toggle-collapse'])
+const emit = defineEmits(['switch-page', 'toggle-collapse', 'toggle-mode', 'manage-groups', 'select-group'])
 
 const { t } = useI18n()
 const mascotOn = useFeature('mascot')
@@ -181,11 +196,30 @@ const downloadSpark = computed(() => buildSparklinePath(
     <div class="sidebar-main">
       <div class="brand-logo-wrap">
         <div v-if="!collapsed" class="brand-identity">
+          <NorkaIcon
+            v-if="frameless"
+            class="fl-brand-icon"
+            status="connected"
+            variant="A"
+            :theme="theme === 'dark' ? 'dark' : 'light'"
+            :size="30"
+            aria-hidden="true"
+          />
           <div class="brand-meta">
             <div class="brand-title">{{ $t('app.title') }}</div>
             <div class="brand-subtitle">{{ $t('app.sidebar.subtitle') }}</div>
           </div>
         </div>
+        <button
+          v-if="frameless && !collapsed"
+          type="button"
+          class="fl-mode-btn"
+          :title="`${t('app.titlebar.toSimple')} · Ctrl+Shift+M`"
+          :aria-label="t('app.titlebar.toSimple')"
+          @click="emit('toggle-mode')"
+        >
+          <n-icon :component="ContractOutline" :size="16" />
+        </button>
         <n-button
           quaternary
           circle
@@ -206,6 +240,13 @@ const downloadSpark = computed(() => buildSparklinePath(
         :options="menuOptions"
         @update:value="emit('switch-page', $event)"
       />
+      <FlSidebarGroups
+        v-if="frameless && !collapsed"
+        :groups="groups"
+        :tunnels="tunnels"
+        @add="emit('manage-groups')"
+        @select="emit('select-group', $event)"
+      />
     </div>
 
     <!-- Норка со статусом над нижней панелью: занимает оставшуюся высоту, по ширине — вся панель -->
@@ -220,6 +261,7 @@ const downloadSpark = computed(() => buildSparklinePath(
           :status-label="norkaStatusLabel"
           :idle="mascotOn"
           :easter-egg="mascotOn"
+          :steady-eyes="frameless"
         />
       </div>
     </div>

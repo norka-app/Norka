@@ -3,6 +3,8 @@ package main
 import (
 	"runtime"
 
+	"github.com/norka-app/Norka/internal/features"
+
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -17,6 +19,38 @@ const eventWindowVisibility = "window:visibility"
 // HasCustomTitleBar сообщает фронтенду, рисовать ли собственную строку заголовка.
 func (a *App) HasCustomTitleBar() bool {
 	return customTitleBar
+}
+
+// startupChrome is fixed before wails.Run. GetWindowChrome returns it so the
+// frontend can paint the frameless look only when this process actually
+// opened that frame.
+var startupChrome ChromePlan
+
+func (a *App) loadStartupChrome() {
+	on := false
+	if a != nil {
+		on = a.featureOn(features.FramelessWindow)
+	}
+	startupChrome = planWindowChrome(runtime.GOOS, on, micaSupported())
+}
+
+// WindowChrome is the frame this process opened with.
+type WindowChrome struct {
+	Frameless      bool   `json:"frameless"`
+	Platform       string `json:"platform"`
+	Backdrop       string `json:"backdrop"`
+	CustomTitleBar bool   `json:"customTitleBar"`
+}
+
+// GetWindowChrome reports the frame chosen at startup. Toggling the flag
+// does not change it until the app starts again.
+func (a *App) GetWindowChrome() WindowChrome {
+	return WindowChrome{
+		Frameless:      startupChrome.Frameless,
+		Platform:       startupChrome.Platform,
+		Backdrop:       startupChrome.Backdrop,
+		CustomTitleBar: startupChrome.CustomTitleBar,
+	}
 }
 
 // CloseMainWindow — кнопка «Закрыть» собственной строки заголовка, ведёт себя как системный крестик:

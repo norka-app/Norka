@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { BrowserOpenURL, ClipboardSetText } from '../../../wailsjs/runtime/runtime'
 import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
 import { useFeature } from '../../features/feature-store'
+import { windowChrome } from '../../features/window-chrome'
 import { findPortConflicts } from '../../utils/port-conflicts'
 import { matchesKey, physicalKey } from '../../utils/keyboard'
 import {
@@ -75,6 +76,7 @@ const emit = defineEmits(['select', 'toggle', 'manage', 'port-switch-confirm', '
 
 const { t } = useI18n()
 const mascotOn = useFeature('mascot')
+const steadyEyes = computed(() => windowChrome.frameless)
 const now = ref(Date.now())
 const copied = ref(false)
 let uptimeTimer = null
@@ -491,6 +493,7 @@ onBeforeUnmount(() => {
         :status-label="statusLabel"
         :idle="mascotOn"
         :easter-egg="mascotOn"
+        :steady-eyes="steadyEyes"
       />
     </div>
 

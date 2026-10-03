@@ -17,6 +17,8 @@
             "configSubtitle": "Theme, version, and app data",
             "collapse": "Collapse sidebar",
             "expand": "Expand sidebar",
+            "groups": "Groups",
+            "addGroup": "New group",
             "traffic": "Live traffic",
             "upload": "Upload",
             "download": "Download",
@@ -404,7 +406,8 @@
                 "errorMissingHost": "SSH config has no HostName or target host.",
                 "errorProxyJump": "This alias uses ProxyJump ({proxyJump}). Create the jump host chain manually for now.",
                 "errorDuplicateExisting": "A jump host with the same user, host, and port already exists.",
-                "errorDuplicateBatch": "This host is duplicated in the current import."
+                "errorDuplicateBatch": "This host is duplicated in the current import.",
+                "loadSummary": "Success! {found} found, {ready} ready to import"
             },
             "tunnel": {
                 "newTitle": "New tunnel",
@@ -739,7 +742,11 @@
         "autostartHidden": "Autostart in the tray",
         "autostartHiddenDesc": "At login the window stays closed and Norka remains in the tray. Turn this off to open the window at login.",
         "backgroundMode": "Background mode",
-        "backgroundModeDesc": "Tunnels can stay running without the window: for now the switch only allows norkad, and the window itself will move to the background in later updates."
+        "backgroundModeDesc": "Tunnels can stay running without the window: for now the switch only allows norkad, and the window itself will move to the background in later updates.",
+        "framelessWindow": "Frameless window",
+        "framelessWindowDesc": "A custom header instead of the system title bar, a translucent sidebar, and the cutout Norka in the header. Window buttons sit on the right on Windows; macOS keeps the system buttons. Applies after a restart.",
+        "framelessRestartHint": "Restart the app to change the window.",
+        "framelessRestart": "Restart"
     },
     "onboarding": {
         "replay": "Show the tour again",
