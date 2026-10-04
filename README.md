@@ -26,7 +26,7 @@
 
 [![Обзор Norka](docs/media/norka-overview.gif)](docs/media/norka-overview.mp4)
 
-26 секунд: обзор, цепочка jump host, туннели, переход в простой режим и подключение.
+30 секунд: обзор, цепочка jump host, туннели, переход в простой режим и подключение.
 [Видео](docs/media/norka-overview.mp4) · [English](docs/media/norka-overview-en.mp4)
 
 <sub>Имена хостов в ролике вымышленные. Музыка: Happy Beats / Business Moves, vol. 12, [ende.app](https://ende.app/en). Звуки интерфейса: [Kenney](https://kenney.nl), CC0.</sub>

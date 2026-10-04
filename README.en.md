@@ -26,7 +26,7 @@
 
 [![Norka overview](docs/media/norka-overview.gif)](docs/media/norka-overview-en.mp4)
 
-26 seconds: overview, a jump-host chain, tunnels, the switch to simple mode, and connecting.
+30 seconds: overview, a jump-host chain, tunnels, the switch to simple mode, and connecting.
 [Video](docs/media/norka-overview-en.mp4) · [Русский](docs/media/norka-overview.mp4)
 
 <sub>Host names in the video are fictional. Music: Happy Beats / Business Moves, vol. 12, [ende.app](https://ende.app/en). Interface sounds: [Kenney](https://kenney.nl), CC0.</sub>
