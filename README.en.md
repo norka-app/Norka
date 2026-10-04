@@ -22,6 +22,15 @@
 
 [Download](../../releases) · [Features](#features) · [Build](#build-from-source) · [Configuration](#configuration)
 
+<br>
+
+[![Norka overview](docs/media/norka-overview.gif)](docs/media/norka-overview-en.mp4)
+
+22 seconds: connected tunnels, a jump-host chain, quick search, simple mode, and tray colours.
+[Video](docs/media/norka-overview-en.mp4) · [Русский](docs/media/norka-overview.mp4)
+
+<sub>Host names in the video are fictional. Music: Happy Beats / Business Moves, vol. 12, [ende.app](https://ende.app/en). Interface sounds: [Kenney](https://kenney.nl), CC0.</sub>
+
 </div>
 
 ---
