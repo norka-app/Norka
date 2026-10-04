@@ -13,6 +13,14 @@
 
 <br>
 
+<a href="docs/media/norka-overview.mp4">
+  <img src="docs/media/norka-overview.gif" alt="Обзор Norka: туннели, Ctrl+K и простой режим" width="760">
+</a>
+
+<sub>Музыка: «Happy Beats / Business Moves» — <a href="https://ende.app/en">ende.app</a>. Звуки: <a href="https://kenney.nl">Kenney</a>, CC0.</sub>
+
+<br>
+
 ![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 ![Wails](https://img.shields.io/badge/Wails-v2.16-DF0000)
