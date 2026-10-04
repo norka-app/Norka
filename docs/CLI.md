@@ -35,7 +35,7 @@ go install github.com/norka-app/Norka/cmd/norka-cli@latest
 
 В каждом запросе `norka-cli` есть поле `v` — версия протокола. Старый клиент без этого поля по-прежнему работает с новой Norka: так устроены уже выпущенные команды `norka`. Если номера не сходятся, команда завершается с кодом 8 и просит обновить Norka или `norka-cli`, а не выполняет действие вслепую.
 
-`norkad` лежит в тех же архивах, что и `norka-cli`. Это фоновый процесс без окна: тот же `config.toml`, lock движка с `kind=daemon`, автозапуск туннелей, слежение за пробуждением и IPC автоматизации. Пока в **Настройки → Функции** выключен «Фоновый режим», `norkad` завершается с кодом 10. `--force` обходит проверку. Если lock уже держит другой процесс, код 9 и в сообщении его pid и kind (`gui` или `daemon`). Пароль демон не спрашивает: такой туннель пропускается. Само окно в фон пока не уходит.
+`norkad` лежит в тех же архивах, что и `norka-cli`. Это фоновый процесс без окна: тот же `config.toml`, lock движка с `kind=daemon`, автозапуск туннелей, слежение за пробуждением и IPC автоматизации. Пока в **Настройки → Функции** выключен «Фоновый режим», `norkad` завершается с кодом 10. `--force` обходит проверку. Если lock уже держит другой процесс, код 9 и в сообщении его pid и kind (`gui` или `daemon`). Пароль демон не спрашивает: такой туннель пропускается. Когда «Фоновый режим» включён, окно подключается к `norkad` и при закрытии оставляет туннели работать. Подробности — в [BACKGROUND.md](BACKGROUND.md).
 
 ## Команды
 
@@ -171,7 +171,7 @@ On startup Norka writes its executable path to `app-path` next to `config.toml`.
 
 Every `norka-cli` request carries `v`, the protocol version. An older client that omits the field still works with a newer Norka, which is how the `norka` commands already shipped behave. When the numbers disagree, the command exits with code 8 and asks you to update Norka or `norka-cli` instead of guessing.
 
-`norkad` ships in the same archives as `norka-cli`. It is a windowless process: the same `config.toml`, the engine lock with `kind=daemon`, autostart tunnels, wake reconnect, and automation IPC. While **Settings → Features** has Background mode off, `norkad` exits with code 10. `--force` skips that check. If another process already holds the lock, the exit code is 9 and the message includes that process's pid and kind (`gui` or `daemon`). The daemon does not ask for a password; that tunnel is skipped. The window itself does not move to the background yet.
+`norkad` ships in the same archives as `norka-cli`. It is a windowless process: the same `config.toml`, the engine lock with `kind=daemon`, autostart tunnels, wake reconnect, and automation IPC. While **Settings → Features** has Background mode off, `norkad` exits with code 10. `--force` skips that check. If another process already holds the lock, the exit code is 9 and the message includes that process's pid and kind (`gui` or `daemon`). The daemon does not ask for a password; that tunnel is skipped. When Background mode is on, the window attaches to `norkad` and leaves the tunnels running when it closes. See [BACKGROUND.md](BACKGROUND.md).
 
 ## Commands
 
