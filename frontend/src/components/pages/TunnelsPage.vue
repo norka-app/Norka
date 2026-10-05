@@ -14,6 +14,7 @@ import {
   renderIcon,
 } from '../../icons'
 import { formatDuration, sessionUptimeSeconds } from '../../utils/tunnel-stats'
+import { foreignLocalBindHint, rawTunnelError } from '../../utils/local-bind-error'
 
 const props = defineProps({
   tunnels: {
@@ -118,6 +119,8 @@ const COLLAPSED_GROUPS_STORAGE_KEY = 'lt.tunnel-groups.collapsed'
 const localSearchQuery = ref(props.searchQuery)
 const expandedErrorIds = ref(new Set())
 const copiedErrorIds = ref(new Set())
+// Уже раскрытые сами собой подсказки про чужой порт — повторно не раскрываем, если пользователь свернул.
+const seenForeignBindIds = new Set()
 const copyResetTimers = new Map()
 const collapsedSectionKeys = ref(new Set())
 const showGroupedView = computed(() => Array.isArray(props.groups) && props.groups.length > 0)
@@ -250,7 +253,19 @@ watch(
         .filter((tunnel) => tunnel.status === 'error' && tunnel.lastError)
         .map((tunnel) => tunnel.id)
     )
-    expandedErrorIds.value = new Set([...expandedErrorIds.value].filter((id) => validErrorIds.has(id)))
+    const nextExpanded = new Set([...expandedErrorIds.value].filter((id) => validErrorIds.has(id)))
+    for (const tunnel of nextTunnels) {
+      const hint = foreignLocalBindHint(tunnel, nextTunnels)
+      if (!hint) {
+        seenForeignBindIds.delete(tunnel.id)
+        continue
+      }
+      if (!seenForeignBindIds.has(tunnel.id)) {
+        seenForeignBindIds.add(tunnel.id)
+        nextExpanded.add(tunnel.id)
+      }
+    }
+    expandedErrorIds.value = nextExpanded
     copiedErrorIds.value = new Set([...copiedErrorIds.value].filter((id) => validErrorIds.has(id)))
     copyResetTimers.forEach((timerId, id) => {
       if (!validErrorIds.has(id)) {
@@ -259,7 +274,7 @@ watch(
       }
     })
   },
-  { deep: true }
+  { deep: true, immediate: true }
 )
 
 // На узком окне (≈1000px, размер по умолчанию) режим переезжает под имя, задержка — в колонку
@@ -512,10 +527,24 @@ async function writeTextToClipboard(text) {
   }
 }
 
+function bindHintText(tunnel) {
+  const hint = foreignLocalBindHint(tunnel, props.tunnels)
+  if (!hint) return ''
+  return t('app.tunnels.externalPortBusy', hint)
+}
+
+function errorCopyText(tunnel) {
+  const hint = foreignLocalBindHint(tunnel, props.tunnels)
+  const friendly = bindHintText(tunnel)
+  if (!hint || !friendly) return rawTunnelError(tunnel.lastError)
+  return `${friendly}\n\n${hint.raw}`
+}
+
 async function copyErrorDetails(tunnel) {
-  if (!tunnel.lastError) return
+  const text = errorCopyText(tunnel)
+  if (!text) return
   try {
-    const copied = await writeTextToClipboard(tunnel.lastError)
+    const copied = await writeTextToClipboard(text)
     if (!copied) return
     const next = new Set(copiedErrorIds.value)
     next.add(tunnel.id)
@@ -664,18 +693,35 @@ const tunnelColumns = computed(() => {
   {
     type: 'expand',
     expandable: (row) => canToggleErrorDetails(row),
-    renderExpand: (row) => h('div', { style: 'display:flex;justify-content:space-between;gap:12px' }, [
-      h('div', [
-        h('div', { style: 'font-weight: 600' }, t('app.tunnels.errorReason')),
-        h('div', row.lastError),
-      ]),
-      h(NButton, {
+    renderExpand: (row) => {
+      const hint = foreignLocalBindHint(row, props.tunnels)
+      const copyButton = h(NButton, {
         size: 'small',
         quaternary: true,
         title: t(getErrorCopyLabelKey(row.id)),
         onClick: () => copyErrorDetails(row),
-      }, { icon: renderIcon(isErrorCopied(row.id) ? Checkmark : CopyOutline) }),
-    ]),
+      }, { icon: renderIcon(isErrorCopied(row.id) ? Checkmark : CopyOutline) })
+      if (!hint) {
+        return h('div', { style: 'display:flex;justify-content:space-between;gap:12px' }, [
+          h('div', [
+            h('div', { style: 'font-weight: 600' }, t('app.tunnels.errorReason')),
+            h('div', rawTunnelError(row.lastError)),
+          ]),
+          copyButton,
+        ])
+      }
+      return h('div', { class: 'tunnel-error-detail' }, [
+        h('div', { class: 'tunnel-error-detail-content' }, [
+          h('div', { class: 'tunnel-error-detail-label' }, t('app.tunnels.errorReason')),
+          h('div', { class: 'tunnel-error-detail-message' }, t('app.tunnels.externalPortBusy', hint)),
+          h('div', { class: 'tunnel-error-detail-tech' }, [
+            h('div', { class: 'tunnel-error-detail-tech-label' }, t('app.tunnels.externalPortBusyDetail')),
+            h('div', { class: 'tunnel-error-detail-tech-message' }, hint.raw),
+          ]),
+        ]),
+        copyButton,
+      ])
+    },
   },
   compactTable.value
     ? {

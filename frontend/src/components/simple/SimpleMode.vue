@@ -8,6 +8,7 @@ import NorkaStatusLogo from '../norka/NorkaStatusLogo.vue'
 import { useFeature } from '../../features/feature-store'
 import { windowChrome } from '../../features/window-chrome'
 import { findPortConflicts } from '../../utils/port-conflicts'
+import { foreignLocalBindHint, rawTunnelError } from '../../utils/local-bind-error'
 import { matchesKey, physicalKey } from '../../utils/keyboard'
 import {
   Checkmark,
@@ -112,14 +113,25 @@ function formatUptime(ms) {
   return days > 0 ? t('app.simple.uptimeDays', { days, time: hms }) : hms
 }
 
+const bindHint = computed(() => foreignLocalBindHint(props.tunnel, props.tunnels))
+
 const statusDetail = computed(() => {
   if (!props.tunnel) return ''
   if (rawStatus.value === 'running') {
     const since = props.getRunningSince(props.tunnel.id)
     return since ? formatUptime(now.value - since) : ''
   }
-  if (rawStatus.value === 'error') return props.tunnel.lastError || ''
+  if (rawStatus.value === 'error') {
+    if (bindHint.value) return t('app.tunnels.externalPortBusy', bindHint.value)
+    return rawTunnelError(props.tunnel.lastError)
+  }
   return ''
+})
+
+const statusTitle = computed(() => {
+  if (!bindHint.value) return statusDetail.value
+  const raw = bindHint.value.raw
+  return raw ? `${statusDetail.value}\n\n${raw}` : statusDetail.value
 })
 
 function displayHost(host) {
@@ -540,13 +552,13 @@ onBeforeUnmount(() => {
         <n-checkbox v-model:checked="dontAsk" size="small">{{ $t('app.tunnels.portSwitch.dontAsk') }}</n-checkbox>
       </div>
       <div v-else class="simple-info">
-        <div class="simple-status" :class="`s-${state}`" role="status">
+        <div class="simple-status" :class="[`s-${state}`, { 'simple-status--bind': bindHint }]" role="status">
           <span v-if="state === 'connecting'" class="simple-spin" aria-hidden="true" />
           <span v-else class="simple-dot" aria-hidden="true" />
           <b>{{ statusLabel }}</b>
           <template v-if="statusDetail">
-            <span class="simple-sep" aria-hidden="true">·</span>
-            <span class="simple-detail" :title="statusDetail">{{ statusDetail }}</span>
+            <span v-if="!bindHint" class="simple-sep" aria-hidden="true">·</span>
+            <span class="simple-detail" :class="{ 'simple-detail--bind': bindHint }" :title="statusTitle">{{ statusDetail }}</span>
           </template>
         </div>
         <div class="simple-addr" :title="`${route.from} → ${route.to}`">
@@ -799,6 +811,18 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 .simple-status b { font-weight: 600; flex: none; }
+.simple-status--bind {
+  height: auto;
+  align-items: flex-start;
+  white-space: normal;
+}
+.simple-detail--bind {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
+}
 .simple-status.s-connected b { color: var(--s-green); }
 .simple-status.s-connecting b,
 .simple-status.s-connecting .simple-spin { color: var(--s-amber); }

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatBytes, formatDuration, formatWhen, liveConnectedSeconds, sessionUptimeSeconds } from '../../utils/tunnel-stats'
+import { foreignLocalBindHint, rawTunnelError } from '../../utils/local-bind-error'
 
 const props = defineProps({
   show: {
@@ -11,6 +12,10 @@ const props = defineProps({
   tunnel: {
     type: Object,
     default: null,
+  },
+  tunnels: {
+    type: Array,
+    default: () => [],
   },
   stat: {
     type: Object,
@@ -36,6 +41,19 @@ const totalConnected = computed(() => formatDuration(
   t,
 ))
 const errorWhen = computed(() => formatWhen(props.stat?.lastErrorUnix, locale.value))
+const bindHint = computed(() => {
+  const message = props.stat?.lastError || ''
+  if (!message || !props.tunnel) return null
+  return foreignLocalBindHint({
+    ...props.tunnel,
+    status: 'error',
+    lastError: message,
+  }, props.tunnels)
+})
+const bindHintText = computed(() => (
+  bindHint.value ? t('app.tunnels.externalPortBusy', bindHint.value) : ''
+))
+const shownError = computed(() => bindHint.value?.raw || rawTunnelError(props.stat?.lastError || ''))
 
 function row(label, value) {
   return { label, value }
@@ -92,7 +110,8 @@ const sections = computed(() => [
       </section>
       <section class="tunnel-stats-section">
         <h3>{{ $t('app.tunnels.stats.lastError') }}</h3>
-        <p v-if="stat?.lastError" class="tunnel-stats-error">{{ stat.lastError }}</p>
+        <p v-if="bindHintText" class="tunnel-stats-error">{{ bindHintText }}</p>
+        <p v-if="shownError" class="tunnel-stats-error" :class="{ 'tunnel-stats-error-raw': bindHintText }">{{ shownError }}</p>
         <p v-else class="tunnel-stats-quiet">{{ $t('app.tunnels.stats.noError') }}</p>
         <p v-if="errorWhen" class="tunnel-stats-when">{{ errorWhen }}</p>
       </section>
@@ -158,6 +177,13 @@ const sections = computed(() => [
   font-size: 13px;
   line-height: 1.4;
   word-break: break-word;
+}
+
+.tunnel-stats-error-raw {
+  margin-top: 8px;
+  color: var(--lt-muted);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .tunnel-stats-quiet,

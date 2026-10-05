@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/norka-app/Norka/internal/ipc"
+	"github.com/norka-app/Norka/internal/localbind"
 )
 
 func usageText() string {
@@ -150,6 +151,7 @@ func failedText(cmd command, resp ipc.Response) string {
 	if detail == "" {
 		detail = "unknown error"
 	}
+	detail = localbind.Present(detail)
 	if name == "" {
 		return "The command failed: " + detail
 	}

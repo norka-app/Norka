@@ -103,6 +103,7 @@ import {
 } from './utils/window-mode'
 import { setWindowShown } from './utils/window-visibility'
 import { findPortConflicts } from './utils/port-conflicts'
+import { rawTunnelError } from './utils/local-bind-error'
 import { isQuickSearchChord, matchesKey } from './utils/keyboard'
 import { shouldShowOnboarding } from './onboarding/onboarding.js'
 import OnboardingTour from './components/onboarding/OnboardingTour.vue'
@@ -2196,7 +2197,7 @@ async function runToggle(tunnel) {
     patchTunnelLocal(updated.id, updated)
 
     if (updated.status === 'error') {
-      const reason = updated.lastError ? `: ${updated.lastError}` : ''
+      const reason = updated.lastError ? `: ${rawTunnelError(updated.lastError)}` : ''
       logEvent('error', `Tunnel ${updated.name} failed${reason}`)
       return
     }
@@ -3269,6 +3270,7 @@ watch(
     v-if="tunnelStatsOn"
     :show="!!statsTunnel"
     :tunnel="statsTunnel"
+    :tunnels="tunnels"
     :stat="statsTunnelStat"
     :now="statsNow"
     @close="closeTunnelStats"
