@@ -477,7 +477,7 @@ func (b *TunnelBiz) startTunnel(tunnel model.Tunnel, maxRunning int, secrets []D
 			return b.updateStatus(id, "stopped", "")
 		}
 		b.emitConnectFailed(tunnel.ID, tunnel.Name)
-		updated, statusErr := b.updateStatus(id, "error", errReason(err))
+		updated, statusErr := b.updateStatus(id, "error", b.startFailureReason(tunnel, err))
 		if statusErr != nil {
 			return model.Tunnel{}, fmt.Errorf("start tunnel failed: %v (persist status failed: %v)", err, statusErr)
 		}

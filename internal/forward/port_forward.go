@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/norka-app/Norka/internal/localbind"
 	"github.com/norka-app/Norka/internal/model"
 	"github.com/norka-app/Norka/internal/netwatch"
 	"github.com/norka-app/Norka/internal/wake"
@@ -181,7 +182,7 @@ func (f *LocalForward) Start() error {
 		ln, err = net.Listen("tcp", localAddr)
 		if err != nil {
 			closeChain()
-			runErr := fmt.Errorf("listen %s failed: %w", localAddr, err)
+			runErr := localbind.AnnotateListen(localAddr, err)
 			f.setRunErr(runErr)
 			slog.Error("tunnel listen failed", "tunnel_id", f.tunnel.ID, "name", f.tunnel.Name, "addr", localAddr, "err", runErr)
 			return runErr

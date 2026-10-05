@@ -967,6 +967,28 @@
   word-break: break-word;
 }
 
+.tunnel-error-detail-tech {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--lt-danger-border);
+}
+
+.tunnel-error-detail-tech-label {
+  color: var(--lt-muted);
+  font-size: 0.69rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.tunnel-error-detail-tech-message {
+  color: var(--lt-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 
 @keyframes tunnelErrorExpand {
   from {
