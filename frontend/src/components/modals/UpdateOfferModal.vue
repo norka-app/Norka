@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { renderSafeMarkdown } from '../../utils/safe-markdown'
+import { notesForLocale } from '../../utils/release-notes'
 import { BUTTON_GAP } from '../../theme/form-layout'
 
 const props = defineProps({
@@ -44,14 +45,15 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'download', 'skip', 'open-url'])
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const applyButton = ref(null)
 
-const safeNotes = computed(() => renderSafeMarkdown(props.notes))
+const localizedNotes = computed(() => notesForLocale(props.notes, locale.value))
+const safeNotes = computed(() => renderSafeMarkdown(localizedNotes.value))
 const showPageLink = computed(() => {
   const page = String(props.pageUrl || '').trim()
   if (!page) return false
-  return !String(props.notes || '').includes(page)
+  return !localizedNotes.value.includes(page)
 })
 const busy = computed(() => ['download', 'verify', 'install', 'restart'].includes(props.phase))
 const progressValue = computed(() => {

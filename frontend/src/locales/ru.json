@@ -245,6 +245,7 @@
                 "dontAsk": "Больше не спрашивать"
             },
             "externalPortBusy": "Локальный порт {port} уже занят другой программой (часто Docker или другой сервис), а не туннелем Norka. Смени локальный порт в туннеле, например на {suggested}, и открывай http://localhost:{suggested} — удалённый порт можно оставить {remote}.",
+            "externalPortBusyCompact": "Порт {port} занят другой программой. Смени его на {suggested}: http://localhost:{suggested}",
             "externalPortBusyDetail": "Техническая подробность",
             "groups": {
                 "manage": "Управление группами",

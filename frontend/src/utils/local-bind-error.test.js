@@ -110,6 +110,16 @@ describe('locale copy', () => {
     assert.match(enText, /remote port can stay \{remote\}/)
     assert.equal(ru.app.tunnels.externalPortBusyDetail.length > 0, true)
     assert.equal(en.app.tunnels.externalPortBusyDetail.length > 0, true)
+    const ruCompact = ru.app.tunnels.externalPortBusyCompact
+    const enCompact = en.app.tunnels.externalPortBusyCompact
+    assert.match(ruCompact, /\{suggested\}/)
+    assert.match(enCompact, /\{suggested\}/)
+    assert.equal(ruCompact.indexOf('{suggested}') < ruCompact.indexOf('http://'), true)
+    assert.equal(enCompact.indexOf('{suggested}') < enCompact.indexOf('http://'), true)
+    for (const token of ['{port}', '{suggested}']) {
+      assert.equal(ruCompact.includes(token), true)
+      assert.equal(enCompact.includes(token), true)
+    }
     for (const token of ['{port}', '{suggested}', '{remote}']) {
       assert.equal(ruText.includes(token), true)
       assert.equal(enText.includes(token), true)
