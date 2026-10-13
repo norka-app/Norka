@@ -122,7 +122,7 @@ const statusDetail = computed(() => {
     return since ? formatUptime(now.value - since) : ''
   }
   if (rawStatus.value === 'error') {
-    if (bindHint.value) return t('app.tunnels.externalPortBusy', bindHint.value)
+    if (bindHint.value) return t('app.tunnels.externalPortBusyCompact', bindHint.value)
     return rawTunnelError(props.tunnel.lastError)
   }
   return ''
@@ -130,8 +130,9 @@ const statusDetail = computed(() => {
 
 const statusTitle = computed(() => {
   if (!bindHint.value) return statusDetail.value
+  const full = t('app.tunnels.externalPortBusy', bindHint.value)
   const raw = bindHint.value.raw
-  return raw ? `${statusDetail.value}\n\n${raw}` : statusDetail.value
+  return raw ? `${full}\n\n${raw}` : full
 })
 
 function displayHost(host) {
@@ -814,14 +815,18 @@ onBeforeUnmount(() => {
 .simple-status--bind {
   height: auto;
   align-items: flex-start;
+  flex-wrap: wrap;
   white-space: normal;
+  row-gap: 2px;
 }
-.simple-detail--bind {
+.simple-status--bind .simple-detail--bind {
+  flex: 1 0 calc(100% - 15px);
+  margin-left: 15px;
   white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
+  display: block;
   line-height: 1.35;
+  overflow: visible;
+  text-overflow: unset;
 }
 .simple-status.s-connected b { color: var(--s-green); }
 .simple-status.s-connecting b,

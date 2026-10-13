@@ -245,6 +245,7 @@
                 "dontAsk": "Don't ask again"
             },
             "externalPortBusy": "Local port {port} is already used by another program (often Docker or another service), not by a Norka tunnel. Change the tunnel's local port, for example to {suggested}, and open http://localhost:{suggested} — the remote port can stay {remote}.",
+            "externalPortBusyCompact": "Port {port} is taken by another program. Change it to {suggested}: http://localhost:{suggested}",
             "externalPortBusyDetail": "Technical detail",
             "groups": {
                 "manage": "Manage groups",
