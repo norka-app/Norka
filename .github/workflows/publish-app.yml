@@ -1,0 +1,44 @@
+# Публикация cask приложения и манифеста Scoop.
+#
+# Сборка по тегу вызывает этот файл через workflow_call после задачи
+# release: к этому моменту norka.dmg, norka.exe и SHA256SUMS уже лежат
+# в выпуске. Ручной запуск берёт образцы packaging/ из той ветки, с
+# которой нажали Run workflow (после правки это main), а версию, хеши
+# и ссылки — из выпуска в поле tag. Так можно один раз выложить v1.6.1,
+# не переставляя тег.
+#
+# Пишутся только Casks/norka.rb и bucket/norka.json. Файлы norka-cli,
+# файлы приложения и общий SHA256SUMS не создаются и не заменяются.
+name: Publish Norka app
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Тег выпуска, например v1.6.1
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Тег выпуска, например v1.6.1
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish Homebrew cask and Scoop manifest
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          chmod +x scripts/publish-app-packages.sh
+          scripts/publish-app-packages.sh "$TAG"

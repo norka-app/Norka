@@ -1,6 +1,12 @@
 # Публикация в winget, Scoop и Homebrew
 
-Манифесты лежат в репозитории и **никуда сами не отправляются**. Репозитории `microsoft/winget-pkgs`, tap Homebrew и bucket Scoop из этого CI не создаются. Ниже — что сделать один раз и что происходит на каждом теге `v*`.
+Образцы манифестов лежат в `packaging/`. Репозитории `microsoft/winget-pkgs`, `norka-app/homebrew-tap` и `norka-app/scoop-bucket` этот CI не создаёт.
+
+На каждом теге `v*` задача `release` выкладывает файлы приложения и общий `SHA256SUMS`. Сразу после неё workflow `Publish Norka app` (`.github/workflows/publish-app.yml`) пушит cask `Casks/norka.rb` в `norka-app/homebrew-tap` и манифест `bucket/norka.json` в `norka-app/scoop-bucket`. Текст берётся из `packaging/homebrew/norka.rb` и `packaging/scoop/norka.json`. Версия и хеши берутся из `SHA256SUMS` этого выпуска, ссылки — на его `norka.dmg` и `norka.exe`. Push идёт секретом `TAP_GITHUB_TOKEN`, тем же, что у `norka-cli`. Нет секрета — push пропускается, выпуск не считается упавшим. Файлы `norka-cli`, файлы приложения и общий `SHA256SUMS` этот workflow не меняет.
+
+winget по-прежнему не публикуется, пока нет `WINGET_TOKEN` и первой принятой версии. В README он помечен «скоро».
+
+Ниже — что сделать один раз и что происходит на каждом теге `v*`.
 
 Имена файлов релиза, на которые ссылаются манифесты:
 
@@ -14,7 +20,7 @@
 - `norka.exe` — winget (`InstallerSha256`, заглавные буквы) и Scoop (`hash`, строчные)
 - `norka.dmg` — Homebrew (`sha256`, строчные)
 
-Номер приложения — `1.6.1`. В `packaging/` пока версия `1.6.0`, хеши взяты из `SHA256SUMS` выпуска [v1.6.0](https://github.com/norka-app/Norka/releases/tag/v1.6.0). После тега `v1.6.1` workflow ниже перепишет версию и хеши и откроет pull request. Этот выпуск файлы манифестов не меняет.
+Номер приложения — `1.6.1`. Образцы в `packaging/` сейчас совпадают с `SHA256SUMS` выпуска [v1.6.1](https://github.com/norka-app/Norka/releases/tag/v1.6.1). Следующий тег без дефиса workflow хешей перепишет версию и хеши и откроет pull request. Сам выпуск файлы в `packaging/` не меняет. Cask и манифест Scoop в tap и bucket обновляет `Publish Norka app`: он читает `SHA256SUMS` выпуска и не ждёт этот pull request.
 
 Сборка по тегу `v*` публикует выпуск из `build.yml` токеном `GITHUB_TOKEN`. Событие, которое создал этот токен, другие workflow не запускает, поэтому отдельный триггер `on: release` здесь не используется. Когда задача `release` прошла и в теге нет дефиса, `build.yml` вызывает `.github/workflows/update-manifests.yml` через `workflow_call` и передаёт версию.
 
@@ -45,7 +51,7 @@ scripts/update-manifests.sh 1.6.1
 Идентификатор пакета: `NorkaApp.Norka`. Файлы для первой заявки: `packaging/winget/`.
 
 1. Поставьте [wingetcreate](https://github.com/microsoft/winget-create) или проверяйте YAML по схемам из комментария в начале каждого файла.
-2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Пока тег `v1.6.1` не опубликован, в образцах версия `1.6.0` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.6.0`. `InstallerSha256` записан заглавными буквами. На выпуске `v1.6.1` те же поля перепишет workflow хешей или `scripts/update-manifests.sh`.
+2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Сейчас в образцах версия `1.6.1` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.6.1`. `InstallerSha256` записан заглавными буквами. Следующий тег без дефиса перепишет те же поля workflow хешей или `scripts/update-manifests.sh`.
 3. Скопируйте четыре файла в свой форк [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) по пути:
 
    `manifests/n/NorkaApp/Norka/<версия>/`
@@ -72,101 +78,44 @@ scripts/update-manifests.sh 1.6.1
 
 ## Один раз: Scoop
 
-Отдельный репозиторий, его нужно создать руками: **`norka-app/scoop-bucket`**. Из этого репозитория он не создаётся.
+Репозиторий **`norka-app/scoop-bucket`** уже есть: в нём лежит клиент. Этот CI его не создаёт. Манифест приложения — `bucket/norka.json`. Каталог `bucket/` общий с `bucket/norka-cli.json`; публикация приложения этот файл клиента не меняет.
 
-1. Создайте публичный репозиторий `norka-app/scoop-bucket`.
-2. Положите в корень файл `bucket/norka.json` — копия `packaging/scoop/norka.json`. Каталог `bucket/` нужен, если в репозитории будут и другие манифесты; один файл `norka.json` в корне тоже допустим, тогда команда установки та же.
-3. В манифесте уже стоят `checkver` по релизам GitHub и `autoupdate` на `norka.exe` версии `$version`. Хеш в блоке `autoupdate` не указан: `checkver -u` скачивает файл и считает SHA256 сам.
-
-Пользователь после появления репозитория:
-
-```bash
-scoop bucket add norka https://github.com/norka-app/scoop-bucket
-scoop install norka
-```
-
-Пока репозитория нет, команды в README помечены «скоро».
-
-Чтобы bucket обновлялся сам, в **том** репозитории добавьте workflow (не в Norka):
-
-```yaml
-name: Update manifest
-on:
-  schedule:
-    - cron: "17 4 * * *"
-  workflow_dispatch:
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ScoopInstaller/GithubActions@main
-        with:
-          buckets: |
-            norka-app/scoop-bucket
-```
-
-Либо на машине с Scoop: `scoop update && cd scoop-bucket && bin/checkver.ps1 -u norka` и коммит. Секрет в репозитории Norka для Scoop не нужен.
-
-## Каждый релиз: Scoop
-
-Новый тег `v*` выкладывает `norka.exe`. Образец `packaging/scoop/norka.json` в этом репозитории обновляет workflow хешей. Манифест в bucket подхватывает выпуск отдельно, через `checkver` / `autoupdate`, когда отработает workflow bucket или ручной `checkver -u`. Пока это не сделано, в bucket остаётся прошлая версия.
-
-## Один раз: Homebrew
-
-Отдельный репозиторий, его нужно создать руками: **`norka-app/homebrew-tap`**. Имя `homebrew-` в начале даёт tap `norka-app/tap`.
-
-1. Создайте публичный репозиторий `norka-app/homebrew-tap`.
-2. Положите туда `Casks/norka.rb` — копия `packaging/homebrew/norka.rb`.
-3. Перед первым `brew audit` сверьте `version` и `sha256` с `norka.dmg` релиза (`shasum -a 256 norka.dmg` или строка `norka.dmg` в `SHA256SUMS`). Пока тег `v1.6.1` не опубликован, в cask версия `1.6.0` и SHA256 `norka.dmg` из `SHA256SUMS` выпуска v1.6.0. После `v1.6.1` образец в этом репозитории обновляет тот же workflow, что и остальные манифесты.
-4. В cask есть `caveats`: сборка ad-hoc, без нотаризации, macOS ставит карантин. Снять его: `xattr -dr com.apple.quarantine /Applications/norka.app`.
-5. `zap trash: "~/.norka"` — каталог конфига на macOS.
+В образце `packaging/scoop/norka.json` стоят `checkver` по релизам GitHub и `autoupdate` на `norka.exe` версии `$version`. Строку `v$version` публикация не переписывает. Хеш в блоке `autoupdate` не указан.
 
 Пользователь:
 
 ```bash
-brew tap norka-app/tap
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka/norka
+```
+
+## Каждый релиз: Scoop
+
+После задачи `release` workflow `Publish Norka app` скачивает `SHA256SUMS` этого тега, подставляет версию, хеш `norka.exe` и ссылку `https://github.com/norka-app/Norka/releases/download/<тег>/norka.exe` в копию `packaging/scoop/norka.json` и пушит её как `bucket/norka.json`. Токен — `TAP_GITHUB_TOKEN`. Нет секрета — push пропускается, задача завершается успешно. Образец в `packaging/` по-прежнему обновляет workflow хешей отдельно. Bucket не ждёт этот pull request.
+
+Перед push скрипт `scripts/publish-app-packages.sh` проверяет, что `norka.exe` по этой ссылке открывается. Повторный запуск с тем же тегом не делает пустой коммит, если файл уже совпадает.
+
+## Один раз: Homebrew
+
+Репозиторий **`norka-app/homebrew-tap`** уже есть. Имя `homebrew-` в начале даёт tap `norka-app/tap`. Cask приложения — `Casks/norka.rb`. Рядом лежит `Casks/norka-cli.rb`; публикация приложения его не меняет.
+
+В cask есть `caveats`: сборка ad-hoc, без нотаризации, macOS ставит карантин. Снять его: `xattr -dr com.apple.quarantine /Applications/norka.app`. `zap trash: "~/.norka"` — каталог конфига на macOS. `url` указывает на `norka.dmg` выпуска через `v#{version}`.
+
+Пользователь:
+
+```bash
 brew install --cask norka-app/tap/norka
 ```
 
-Короткая форма после tap: `brew install --cask norka`.
-
-Автообновление cask в **том** репозитории, например действием `Homebrew/actions` или ручным коммитом. Образец workflow для tap:
-
-```yaml
-name: Update cask
-on:
-  workflow_dispatch:
-  repository_dispatch:
-    types: [norka-release]
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Bump cask from latest GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="$(gh release view --repo norka-app/Norka --json tagName --jq .tagName)"
-          ver="${tag#v}"
-          gh release download "$tag" --repo norka-app/Norka --pattern norka.dmg
-          sum="$(shasum -a 256 norka.dmg | awk '{print $1}')"
-          ruby -i -pe "BEGIN{v=ENV.fetch('VER'); s=ENV.fetch('SUM')}; \$_.sub!(/version \".*\"/, %(version \"#{v}\")); \$_.sub!(/sha256 \".*\"/, %(sha256 \"#{s}\"))" \
-            VER="$ver" SUM="$sum" Casks/norka.rb
-          git diff --exit-code && exit 0
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add Casks/norka.rb
-          git commit -m "norka $ver"
-          git push
-```
-
-`GITHUB_TOKEN` tap-репозитория читает публичный релиз Norka без отдельного секрета. Можно вместо расписания слать `repository_dispatch` из Norka — для этого понадобится PAT с правом `contents:write` на tap. Пока его нет, обновляйте cask приложения вручную или расписанием в tap. Для cask `norka` такого шага нет. Клиент `norka-cli` ниже пушит свой cask и манифест Scoop только если задан секрет `TAP_GITHUB_TOKEN`.
+Короткая форма после того, как tap уже добавлен: `brew install --cask norka`.
 
 ## Каждый релиз: Homebrew
 
-Тег `v*` публикует `norka.dmg`. Образец `packaging/homebrew/norka.rb` обновляет workflow хешей. Cask в tap сам не меняется, пока не обновите `version` и `sha256` там (workflow tap выше или правка `Casks/norka.rb`). `livecheck` в cask смотрит последний релиз GitHub, поэтому `brew livecheck` покажет новую версию ещё до правки файла в tap.
+После задачи `release` тот же workflow подставляет в копию `packaging/homebrew/norka.rb` версию и SHA256 строки `norka.dmg` из `SHA256SUMS` и пушит `Casks/norka.rb`. Ссылка в cask остаётся `https://github.com/norka-app/Norka/releases/download/v#{version}/norka.dmg`: вместе с полем `version` это файл этого выпуска. Перед push скрипт проверяет, что `norka.dmg` по адресу `https://github.com/norka-app/Norka/releases/download/<тег>/norka.dmg` открывается. `livecheck` смотрит последний релиз GitHub.
+
+Секрет тот же `TAP_GITHUB_TOKEN`. Нет секрета — cask не пушится. Если в это же время `norka-cli` пушит свой cask, push приложения повторяется поверх нового `main` и по-прежнему меняет только `Casks/norka.rb`.
+
+Ручной запуск, в том числе для уже стоящего тега `v1.6.1`: Actions → Publish Norka app → Run workflow. Ветку оставьте `main`: шаги и образцы `packaging/` берутся из неё. В поле tag укажите тег, например `v1.6.1`. Тег не переставляется. Файлы выпуска и `SHA256SUMS` не заменяются.
 
 ## norka-cli
 
@@ -174,7 +123,7 @@ jobs:
 
 Платформы: linux, windows и darwin, amd64 и arm64. Архивы `tar.gz`, для Windows `zip`. Плюс пакеты deb и rpm. В каждом архиве и пакете два бинарника: `norka-cli` и `norkad`.
 
-Публикация cask и манифеста Scoop идёт в чужие репозитории и требует секрет `TAP_GITHUB_TOKEN` (право писать в `norka-app/homebrew-tap` и `norka-app/scoop-bucket`). В конфиге токен записан только как `{{ .Env.TAP_GITHUB_TOKEN }}`: другую подстановку GoReleaser отклоняет при публикации. Нет секрета — в Actions приходит пустая строка, `skip_upload` пропускает tap и bucket, а сам выпуск с архивами и пакетами собирается. Отсутствующая переменная для `skip_upload` тоже означает пропуск: шаблон смотрит через `index`, а не через `.Env.ИМЯ`.
+Публикация cask и манифеста Scoop клиента идёт в чужие репозитории и требует секрет `TAP_GITHUB_TOKEN` (право писать в `norka-app/homebrew-tap` и `norka-app/scoop-bucket`). В конфиге токен записан только как `{{ .Env.TAP_GITHUB_TOKEN }}`: другую подстановку GoReleaser отклоняет при публикации. Нет секрета — в Actions приходит пустая строка, `skip_upload` пропускает tap и bucket, а сам выпуск с архивами и пакетами собирается. Отсутствующая переменная для `skip_upload` тоже означает пропуск: шаблон смотрит через `index`, а не через `.Env.ИМЯ`. Тот же секрет использует `Publish Norka app` для `Casks/norka.rb` и `bucket/norka.json`. GoReleaser клиента эти два файла не пишет.
 
 ### Ручной перезапуск
 
@@ -202,7 +151,7 @@ deb и rpm ставятся из файлов выпуска, например `
 
 Клиент управляет туннелями только у запущенной Norka. В **Настройки → Функции** должно быть включено «Автоматизация». Иначе команда завершается с кодом 1. `norka-cli connect` может сам запустить приложение в трее, если Norka хотя бы раз записывала `app-path` рядом с `config.toml`.
 
-Репозитории tap и bucket этот workflow не создаёт. Их по-прежнему заводят один раз, как описано выше для приложения.
+Репозитории tap и bucket этот workflow не создаёт. Они уже есть; `norka-cli` только дописывает в них `Casks/norka-cli.rb` и `bucket/norka-cli.json`.
 
 ## Что не делается из этого репозитория
 
@@ -210,3 +159,4 @@ deb и rpm ставятся из файлов выпуска, например `
 - Репозитории `norka-app/scoop-bucket` и `norka-app/homebrew-tap` не создаются.
 - macOS не подписывается Developer ID и не нотаризуется.
 - Workflow хешей и `scripts/update-manifests.sh` не создают теги и не меняют выпуски. Они правят только образцы манифестов в этом репозитории.
+- `Publish Norka app` и `scripts/publish-app-packages.sh` не создают теги и не меняют выпуски, общий `SHA256SUMS` и файлы `norka-cli`. Они пушат только `Casks/norka.rb` и `bucket/norka.json`, и только если задан `TAP_GITHUB_TOKEN`.
