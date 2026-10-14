@@ -225,6 +225,22 @@ GitHub Actions publishes a build for each `v*` tag. `norka.exe` is unsigned. The
 
 A Linux build needs GTK 3 and WebKitGTK 4.1 from the distro. On Ubuntu 24.04 the AppImage also needs FUSE 2 (`libfuse2t64`); without it, run `./norka-x86_64.AppImage --appimage-extract-and-run`. Install the package with `sudo apt install ./norka_<version>_amd64.deb`. The tray icon is a StatusNotifier (AppIndicator). On GNOME without the AppIndicator extension it may be missing; the window still works. Details are in [docs/LINUX.md](docs/LINUX.md).
 
+### Package managers
+
+```bash
+# macOS, Homebrew
+brew install --cask norka-app/tap/norka
+
+# Windows, Scoop
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka/norka
+
+# Windows, winget — coming soon
+winget install NorkaApp.Norka
+```
+
+The Homebrew cask and the Scoop manifest are published on each `v*` tag. winget is still coming soon; the steps are in [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md).
+
 ### Windows warns about an unknown publisher
 
 `norka.exe` from the releases page is unsigned. SmartScreen shows “Windows protected your PC” and says the publisher is unknown.

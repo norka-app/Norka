@@ -189,22 +189,21 @@ go install github.com/norka-app/Norka/cmd/norka-cli@latest
 
 Linux-сборке нужны GTK 3 и WebKitGTK 4.1 из дистрибутива. AppImage на Ubuntu 24.04 дополнительно просит FUSE 2 (`libfuse2t64`); без него запуск — `./norka-x86_64.AppImage --appimage-extract-and-run`. Пакет ставится так: `sudo apt install ./norka_<версия>_amd64.deb`. Иконка трея — StatusNotifier (AppIndicator). На GNOME без расширения AppIndicator её может не быть, окно при этом работает. Подробности — в [docs/LINUX.md](docs/LINUX.md).
 
-### Пакетные менеджеры — скоро
-
-Манифесты уже в репозитории (`packaging/`), в каталоги winget, Scoop и Homebrew они ещё не отправлены. Команды заработают после шагов из [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md):
+### Пакетные менеджеры
 
 ```bash
+# macOS, Homebrew
+brew install --cask norka-app/tap/norka
+
+# Windows, Scoop
+scoop bucket add norka https://github.com/norka-app/scoop-bucket
+scoop install norka/norka
+
 # Windows, winget — скоро
 winget install NorkaApp.Norka
-
-# Windows, Scoop — скоро, после репозитория norka-app/scoop-bucket
-scoop bucket add norka https://github.com/norka-app/scoop-bucket
-scoop install norka
-
-# macOS, Homebrew — скоро, после репозитория norka-app/homebrew-tap
-brew tap norka-app/tap
-brew install --cask norka-app/tap/norka
 ```
+
+Cask Homebrew и манифест Scoop публикуются на каждом теге `v*`. winget появится после заявки, шаги в [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md).
 
 ### Windows предупреждает о неизвестном издателе
 
