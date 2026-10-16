@@ -20,7 +20,7 @@ winget по-прежнему не публикуется, пока нет `WINGE
 - `norka.exe` — winget (`InstallerSha256`, заглавные буквы) и Scoop (`hash`, строчные)
 - `norka.dmg` — Homebrew (`sha256`, строчные)
 
-Номер приложения — `1.6.1`. Образцы в `packaging/` сейчас совпадают с `SHA256SUMS` выпуска [v1.6.1](https://github.com/norka-app/Norka/releases/tag/v1.6.1). Следующий тег без дефиса workflow хешей перепишет версию и хеши и откроет pull request. Сам выпуск файлы в `packaging/` не меняет. Cask и манифест Scoop в tap и bucket обновляет `Publish Norka app`: он читает `SHA256SUMS` выпуска и не ждёт этот pull request.
+Номер приложения — `1.7.0`. В `packaging/` пока версия `1.6.1`, хеши взяты из `SHA256SUMS` выпуска [v1.6.1](https://github.com/norka-app/Norka/releases/tag/v1.6.1). После тега `v1.7.0` workflow хешей перепишет версию и хеши и откроет pull request. Сам выпуск файлы в `packaging/` не меняет. Cask и манифест Scoop в tap и bucket обновляет `Publish Norka app`: он читает `SHA256SUMS` выпуска и не ждёт этот pull request.
 
 Сборка по тегу `v*` публикует выпуск из `build.yml` токеном `GITHUB_TOKEN`. Событие, которое создал этот токен, другие workflow не запускает, поэтому отдельный триггер `on: release` здесь не используется. Когда задача `release` прошла и в теге нет дефиса, `build.yml` вызывает `.github/workflows/update-manifests.yml` через `workflow_call` и передаёт версию.
 
@@ -41,7 +41,7 @@ https://github.com/norka-app/Norka/compare/main...packaging/manifests-v<верс
 Pull request по этой ссылке открывает человек. Если ветку нужно собрать локально, те же файлы правит скрипт:
 
 ```bash
-scripts/update-manifests.sh 1.6.1
+scripts/update-manifests.sh 1.7.0
 ```
 
 Версию можно передать с `v` или без. Скрипт только меняет файлы в рабочей копии: не пушит, не ставит теги и не редактирует выпуски. Дальше обычный коммит и PR.
@@ -51,7 +51,7 @@ scripts/update-manifests.sh 1.6.1
 Идентификатор пакета: `NorkaApp.Norka`. Файлы для первой заявки: `packaging/winget/`.
 
 1. Поставьте [wingetcreate](https://github.com/microsoft/winget-create) или проверяйте YAML по схемам из комментария в начале каждого файла.
-2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Сейчас в образцах версия `1.6.1` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.6.1`. `InstallerSha256` записан заглавными буквами. Следующий тег без дефиса перепишет те же поля workflow хешей или `scripts/update-manifests.sh`.
+2. Перед заявкой сверьте `PackageVersion`, `InstallerUrl` и `InstallerSha256` с тем релизом, который уже выложен. Пока тег `v1.7.0` не опубликован, в образцах версия `1.6.1` и SHA256 `norka.exe` из `SHA256SUMS` тега `v1.6.1`. `InstallerSha256` записан заглавными буквами. На выпуске `v1.7.0` те же поля перепишет workflow хешей или `scripts/update-manifests.sh`.
 3. Скопируйте четыре файла в свой форк [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) по пути:
 
    `manifests/n/NorkaApp/Norka/<версия>/`
