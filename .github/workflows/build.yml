@@ -354,15 +354,32 @@ jobs:
     
     steps:
       # Шаг 1. Заметки к выпуску лежат в репозитории: docs/releases/v1.2.3.md.
-      # На этой машине их ещё нет — сюда пока приезжают только собранные файлы.
-      # Клонируем одну папку: остальной проект для публикации не нужен.
+      # Полная история нужна, чтобы сверить коммит тега с origin/main.
+      # В рабочей копии достаточно заметок и скрипта проверки.
       - name: Checkout release notes
         uses: actions/checkout@v4
         with:
-          sparse-checkout: docs/releases
+          fetch-depth: 0
+          sparse-checkout: |
+            docs/releases
+            scripts
 
-      # Шаг 2. Имя файла совпадает с тегом. Нет файла — в описании останется
-      # только хвост про SmartScreen, его допишет шаг Compose release body.
+      # Тег на чужом коммите, версия не из wails.json или нет файла заметок:
+      # выпуск не создаём. Имена пакетов Linux по-прежнему берутся из wails.json,
+      # поэтому расхождение с тегом здесь запрещено.
+      - name: Check tag is on main
+        run: |
+          if [ -f "$(git rev-parse --git-path shallow)" ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          chmod +x scripts/check-release-tag.sh
+          scripts/check-release-tag.sh --tag "$GITHUB_REF_NAME" --commit "$GITHUB_SHA" --main origin/main
+
+      # Шаг 2. Текст выпуска — docs/releases/<тег>.md. Видео вставляют в этот
+      # файл: ссылка https://github.com/user-attachments/assets/... с новой строки.
+      # Файл в репозитории на странице выпуска не проигрывается.
+      # Нет файла — задача падает, пустое описание не публикуем.
       - name: Look for release notes
         id: notes
         run: |
@@ -371,8 +388,8 @@ jobs:
             echo "path=${notes_file}" >> "$GITHUB_OUTPUT"
             echo "Нашлись заметки: ${notes_file}"
           else
-            echo "path=" >> "$GITHUB_OUTPUT"
-            echo "Файла ${notes_file} нет. В описании останется только блок про Windows."
+            echo "Файла ${notes_file} нет. Текст выпуска берётся только из него." >&2
+            exit 1
           fi
 
       # Шаг 3. Скачать собранное приложение macOS из архива задачи build-macos.
@@ -419,7 +436,7 @@ jobs:
 
       # К заметкам дописывается общий хвост про SmartScreen.
       # Если маркер хвоста уже есть в файле заметок, второй раз он не добавляется.
-      # Файла заметок нет — в описании остаётся только этот хвост.
+      # Файла заметок нет — предыдущий шаг уже остановил задачу.
       - name: Compose release body
         id: body
         env:
