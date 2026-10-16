@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -841,10 +840,6 @@ func (a *App) SetBackgroundLoginStart(enabled bool) error {
 func (a *App) loginSpec() loginstart.Spec {
 	exe, _ := os.Executable()
 	return loginstart.CurrentSpec(attach.FindNorkad(exe), loginRegistry(), execRun)
-}
-
-func execRun(name string, args ...string) error {
-	return exec.Command(name, args...).Run()
 }
 
 func (a *App) stopTunnelID(id int) (model.Tunnel, error) {
