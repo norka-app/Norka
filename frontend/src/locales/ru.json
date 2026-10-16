@@ -712,7 +712,11 @@
         "diagnosticsIncludeHostsDesc": "По умолчанию выключено: адреса и имена пользователей заменяются на ***.",
         "diagnosticsSaved": "Диагностика сохранена.",
         "diagnosticsShowFolder": "Показать в папке",
-        "diagnosticsCreateIssue": "Создать issue на GitHub"
+        "diagnosticsCreateIssue": "Создать issue на GitHub",
+        "dropTitle": "Перетащите .toml сюда, чтобы импортировать конфиг",
+        "dropHint": "Текущая конфигурация будет заменена после подтверждения",
+        "dropNotToml": "Можно импортировать только файл .toml",
+        "dropMultiple": "Перетащите один файл .toml, а не несколько"
     },
     "features": {
         "title": "Функции",
