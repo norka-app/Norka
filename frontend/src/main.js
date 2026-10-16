@@ -32,6 +32,18 @@ window.addEventListener('unhandledrejection', (event) => {
   reportRendererError('unhandledrejection', event.reason)
 })
 
+// Never let the WebView open a file dropped onto the window (it would replace
+// the app with the file's contents). Registered before the app mounts so it is
+// active from the first frame; preventDefault does not stop propagation, so the
+// Wails file-drop handler on window and the overlay in App.vue still run.
+for (const type of ['dragover', 'drop']) {
+  document.addEventListener(type, (event) => {
+    if (Array.from(event.dataTransfer?.types || []).includes('Files')) {
+      event.preventDefault()
+    }
+  })
+}
+
 const app = createApp(App)
 app.config.errorHandler = (err, instance, info) => {
   reportRendererError('vue.errorHandler', err, info)

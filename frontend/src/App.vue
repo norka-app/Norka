@@ -64,7 +64,8 @@ import {
   DismissAutomationPrompt,
   ShowDiagnosticsInFolder
 } from '../wailsjs/go/main/App'
-import { BrowserOpenURL, EventsOn, WindowMinimise } from '../wailsjs/runtime/runtime'
+import { ImportConfig as ImportConfigFromDrop } from '../wailsjs/go/main/App'
+import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff, WindowMinimise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTitleBar from './components/layout/AppTitleBar.vue'
 import FramelessControls from './components/frameless/FramelessControls.vue'
@@ -78,6 +79,7 @@ import LogsPage from './components/pages/LogsPage.vue'
 import ConfigPage from './components/pages/ConfigPage.vue'
 import ProfilesPage from './components/pages/ProfilesPage.vue'
 import SimpleMode from './components/simple/SimpleMode.vue'
+import DropImportOverlay from './components/common/DropImportOverlay.vue'
 import QuickSearchPalette from './components/quick-search/QuickSearchPalette.vue'
 import AIDebugModal from './components/common/AIDebugModal.vue'
 import JumperModal from './components/modals/JumperModal.vue'
@@ -2754,6 +2756,90 @@ async function onLanguageChange(preference) {
   }
 }
 
+// Drag and drop a .toml onto the window: same import path as Settings > Import.
+// Wails delivers real file paths via OnFileDrop; HTML drag events only drive the overlay.
+const dropOverlayVisible = ref(false)
+let dropDragDepth = 0
+let dropImportBusy = false
+
+function isFileDrag(event) {
+  return Array.from(event?.dataTransfer?.types || []).includes('Files')
+}
+
+function onWindowDragEnter(event) {
+  if (!isFileDrag(event)) return
+  dropDragDepth += 1
+  dropOverlayVisible.value = true
+}
+
+function onWindowDragOver(event) {
+  if (!isFileDrag(event)) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
+
+function onWindowDragLeave(event) {
+  if (!isFileDrag(event)) return
+  dropDragDepth = Math.max(0, dropDragDepth - 1)
+  if (dropDragDepth === 0) dropOverlayVisible.value = false
+}
+
+function resetDropOverlay() {
+  dropDragDepth = 0
+  dropOverlayVisible.value = false
+}
+
+function onFilesDropped(_x, _y, paths) {
+  resetDropOverlay()
+  const list = Array.isArray(paths) ? paths : []
+  if (list.length === 0) return
+  const tomlFiles = list.filter((p) => /\.toml$/i.test(String(p || '').trim()))
+  if (tomlFiles.length === 0) {
+    setConfigMessage(t('config.dropNotToml'))
+    return
+  }
+  if (tomlFiles.length > 1) {
+    setConfigMessage(t('config.dropMultiple'))
+    return
+  }
+  if (dropImportBusy || actionDialog.visible) return
+  const srcPath = tomlFiles[0]
+  openActionDialog({
+    mode: 'confirm',
+    message: t('config.importConfirm'),
+    confirmButtonClass: 'btn-warning',
+    confirmLabel: t('app.common.confirm'),
+    onConfirm: async () => {
+      dropImportBusy = true
+      try {
+        await ImportConfigFromDrop(srcPath)
+        setConfigMessage(t('config.importSuccess'))
+        await onConfigReload()
+      } catch (err) {
+        setConfigMessage(String(err))
+      } finally {
+        dropImportBusy = false
+      }
+    }
+  })
+}
+
+onMounted(() => {
+  window.addEventListener('dragenter', onWindowDragEnter)
+  window.addEventListener('dragover', onWindowDragOver)
+  window.addEventListener('dragleave', onWindowDragLeave)
+  window.addEventListener('drop', resetDropOverlay)
+  OnFileDrop(onFilesDropped, false)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('dragenter', onWindowDragEnter)
+  window.removeEventListener('dragover', onWindowDragOver)
+  window.removeEventListener('dragleave', onWindowDragLeave)
+  window.removeEventListener('drop', resetDropOverlay)
+  OnFileDropOff()
+})
+
 async function onConfigReload() {
   await loadStateFromBackend()
   await syncLanguageFromBackend()
@@ -3185,7 +3271,19 @@ watch(
     </n-layout>
   </n-layout>
   </template>
+  <!-- Simple mode toast: outside the SimpleMode v-if / v-else chain. -->
+  <n-alert
+    v-if="windowMode === 'simple' && showConfigToast && configMessage"
+    class="config-toast"
+    type="info"
+    closable
+    @close="hideConfigToast"
+  >
+    {{ configMessage }}
+  </n-alert>
   </div>
+
+  <DropImportOverlay :show="dropOverlayVisible" />
 
   <UpdateOfferModal
     :show="!!updateOffer"

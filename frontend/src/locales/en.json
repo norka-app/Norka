@@ -712,7 +712,11 @@
         "diagnosticsIncludeHostsDesc": "Off by default: addresses and usernames are replaced with ***.",
         "diagnosticsSaved": "Diagnostics saved.",
         "diagnosticsShowFolder": "Show in folder",
-        "diagnosticsCreateIssue": "Create a GitHub issue"
+        "diagnosticsCreateIssue": "Create a GitHub issue",
+        "dropTitle": "Drop a .toml file here to import the config",
+        "dropHint": "The current configuration will be replaced after you confirm",
+        "dropNotToml": "Only a .toml file can be imported",
+        "dropMultiple": "Drop a single .toml file, not several"
     },
     "features": {
         "title": "Features",

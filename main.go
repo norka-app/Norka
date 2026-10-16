@@ -187,6 +187,14 @@ func main() {
 				showMainWindow()
 			},
 		},
+		// Drag and drop a .toml onto the window to import config (App.vue, OnFileDrop).
+		// DisableWebViewDrop must stay false: on Windows it sets WebView2
+		// AllowExternalDrop(false), the page never gets the drop event, and the Wails
+		// runtime cannot resolve file paths. Navigation to the dropped file is blocked
+		// in JS instead (frontend/src/main.js and the Wails runtime's own drop handler).
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop: true,
+		},
 		Bind: []interface{}{
 			app,
 		},
