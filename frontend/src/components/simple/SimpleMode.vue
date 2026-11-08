@@ -869,8 +869,24 @@ onBeforeUnmount(() => {
 .simple-empty { padding-left: 3px; color: var(--s-muted); font-size: 12.5px; line-height: 18px; }
 .simple-arrow { color: var(--s-faint); margin: 0 3px; font-family: inherit; }
 
-.simple-acts { width: 100%; }
-.simple-acts :deep(.simple-main-btn) { flex: 1 1 auto; min-width: 0; }
+.simple-acts { width: 100%; align-items: center; }
+.simple-acts :deep(.n-button) {
+  height: 32px;
+  border-radius: 8px;
+}
+.simple-acts :deep(.simple-main-btn) {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 12px;
+}
+.simple-acts :deep(.n-button:not(.simple-main-btn)) {
+  width: 32px;
+  padding: 0;
+  --n-icon-margin: 0;
+}
+.simple-acts :deep(.n-button:not(.simple-main-btn) .n-button__icon) {
+  margin: 0;
+}
 
 /* панель списка: по высоте содержимого, но не выше окна (8px сверху и снизу) */
 .simple-backdrop { position: absolute; inset: 0; z-index: 10; }

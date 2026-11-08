@@ -31,6 +31,8 @@
         },
         "titlebar": {
             "minimise": "Minimise",
+            "maximise": "Maximise",
+            "restore": "Restore",
             "close": "Close",
             "toSimple": "Simple mode",
             "toAdvanced": "Advanced mode",

@@ -20,10 +20,10 @@ func (a *App) LayoutIslandStage(hostW, hostH, islandW, islandH, islandR, panelX,
 	return layoutIslandStage(hostW, hostH, islandW, islandH, islandR, panelX, panelY, panelW, panelH)
 }
 
-// IslandShapeSupported сообщает, умеет ли эта система вырезать окно по капсуле
-// и показывать её одновременно с полным окном.
+// IslandShapeSupported оставлен для совместимости вызовов. Маска окна больше не используется:
+// лесенка от SetWindowRgn хуже сглаженного CSS.
 func (a *App) IslandShapeSupported() bool {
-	return islandShapeSupported()
+	return false
 }
 
 // PlaceIslandCapsule ставит одно окно-капсулу по центру сверху, поверх остальных.
@@ -42,38 +42,20 @@ func (a *App) PlaceIslandCapsule(width, height, radius int) {
 	a.placeCapsuleFallback(width, height)
 }
 
-// PlaceIslandHost растягивает окно на рабочую область монитора.
-// Капсула и полное окно рисуются внутри, а всё остальное вырезается.
-func (a *App) PlaceIslandHost() IslandHost {
-	host := IslandHost{Shape: islandShapeSupported()}
-	if a == nil || a.ctx == nil || !host.Shape {
-		return host
-	}
-	a.window.mu.Lock()
-	defer a.window.mu.Unlock()
-	wailsruntime.WindowSetAlwaysOnTop(a.ctx, true)
-	width, height, ok := a.placeWorkAreaHostNative()
-	if !ok {
-		return host
-	}
-	host.OK = true
-	host.Width = width
-	host.Height = height
-	return host
-}
-
-// SetIslandShapes вырезает текущее окно по переданным фигурам (DIP).
-func (a *App) SetIslandShapes(shapes []IslandShape) {
-	if a == nil || a.ctx == nil || !islandShapeSupported() {
+// SetAdvancedChrome включает изменение размера и кнопку «Развернуть» только у полного окна.
+// Капсула и минималистичный вид остаются фиксированными.
+func (a *App) SetAdvancedChrome(enabled bool) {
+	if a == nil || a.ctx == nil {
 		return
 	}
 	a.window.mu.Lock()
 	defer a.window.mu.Unlock()
-	scale := a.islandScale
-	if scale <= 0 {
-		scale = 1
+	setAdvancedChrome(enabled)
+	flag := "false"
+	if enabled {
+		flag = "true"
 	}
-	applyCurrentIslandShapes(shapes, scale)
+	wailsruntime.WindowExecJS(a.ctx, "if (window.wails && window.wails.flags) window.wails.flags.enableResize = "+flag+";")
 }
 
 // SetIslandBackdrop красит фон окна в цвет капсулы, чтобы углы без вырезания

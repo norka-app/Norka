@@ -31,6 +31,8 @@
         },
         "titlebar": {
             "minimise": "Свернуть",
+            "maximise": "Развернуть",
+            "restore": "Восстановить",
             "close": "Закрыть",
             "toSimple": "Простой режим",
             "toAdvanced": "Расширенный режим",

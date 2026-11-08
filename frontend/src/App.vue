@@ -65,7 +65,7 @@ import {
   ShowDiagnosticsInFolder
 } from '../wailsjs/go/main/App'
 import { ImportConfig as ImportConfigFromDrop } from '../wailsjs/go/main/App'
-import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff, WindowMinimise } from '../wailsjs/runtime/runtime'
+import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff, WindowIsMaximised, WindowMinimise, WindowToggleMaximise } from '../wailsjs/runtime/runtime'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTitleBar from './components/layout/AppTitleBar.vue'
 import FramelessControls from './components/frameless/FramelessControls.vue'
@@ -107,15 +107,11 @@ import {
 import {
   animateIslandCapsule,
   clearIslandChrome,
-  detectIslandShape,
-  layoutIslandStage,
-  openIslandHost,
-  paintIslandBackdrop,
   placeIslandCapsule,
-  setIslandShapes,
+  setAdvancedChrome,
   syncWindowPresentation,
 } from './utils/window-island'
-import { islandDuration, islandSize } from './components/island/island-metrics'
+import { islandSize } from './components/island/island-metrics'
 import { islandPhase } from './components/island/island-state'
 import { setWindowShown } from './utils/window-visibility'
 import { findPortConflicts } from './utils/port-conflicts'
@@ -223,14 +219,12 @@ const windowMode = computed({
     if (typeof window !== 'undefined') window.localStorage.setItem(WINDOW_MODE_STORAGE_KEY, next)
   },
 })
-const islandShape = ref(false)
-const alongsideActive = ref(false)
 const islandExpanded = ref(false)
+const openedFromCompact = ref(false)
+const windowMaximised = ref(false)
 const islandPortSwitchId = ref(null)
 const liveIsland = ref({ phase: 'idle', ...islandSize('idle') })
 const islandMotionMs = ref(280)
-const islandHost = ref({ w: 0, h: 0 })
-const islandPanel = ref({ x: -1, y: -1, w: 0, h: 0 })
 let geometryReady = false
 let islandAnimToken = 0
 const simpleOnTop = ref(typeof window !== 'undefined' && window.localStorage.getItem(SIMPLE_ON_TOP_STORAGE_KEY) === '1')
@@ -276,7 +270,7 @@ watchEffect(() => {
     document.documentElement.setAttribute('data-theme', theme.value)
     document.documentElement.setAttribute('data-bs-theme', theme.value)
     document.documentElement.classList.toggle('island-mode', windowMode.value === 'island')
-    document.documentElement.classList.toggle('island-stage', alongsideActive.value)
+    document.documentElement.classList.toggle('island-stage', false)
   }
 })
 
@@ -332,86 +326,14 @@ function selectSimpleTunnel(id) {
 
 let windowModeSwitching = false
 
-const islandAlongside = computed(() => (
-  islandOn.value && islandShape.value && windowMode.value === 'advanced' && compactMode.value === 'island'
-))
-
-const showIsland = computed(() => (
-  islandOn.value && (windowMode.value === 'island' || alongsideActive.value)
-))
+const showIsland = computed(() => islandOn.value && windowMode.value === 'island')
 
 const rootClass = computed(() => ({
   'app-root--island': windowMode.value === 'island',
-  'app-root--stage': alongsideActive.value,
 }))
-
-const islandAnchorStyle = computed(() => {
-  if (!alongsideActive.value) return undefined
-  return {
-    position: 'absolute',
-    left: '50%',
-    top: '12px',
-    transform: 'translateX(-50%)',
-    zIndex: 6,
-  }
-})
-
-const panelAnchorStyle = computed(() => {
-  if (!alongsideActive.value) return undefined
-  const panel = islandPanel.value
-  return {
-    position: 'absolute',
-    left: `${panel.x}px`,
-    top: `${panel.y}px`,
-    width: `${panel.w}px`,
-    height: `${panel.h}px`,
-    zIndex: 4,
-  }
-})
-
-let panelDrag = null
-
-function clampIslandPanel(x, y) {
-  const host = islandHost.value
-  const panel = islandPanel.value
-  const floor = 12 + liveIsland.value.h + 8
-  let nextX = x
-  let nextY = y
-  if (nextX < 0) nextX = 0
-  if (nextY < floor) nextY = floor
-  if (nextX + panel.w > host.w) nextX = Math.max(0, host.w - panel.w)
-  if (nextY + panel.h > host.h) nextY = Math.max(0, host.h - panel.h)
-  return { x: nextX, y: nextY, w: panel.w, h: panel.h }
-}
-
-function onPanelPointerMove(event) {
-  if (!panelDrag) return
-  islandPanel.value = clampIslandPanel(
-    panelDrag.x + (event.screenX - panelDrag.sx),
-    panelDrag.y + (event.screenY - panelDrag.sy),
-  )
-  void pushIslandShapes()
-}
-
-function onPanelPointerUp() {
-  panelDrag = null
-  window.removeEventListener('pointermove', onPanelPointerMove)
-  window.removeEventListener('pointerup', onPanelPointerUp)
-}
 
 function onStagePointerDown(event) {
   if (islandExpanded.value && !event.target?.closest?.('.island')) islandExpanded.value = false
-  if (!alongsideActive.value || event.button !== 0) return
-  const handle = event.target?.closest?.('.titlebar__drag, .top-header')
-  if (!handle || event.target?.closest?.('button, a, input, textarea, select, .n-button')) return
-  panelDrag = {
-    sx: event.screenX,
-    sy: event.screenY,
-    x: islandPanel.value.x,
-    y: islandPanel.value.y,
-  }
-  window.addEventListener('pointermove', onPanelPointerMove)
-  window.addEventListener('pointerup', onPanelPointerUp)
 }
 
 const islandConflict = computed(() => {
@@ -441,7 +363,27 @@ async function enterSimpleWindow({ capture = true } = {}) {
   if (capture) await captureAdvancedBounds()
   windowMode.value = 'simple'
   await nextTick()
+  await setAdvancedChrome(false)
   await applySimpleWindow({ onTop: simpleOnTop.value, titleBar: customTitleBar.value || framelessActive.value })
+}
+
+async function refreshMaximised() {
+  if (typeof window === 'undefined' || !window.runtime) return
+  try {
+    windowMaximised.value = (await WindowIsMaximised()) === true
+  } catch (_) {
+    windowMaximised.value = false
+  }
+}
+
+async function toggleMaximise() {
+  if (windowMode.value !== 'advanced') return
+  try {
+    WindowToggleMaximise()
+  } catch (_) {
+    return
+  }
+  window.setTimeout(() => { void refreshMaximised() }, 50)
 }
 
 async function showIslandCapsule(jump) {
@@ -450,7 +392,6 @@ async function showIslandCapsule(jump) {
   if (jump || from.w === target.w && from.h === target.h && from.r === target.r) {
     liveIsland.value = { ...target }
     await placeIslandCapsule(target)
-    await paintIslandBackdrop(theme.value)
     return
   }
   const token = ++islandAnimToken
@@ -458,104 +399,53 @@ async function showIslandCapsule(jump) {
     if (token !== islandAnimToken) return
     liveIsland.value = { ...metrics, phase: target.phase }
   })
-  await paintIslandBackdrop(theme.value)
-}
-
-async function pushIslandShapes() {
-  if (!alongsideActive.value) return
-  const island = document.querySelector('.island')
-  const panel = document.querySelector('.app-frame')
-  const host = document.querySelector('.app-root')
-  if (!island || !panel || !host) return
-  const base = host.getBoundingClientRect()
-  const box = (node, radius) => {
-    const rect = node.getBoundingClientRect()
-    return {
-      x: Math.round(rect.left - base.left),
-      y: Math.round(rect.top - base.top),
-      w: Math.max(1, Math.round(rect.width)),
-      h: Math.max(1, Math.round(rect.height)),
-      radius,
-    }
-  }
-  await setIslandShapes([
-    box(island, liveIsland.value.r),
-    box(panel, 14),
-  ])
-}
-
-async function showAlongside({ capture = true } = {}) {
-  if (capture && !alongsideActive.value) await captureAdvancedBounds()
-  const host = await openIslandHost()
-  if (!host) {
-    alongsideActive.value = false
-    await restoreAdvancedWindow()
-    return
-  }
-  islandHost.value = { w: host.width, h: host.height }
-  const layout = await layoutIslandStage(host.width, host.height, liveIsland.value, islandPanel.value)
-  liveIsland.value = {
-    phase: islandTarget.value.phase,
-    w: layout.islandW,
-    h: layout.islandH,
-    r: layout.islandR,
-  }
-  islandPanel.value = { x: layout.panelX, y: layout.panelY, w: layout.panelW, h: layout.panelH }
-  alongsideActive.value = true
-  await nextTick()
-  await pushIslandShapes()
-  await paintIslandBackdrop(theme.value)
 }
 
 async function applyModeGeometry({ captureSimple = false, restoreAdvanced = false } = {}) {
   const mode = windowMode.value
   if (mode === 'simple') {
-    alongsideActive.value = false
     await clearIslandChrome()
+    await setAdvancedChrome(false)
     await enterSimpleWindow({ capture: captureSimple })
     return
   }
   if (mode === 'island') {
-    alongsideActive.value = false
+    await setAdvancedChrome(false)
     await clearIslandChrome()
     await showIslandCapsule(true)
     return
   }
   await clearIslandChrome()
-  if (islandAlongside.value) {
-    await showAlongside()
-    return
-  }
-  alongsideActive.value = false
+  setSimpleAlwaysOnTop(false)
+  await setAdvancedChrome(true)
   if (restoreAdvanced) await restoreAdvancedWindow()
+  await refreshMaximised()
 }
 
-async function transitionGeometry(prev, wasStage) {
+async function transitionGeometry(prev) {
   const next = windowMode.value
   if (next === 'simple') {
-    alongsideActive.value = false
     await clearIslandChrome()
-    await enterSimpleWindow({ capture: prev === 'advanced' && !wasStage })
+    await setAdvancedChrome(false)
+    await enterSimpleWindow({ capture: prev === 'advanced' })
     return
   }
   if (next === 'island') {
-    if (prev === 'advanced' && !wasStage) await captureAdvancedBounds()
-    alongsideActive.value = false
+    if (prev === 'advanced') await captureAdvancedBounds()
+    await setAdvancedChrome(false)
     await clearIslandChrome()
     await showIslandCapsule(false)
     return
   }
   await clearIslandChrome()
-  if (islandAlongside.value) {
-    await showAlongside({ capture: prev === 'advanced' && !wasStage })
-    return
-  }
-  alongsideActive.value = false
+  setSimpleAlwaysOnTop(false)
+  await setAdvancedChrome(true)
   await restoreAdvancedWindow()
+  await refreshMaximised()
 }
 
 function syncPresentation() {
-  const restore = islandOn.value && windowMode.value === 'advanced'
+  const restore = openedFromCompact.value && windowMode.value === 'advanced'
   return syncWindowPresentation(windowMode.value, restore)
 }
 
@@ -599,7 +489,7 @@ function minimiseWindow() {
 
 // «Закрыть» — как системный крестик: в трей (Windows) или выход (window_chrome.go)
 function closeWindow() {
-  if (islandOn.value && windowMode.value === 'advanced') {
+  if (openedFromCompact.value && windowMode.value === 'advanced') {
     void returnToCompact()
     return
   }
@@ -609,21 +499,31 @@ function closeWindow() {
 // Полный / минималистичный / Dynamic Island. Размер окна помнит Go (window_mode.go).
 // Остров и минималистичный вид не показываются вместе. Закрытие полного окна
 // при включённом флаге возвращает выбранный компактный вид.
-async function setWindowMode(mode) {
+async function setWindowMode(mode, { fromCompact = false } = {}) {
   const next = mode === 'simple' || mode === 'island' ? mode : 'advanced'
   if (next === 'island' && !islandOn.value) return
   if (windowModeSwitching) return
-  if (storedWindowMode.value === next && windowMode.value === next) return
+  if (storedWindowMode.value === next && windowMode.value === next) {
+    if (next === 'advanced' && !fromCompact) {
+      openedFromCompact.value = false
+      await syncPresentation()
+    }
+    return
+  }
   windowModeSwitching = true
   try {
     const prev = windowMode.value
-    const wasStage = alongsideActive.value
-    if (next === 'simple' || next === 'island') compactMode.value = next
+    if (next === 'simple' || next === 'island') {
+      compactMode.value = next
+      openedFromCompact.value = false
+    } else {
+      openedFromCompact.value = fromCompact && (prev === 'simple' || prev === 'island')
+    }
     islandExpanded.value = false
     islandPortSwitchId.value = null
     windowMode.value = next
     await nextTick()
-    await transitionGeometry(prev, wasStage)
+    await transitionGeometry(prev)
     await syncPresentation()
   } finally {
     windowModeSwitching = false
@@ -686,7 +586,7 @@ function subscribeTrayEvents() {
 
 function openTunnelsFromSimple() {
   activePage.value = 'tunnels'
-  void setWindowMode('advanced')
+  void setWindowMode('advanced', { fromCompact: true })
 }
 
 function setHideEmptyUngrouped(enabled) {
@@ -2557,7 +2457,7 @@ async function toggleTunnel(tunnel) {
     simplePortSwitchId.value = tunnel.id
     return
   }
-  if (windowMode.value === 'island' || alongsideActive.value) {
+  if (windowMode.value === 'island') {
     islandPortSwitchId.value = tunnel.id
     islandExpanded.value = false
     return
@@ -2622,19 +2522,6 @@ watch(islandTarget, (next, prev) => {
     })
     return
   }
-  if (!alongsideActive.value) return
-  islandMotionMs.value = islandDuration(prev?.phase, next.phase)
-  liveIsland.value = { ...next }
-  const started = performance.now()
-  const follow = () => {
-    void pushIslandShapes()
-    if (performance.now() - started < islandMotionMs.value + 40) requestAnimationFrame(follow)
-  }
-  requestAnimationFrame(follow)
-})
-
-watch(theme, () => {
-  if (windowMode.value === 'island' || alongsideActive.value) void paintIslandBackdrop(theme.value)
 })
 
 function cancelSimplePortSwitch() {
@@ -3213,7 +3100,6 @@ onMounted(async () => {
   await detectWindowChrome()
   await loadAppVersion()
   await loadFeatures()
-  islandShape.value = await detectIslandShape()
   await ensureWindowOnScreen()
   if (windowMode.value === 'island') await captureAdvancedBounds()
   await applyModeGeometry({ captureSimple: windowMode.value === 'simple' })
@@ -3398,7 +3284,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('keyup', onWindowKeyup, true)
   window.removeEventListener('blur', onWindowBlur)
   window.removeEventListener('pointerdown', onStagePointerDown)
-  onPanelPointerUp()
   offRuntimeEvents.forEach((off) => off?.())
 })
 
@@ -3439,7 +3324,6 @@ watch(
     :get-running-since="getTunnelRunningSince"
     :fill="windowMode === 'island'"
     :motion-ms="islandMotionMs"
-    :style="islandAnchorStyle"
     @expand="islandExpanded = true"
     @collapse="islandExpanded = false"
     @toggle="toggleTunnel"
@@ -3449,8 +3333,7 @@ watch(
   <div
     v-if="windowMode !== 'island'"
     class="app-frame"
-    :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar && !framelessActive, 'app-frame--stage': alongsideActive }]"
-    :style="panelAnchorStyle"
+    :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar && !framelessActive }]"
   >
   <AppTitleBar
     v-if="customTitleBar && !framelessActive"
@@ -3458,14 +3341,19 @@ watch(
     :compact="compactTarget()"
     :theme="theme"
     :status="norkaStatus"
+    :maximised="windowMaximised"
     @minimise="minimiseWindow"
+    @maximise="toggleMaximise"
     @toggle-mode="setWindowMode(windowMode === 'advanced' ? compactTarget() : 'advanced')"
     @close="closeWindow"
   />
   <FramelessControls
     v-if="customTitleBar && framelessActive"
     :theme="theme"
+    :maximizable="windowMode === 'advanced'"
+    :maximised="windowMaximised"
     @minimise="minimiseWindow"
+    @maximise="toggleMaximise"
     @close="closeWindow"
   />
   <SimpleMode
