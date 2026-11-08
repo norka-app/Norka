@@ -1,19 +1,20 @@
 <!--
-  Кнопки окна для вида «без рамки» на Windows. Окно не меняет размер,
-  поэтому «Развернуть» нет: остаются «Свернуть» и «Закрыть».
-  Логика та же, что у AppTitleBar: события minimise / close.
+  Кнопки окна для вида «без рамки» на Windows.
+  В полном виде есть «Развернуть»: окно снова меняет размер.
   Шапка страницы — зона перетаскивания, кнопки из неё исключены.
 -->
 <script setup>
 import { onBeforeUnmount, ref } from 'vue'
 import { NIcon } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import { CloseOutline, Remove } from '@vicons/ionicons5'
+import { CloseOutline, ExpandOutline, Remove, ContractOutline } from '@vicons/ionicons5'
 
 defineProps({
   theme: { type: String, default: 'light' },
+  maximizable: { type: Boolean, default: false },
+  maximised: { type: Boolean, default: false },
 })
-const emit = defineEmits(['minimise', 'close'])
+const emit = defineEmits(['minimise', 'maximise', 'close'])
 const { t } = useI18n()
 
 const TIP_DELAY_MS = 500
@@ -39,7 +40,7 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
 </script>
 
 <template>
-  <div class="flc flc--win" :class="theme === 'dark' ? 'flc--dark' : 'flc--light'">
+  <div class="flc flc--win" :class="[theme === 'dark' ? 'flc--dark' : 'flc--light', { 'flc--can-max': maximizable }]">
     <button
       type="button"
       class="flc-btn"
@@ -49,6 +50,17 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
       @click="press('minimise')"
     >
       <n-icon :component="Remove" :size="14" />
+    </button>
+    <button
+      v-if="maximizable"
+      type="button"
+      class="flc-btn"
+      :aria-label="maximised ? t('app.titlebar.restore') : t('app.titlebar.maximise')"
+      @mouseenter="showTip('max', maximised ? t('app.titlebar.restore') : t('app.titlebar.maximise'))"
+      @mouseleave="hideTip"
+      @click="press('maximise')"
+    >
+      <n-icon :component="maximised ? ContractOutline : ExpandOutline" :size="14" />
     </button>
     <button
       type="button"
@@ -119,5 +131,7 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
 }
 
 .flc-tip--min { right: 46px; }
+.flc--can-max .flc-tip--min { right: 92px; }
+.flc-tip--max { right: 46px; }
 .flc-tip--close { right: 6px; }
 </style>

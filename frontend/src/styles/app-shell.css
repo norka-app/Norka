@@ -1100,6 +1100,18 @@
   overflow: hidden;
 }
 
+.app-root--island {
+  height: 100vh;
+  background: transparent;
+}
+
+html.island-mode,
+html.island-mode body,
+html.island-mode #app {
+  background: transparent !important;
+  overflow: hidden;
+}
+
 .app-frame > .app-shell,
 .app-frame.app-frame--simple > .simple {
   height: 100%;

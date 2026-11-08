@@ -10,17 +10,23 @@ import { useI18n } from 'vue-i18n'
 import NorkaIcon from '../norka/NorkaIcon.vue'
 
 const props = defineProps({
-  // текущий режим окна: 'advanced' | 'simple'
+  // текущий режим окна: 'advanced' | 'simple' | 'island'
   mode: { type: String, default: 'advanced' },
+  // куда ведёт кнопка из полного окна: 'simple' | 'island'
+  compact: { type: String, default: 'simple' },
   theme: { type: String, default: 'light' },
   // сводный статус туннелей для маленькой иконки
-  status: { type: String, default: null }
+  status: { type: String, default: null },
+  maximised: { type: Boolean, default: false },
 })
-const emit = defineEmits(['minimise', 'toggle-mode', 'close'])
+const emit = defineEmits(['minimise', 'maximise', 'toggle-mode', 'close'])
 const { t } = useI18n()
 
-const toSimple = computed(() => props.mode !== 'simple')
-const modeLabel = computed(() => t(toSimple.value ? 'app.titlebar.toSimple' : 'app.titlebar.toAdvanced'))
+const toCompact = computed(() => props.mode === 'advanced')
+const modeLabel = computed(() => {
+  if (!toCompact.value) return t('app.titlebar.toFull')
+  return props.compact === 'island' ? t('app.titlebar.toIsland') : t('app.titlebar.toMinimal')
+})
 
 // Своя подсказка: системный title у WebView2 появляется с задержкой и без темы.
 const TIP_DELAY_MS = 500
@@ -69,6 +75,18 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
         <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M0 5.5h10" /></svg>
       </button>
       <button
+        v-if="mode === 'advanced'"
+        type="button"
+        class="titlebar__btn"
+        :aria-label="maximised ? $t('app.titlebar.restore') : $t('app.titlebar.maximise')"
+        @mouseenter="showTip('max', maximised ? $t('app.titlebar.restore') : $t('app.titlebar.maximise'))"
+        @mouseleave="hideTip"
+        @click="press('maximise')"
+      >
+        <svg v-if="maximised" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2 0.5h7.5V8M0.5 2.5h7v7h-7z" /></svg>
+        <svg v-else viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M0.5 0.5h9v9h-9z" /></svg>
+      </button>
+      <button
         type="button"
         class="titlebar__btn titlebar__btn--mode"
         :aria-label="`${modeLabel} (Ctrl+Shift+M)`"
@@ -77,7 +95,7 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
         @click="press('toggle-mode')"
       >
         <!-- значок показывает режим, в который переключит кнопка -->
-        <svg v-if="toSimple" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
+        <svg v-if="toCompact" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
           <rect x="0.5" y="3.5" width="13" height="7" rx="1.5" />
           <circle cx="4" cy="7" r="1.5" />
           <path d="M7 6h4.5M7 8h3" />
@@ -209,9 +227,12 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
 }
 
 .titlebar--dark .titlebar__tip { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
-.titlebar__tip--min { right: 92px; }
+.titlebar__tip--min { right: 138px; }
+.titlebar__tip--max { right: 92px; }
 .titlebar__tip--mode { right: 46px; }
 .titlebar__tip--close { right: 6px; }
+.titlebar--simple .titlebar__tip--min,
+.titlebar--island .titlebar__tip--min { right: 92px; }
 
 @media (prefers-reduced-motion: reduce) {
   .titlebar__btn { transition: none; }

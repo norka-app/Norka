@@ -31,9 +31,14 @@
         },
         "titlebar": {
             "minimise": "Свернуть",
+            "maximise": "Развернуть",
+            "restore": "Восстановить",
             "close": "Закрыть",
             "toSimple": "Простой режим",
-            "toAdvanced": "Расширенный режим"
+            "toAdvanced": "Расширенный режим",
+            "toMinimal": "Минималистичный",
+            "toFull": "Полноценный",
+            "toIsland": "Dynamic Island"
         },
         "header": {
             "newJumper": "Создать jump host",
@@ -549,6 +554,20 @@
             "profileStopOthersOn": "Подключение профиля остановит остальные туннели",
             "profileStopOthersOff": "Подключение профиля не останавливает остальные туннели"
         },
+        "island": {
+            "region": "Dynamic Island",
+            "expand": "Показать туннели",
+            "collapse": "Свернуть",
+            "connecting": "Подключение · {name}",
+            "dropped": "Обрыв · {name}",
+            "tunnelsOne": "{count} туннель",
+            "tunnelsFew": "{count} туннеля",
+            "tunnelsMany": "{count} туннелей",
+            "activeOf": "{active} из {total} активны",
+            "willStop": "будет отключён {name}",
+            "willStopMany": "будут отключены {names}",
+            "connectInstead": "Подключить вместо"
+        },
         "profiles": {
             "empty": "Профилей пока нет. Соберите набор вроде «дом» или «prod» — туннель может входить в несколько.",
             "create": "Новый профиль",
@@ -640,6 +659,15 @@
         "windowModeDesc": "Компактное окно на один туннель",
         "windowModeAdvanced": "Расширенный",
         "windowModeSimple": "Простой",
+        "appView": "Вид приложения",
+        "appViewDesc": "Выберите, как Norka живёт на рабочем столе",
+        "appViewFull": "Полноценный",
+        "appViewFullDesc": "Все управление: туннели, jump hosts, журнал и настройки",
+        "appViewMinimal": "Минималистичный",
+        "appViewMinimalDesc": "Небольшое окно поверх всех. Быстрый доступ к туннелям",
+        "appViewIsland": "Dynamic Island",
+        "appViewIslandDesc": "Капсула сверху экрана. Статус всегда перед глазами",
+        "appViewCurrent": "Текущий",
         "simpleOnTop": "Простой режим поверх всех окон",
         "simpleOnTopDesc": "Закрепить компактное окно над другими",
         "autoRun": "Запуск при входе",
@@ -752,6 +780,8 @@
         "backgroundModeDesc": "Окно подключается к norkad: туннели остаются, когда окно закрыто. Выключение возвращает прежнее поведение.",
         "framelessWindow": "Окно без рамки",
         "framelessWindowDesc": "Своя шапка вместо системного заголовка, полупрозрачная боковая панель и Норка-вырезка в шапке. На Windows кнопки окна справа, на macOS — системные слева. Применяется после перезапуска.",
+        "dynamicIsland": "Dynamic Island",
+        "dynamicIslandDesc": "Капсула сверху экрана: статус туннелей и переключатели. Пока выключено, полный и минималистичный вид работают как раньше.",
         "framelessRestartHint": "Перезапустите приложение, чтобы изменить окно.",
         "framelessRestart": "Перезапустить"
     },

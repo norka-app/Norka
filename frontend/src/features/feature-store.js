@@ -19,6 +19,7 @@ const DEFAULTS = {
   autostart_hidden: true,
   background_mode: false,
   frameless_window: false,
+  dynamic_island: false,
 }
 
 const COPY = {
@@ -38,6 +39,7 @@ const COPY = {
   autostart_hidden: ['features.autostartHidden', 'features.autostartHiddenDesc'],
   background_mode: ['features.backgroundMode', 'features.backgroundModeDesc'],
   frameless_window: ['features.framelessWindow', 'features.framelessWindowDesc'],
+  dynamic_island: ['features.dynamicIsland', 'features.dynamicIslandDesc'],
 }
 
 function fallbackItems() {

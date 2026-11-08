@@ -35,6 +35,8 @@ type Strings struct {
 	SimpleModeTooltip    string `json:"simpleModeTooltip"`
 	AdvancedMode         string `json:"advancedMode"`
 	AdvancedModeTooltip  string `json:"advancedModeTooltip"`
+	IslandMode           string `json:"islandMode"`
+	IslandModeTooltip    string `json:"islandModeTooltip"`
 	Profiles             string `json:"profiles"`
 	ProfilesTooltip      string `json:"profilesTooltip"`
 	ProfileNone          string `json:"profileNone"`
@@ -108,10 +110,12 @@ func fallbackRussian() Strings {
 		StopAllTooltip:       "Остановить все активные туннели",
 		RetryFailed:          "Переподключить ошибочные",
 		RetryFailedTooltip:   "Повторить запуск туннелей с ошибкой",
-		SimpleMode:           "Простой режим",
-		SimpleModeTooltip:    "Компактное окно на один туннель",
-		AdvancedMode:         "Расширенный режим",
-		AdvancedModeTooltip:  "Полное окно со списком туннелей",
+		SimpleMode:           "Минималистичный",
+		SimpleModeTooltip:    "Небольшое окно поверх всех окон",
+		AdvancedMode:         "Полноценный",
+		AdvancedModeTooltip:  "Все управление: туннели, jump hosts, журнал и настройки",
+		IslandMode:           "Dynamic Island",
+		IslandModeTooltip:    "Капсула сверху экрана со статусом туннелей",
 		Profiles:             "Профили",
 		ProfilesTooltip:      "Подключить набор туннелей",
 		ProfileNone:          "Не выбран",
@@ -161,10 +165,12 @@ func fallbackEnglish() Strings {
 		StopAllTooltip:       "Stop every active tunnel",
 		RetryFailed:          "Retry failed",
 		RetryFailedTooltip:   "Start tunnels that failed",
-		SimpleMode:           "Simple mode",
-		SimpleModeTooltip:    "Compact window for one tunnel",
-		AdvancedMode:         "Advanced mode",
-		AdvancedModeTooltip:  "Full window with the tunnel list",
+		SimpleMode:           "Minimal",
+		SimpleModeTooltip:    "Small window kept above the others",
+		AdvancedMode:         "Full",
+		AdvancedModeTooltip:  "Full window: tunnels, jump hosts, journal and settings",
+		IslandMode:           "Dynamic Island",
+		IslandModeTooltip:    "A capsule at the top of the screen with tunnel status",
 		Profiles:             "Profiles",
 		ProfilesTooltip:      "Connect a set of tunnels",
 		ProfileNone:          "None",
