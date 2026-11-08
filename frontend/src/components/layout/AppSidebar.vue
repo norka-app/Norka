@@ -65,6 +65,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  compact: {
+    type: String,
+    default: 'simple'
+  },
   groups: {
     type: Array,
     default: () => []
@@ -78,6 +82,7 @@ const props = defineProps({
 const emit = defineEmits(['switch-page', 'toggle-collapse', 'toggle-mode', 'manage-groups', 'select-group'])
 
 const { t } = useI18n()
+const compactLabel = computed(() => t(props.compact === 'island' ? 'app.titlebar.toIsland' : 'app.titlebar.toMinimal'))
 const mascotOn = useFeature('mascot')
 const norkaStatusLabel = computed(() => t(`app.sidebar.norkaStatus.${props.tunnelStatus || 'stopped'}`))
 
@@ -214,8 +219,8 @@ const downloadSpark = computed(() => buildSparklinePath(
           v-if="frameless && !collapsed"
           type="button"
           class="fl-mode-btn"
-          :title="`${t('app.titlebar.toSimple')} · Ctrl+Shift+M`"
-          :aria-label="t('app.titlebar.toSimple')"
+          :title="`${compactLabel} · Ctrl+Shift+M`"
+          :aria-label="compactLabel"
           @click="emit('toggle-mode')"
         >
           <n-icon :component="ContractOutline" :size="16" />

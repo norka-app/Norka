@@ -79,6 +79,7 @@ import LogsPage from './components/pages/LogsPage.vue'
 import ConfigPage from './components/pages/ConfigPage.vue'
 import ProfilesPage from './components/pages/ProfilesPage.vue'
 import SimpleMode from './components/simple/SimpleMode.vue'
+import DynamicIsland from './components/island/DynamicIsland.vue'
 import DropImportOverlay from './components/common/DropImportOverlay.vue'
 import QuickSearchPalette from './components/quick-search/QuickSearchPalette.vue'
 import AIDebugModal from './components/common/AIDebugModal.vue'
@@ -103,6 +104,19 @@ import {
   restoreAdvancedWindow,
   setSimpleAlwaysOnTop
 } from './utils/window-mode'
+import {
+  animateIslandCapsule,
+  clearIslandChrome,
+  detectIslandShape,
+  layoutIslandStage,
+  openIslandHost,
+  paintIslandBackdrop,
+  placeIslandCapsule,
+  setIslandShapes,
+  syncWindowPresentation,
+} from './utils/window-island'
+import { islandDuration, islandSize } from './components/island/island-metrics'
+import { islandPhase } from './components/island/island-state'
 import { setWindowShown } from './utils/window-visibility'
 import { findPortConflicts } from './utils/port-conflicts'
 import { rawTunnelError } from './utils/local-bind-error'
@@ -176,9 +190,49 @@ const themeOverrides = computed(() => {
   return mergeNaiveTheme(base, framelessNaiveOverrides(theme.value))
 })
 const sidebarCollapsed = ref(savedSidebarCollapsed === '1')
-const windowMode = ref(
-  typeof window !== 'undefined' && window.localStorage.getItem(WINDOW_MODE_STORAGE_KEY) === 'simple' ? 'simple' : 'advanced'
-)
+const COMPACT_MODE_STORAGE_KEY = 'lt.window.compact'
+const islandOn = useFeature('dynamic_island')
+
+function readStoredWindowMode() {
+  if (typeof window === 'undefined') return 'advanced'
+  const raw = window.localStorage.getItem(WINDOW_MODE_STORAGE_KEY)
+  if (raw === 'simple' || raw === 'island' || raw === 'advanced') return raw
+  return 'advanced'
+}
+
+function readCompactMode() {
+  if (typeof window === 'undefined') return 'simple'
+  const raw = window.localStorage.getItem(COMPACT_MODE_STORAGE_KEY)
+  if (raw === 'island' || raw === 'simple') return raw
+  return readStoredWindowMode() === 'island' ? 'island' : 'simple'
+}
+
+const storedWindowMode = ref(readStoredWindowMode())
+const compactMode = ref(readCompactMode())
+const windowMode = computed({
+  get() {
+    const mode = storedWindowMode.value
+    if (mode === 'island' && !islandOn.value) return 'advanced'
+    if (mode === 'simple' || mode === 'island') return mode
+    return 'advanced'
+  },
+  set(mode) {
+    const next = mode === 'simple' || mode === 'island' ? mode : 'advanced'
+    if (next === 'island' && !islandOn.value) return
+    storedWindowMode.value = next
+    if (typeof window !== 'undefined') window.localStorage.setItem(WINDOW_MODE_STORAGE_KEY, next)
+  },
+})
+const islandShape = ref(false)
+const alongsideActive = ref(false)
+const islandExpanded = ref(false)
+const islandPortSwitchId = ref(null)
+const liveIsland = ref({ phase: 'idle', ...islandSize('idle') })
+const islandMotionMs = ref(280)
+const islandHost = ref({ w: 0, h: 0 })
+const islandPanel = ref({ x: -1, y: -1, w: 0, h: 0 })
+let geometryReady = false
+let islandAnimToken = 0
 const simpleOnTop = ref(typeof window !== 'undefined' && window.localStorage.getItem(SIMPLE_ON_TOP_STORAGE_KEY) === '1')
 const simpleTunnelId = ref(
   typeof window !== 'undefined' ? Number(window.localStorage.getItem(SIMPLE_TUNNEL_STORAGE_KEY)) || null : null
@@ -221,6 +275,8 @@ watchEffect(() => {
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-theme', theme.value)
     document.documentElement.setAttribute('data-bs-theme', theme.value)
+    document.documentElement.classList.toggle('island-mode', windowMode.value === 'island')
+    document.documentElement.classList.toggle('island-stage', alongsideActive.value)
   }
 })
 
@@ -247,8 +303,10 @@ watch(sidebarCollapsed, (collapsed) => {
   }
 })
 
-watch(windowMode, (mode) => {
-  if (typeof window !== 'undefined') window.localStorage.setItem(WINDOW_MODE_STORAGE_KEY, mode)
+watch(compactMode, (mode) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(COMPACT_MODE_STORAGE_KEY, mode === 'island' ? 'island' : 'simple')
+  }
 })
 
 watch(simpleOnTop, (onTop) => {
@@ -274,11 +332,231 @@ function selectSimpleTunnel(id) {
 
 let windowModeSwitching = false
 
-async function enterSimpleWindow() {
-  await captureAdvancedBounds()
+const islandAlongside = computed(() => (
+  islandOn.value && islandShape.value && windowMode.value === 'advanced' && compactMode.value === 'island'
+))
+
+const showIsland = computed(() => (
+  islandOn.value && (windowMode.value === 'island' || alongsideActive.value)
+))
+
+const rootClass = computed(() => ({
+  'app-root--island': windowMode.value === 'island',
+  'app-root--stage': alongsideActive.value,
+}))
+
+const islandAnchorStyle = computed(() => {
+  if (!alongsideActive.value) return undefined
+  return {
+    position: 'absolute',
+    left: '50%',
+    top: '12px',
+    transform: 'translateX(-50%)',
+    zIndex: 6,
+  }
+})
+
+const panelAnchorStyle = computed(() => {
+  if (!alongsideActive.value) return undefined
+  const panel = islandPanel.value
+  return {
+    position: 'absolute',
+    left: `${panel.x}px`,
+    top: `${panel.y}px`,
+    width: `${panel.w}px`,
+    height: `${panel.h}px`,
+    zIndex: 4,
+  }
+})
+
+let panelDrag = null
+
+function clampIslandPanel(x, y) {
+  const host = islandHost.value
+  const panel = islandPanel.value
+  const floor = 12 + liveIsland.value.h + 8
+  let nextX = x
+  let nextY = y
+  if (nextX < 0) nextX = 0
+  if (nextY < floor) nextY = floor
+  if (nextX + panel.w > host.w) nextX = Math.max(0, host.w - panel.w)
+  if (nextY + panel.h > host.h) nextY = Math.max(0, host.h - panel.h)
+  return { x: nextX, y: nextY, w: panel.w, h: panel.h }
+}
+
+function onPanelPointerMove(event) {
+  if (!panelDrag) return
+  islandPanel.value = clampIslandPanel(
+    panelDrag.x + (event.screenX - panelDrag.sx),
+    panelDrag.y + (event.screenY - panelDrag.sy),
+  )
+  void pushIslandShapes()
+}
+
+function onPanelPointerUp() {
+  panelDrag = null
+  window.removeEventListener('pointermove', onPanelPointerMove)
+  window.removeEventListener('pointerup', onPanelPointerUp)
+}
+
+function onStagePointerDown(event) {
+  if (islandExpanded.value && !event.target?.closest?.('.island')) islandExpanded.value = false
+  if (!alongsideActive.value || event.button !== 0) return
+  const handle = event.target?.closest?.('.titlebar__drag, .top-header')
+  if (!handle || event.target?.closest?.('button, a, input, textarea, select, .n-button')) return
+  panelDrag = {
+    sx: event.screenX,
+    sy: event.screenY,
+    x: islandPanel.value.x,
+    y: islandPanel.value.y,
+  }
+  window.addEventListener('pointermove', onPanelPointerMove)
+  window.addEventListener('pointerup', onPanelPointerUp)
+}
+
+const islandConflict = computed(() => {
+  const id = islandPortSwitchId.value
+  if (!id) return null
+  const tunnel = tunnels.value.find((item) => item.id === id)
+  if (!tunnel || (tunnel.status !== 'stopped' && tunnel.status !== 'error')) return null
+  const conflicts = findPortConflicts(tunnel, tunnels.value)
+  if (!conflicts.length) return null
+  return { tunnel, conflicts }
+})
+
+const islandTarget = computed(() => {
+  const phase = islandPhase({
+    tunnels: tunnels.value,
+    expanded: islandExpanded.value,
+    conflict: islandConflict.value,
+  })
+  return { phase, ...islandSize(phase) }
+})
+
+function compactTarget() {
+  return islandOn.value && compactMode.value === 'island' ? 'island' : 'simple'
+}
+
+async function enterSimpleWindow({ capture = true } = {}) {
+  if (capture) await captureAdvancedBounds()
   windowMode.value = 'simple'
   await nextTick()
   await applySimpleWindow({ onTop: simpleOnTop.value, titleBar: customTitleBar.value || framelessActive.value })
+}
+
+async function showIslandCapsule(jump) {
+  const target = islandTarget.value
+  const from = liveIsland.value
+  if (jump || from.w === target.w && from.h === target.h && from.r === target.r) {
+    liveIsland.value = { ...target }
+    await placeIslandCapsule(target)
+    await paintIslandBackdrop(theme.value)
+    return
+  }
+  const token = ++islandAnimToken
+  animateIslandCapsule(from, target, (metrics) => {
+    if (token !== islandAnimToken) return
+    liveIsland.value = { ...metrics, phase: target.phase }
+  })
+  await paintIslandBackdrop(theme.value)
+}
+
+async function pushIslandShapes() {
+  if (!alongsideActive.value) return
+  const island = document.querySelector('.island')
+  const panel = document.querySelector('.app-frame')
+  const host = document.querySelector('.app-root')
+  if (!island || !panel || !host) return
+  const base = host.getBoundingClientRect()
+  const box = (node, radius) => {
+    const rect = node.getBoundingClientRect()
+    return {
+      x: Math.round(rect.left - base.left),
+      y: Math.round(rect.top - base.top),
+      w: Math.max(1, Math.round(rect.width)),
+      h: Math.max(1, Math.round(rect.height)),
+      radius,
+    }
+  }
+  await setIslandShapes([
+    box(island, liveIsland.value.r),
+    box(panel, 14),
+  ])
+}
+
+async function showAlongside({ capture = true } = {}) {
+  if (capture && !alongsideActive.value) await captureAdvancedBounds()
+  const host = await openIslandHost()
+  if (!host) {
+    alongsideActive.value = false
+    await restoreAdvancedWindow()
+    return
+  }
+  islandHost.value = { w: host.width, h: host.height }
+  const layout = await layoutIslandStage(host.width, host.height, liveIsland.value, islandPanel.value)
+  liveIsland.value = {
+    phase: islandTarget.value.phase,
+    w: layout.islandW,
+    h: layout.islandH,
+    r: layout.islandR,
+  }
+  islandPanel.value = { x: layout.panelX, y: layout.panelY, w: layout.panelW, h: layout.panelH }
+  alongsideActive.value = true
+  await nextTick()
+  await pushIslandShapes()
+  await paintIslandBackdrop(theme.value)
+}
+
+async function applyModeGeometry({ captureSimple = false, restoreAdvanced = false } = {}) {
+  const mode = windowMode.value
+  if (mode === 'simple') {
+    alongsideActive.value = false
+    await clearIslandChrome()
+    await enterSimpleWindow({ capture: captureSimple })
+    return
+  }
+  if (mode === 'island') {
+    alongsideActive.value = false
+    await clearIslandChrome()
+    await showIslandCapsule(true)
+    return
+  }
+  await clearIslandChrome()
+  if (islandAlongside.value) {
+    await showAlongside()
+    return
+  }
+  alongsideActive.value = false
+  if (restoreAdvanced) await restoreAdvancedWindow()
+}
+
+async function transitionGeometry(prev, wasStage) {
+  const next = windowMode.value
+  if (next === 'simple') {
+    alongsideActive.value = false
+    await clearIslandChrome()
+    await enterSimpleWindow({ capture: prev === 'advanced' && !wasStage })
+    return
+  }
+  if (next === 'island') {
+    if (prev === 'advanced' && !wasStage) await captureAdvancedBounds()
+    alongsideActive.value = false
+    await clearIslandChrome()
+    await showIslandCapsule(false)
+    return
+  }
+  await clearIslandChrome()
+  if (islandAlongside.value) {
+    await showAlongside({ capture: prev === 'advanced' && !wasStage })
+    return
+  }
+  alongsideActive.value = false
+  await restoreAdvancedWindow()
+}
+
+function syncPresentation() {
+  const restore = islandOn.value && windowMode.value === 'advanced'
+  return syncWindowPresentation(windowMode.value, restore)
 }
 
 // Окно без системной рамки (Windows): заголовок рисует AppTitleBar. Первое значение — по
@@ -321,25 +599,39 @@ function minimiseWindow() {
 
 // «Закрыть» — как системный крестик: в трей (Windows) или выход (window_chrome.go)
 function closeWindow() {
+  if (islandOn.value && windowMode.value === 'advanced') {
+    void returnToCompact()
+    return
+  }
   void CloseMainWindow()
 }
 
-// Переключение «Расширенный / Простой»: размер и позиция расширенного окна запоминаются
-// и восстанавливаются при возврате (см. utils/window-mode.js).
+// Полный / минималистичный / Dynamic Island. Размер окна помнит Go (window_mode.go).
+// Остров и минималистичный вид не показываются вместе. Закрытие полного окна
+// при включённом флаге возвращает выбранный компактный вид.
 async function setWindowMode(mode) {
-  const next = mode === 'simple' ? 'simple' : 'advanced'
-  if (windowModeSwitching || windowMode.value === next) return
+  const next = mode === 'simple' || mode === 'island' ? mode : 'advanced'
+  if (next === 'island' && !islandOn.value) return
+  if (windowModeSwitching) return
+  if (storedWindowMode.value === next && windowMode.value === next) return
   windowModeSwitching = true
   try {
-    if (next === 'simple') {
-      await enterSimpleWindow()
-    } else {
-      await restoreAdvancedWindow()
-      windowMode.value = 'advanced'
-    }
+    const prev = windowMode.value
+    const wasStage = alongsideActive.value
+    if (next === 'simple' || next === 'island') compactMode.value = next
+    islandExpanded.value = false
+    islandPortSwitchId.value = null
+    windowMode.value = next
+    await nextTick()
+    await transitionGeometry(prev, wasStage)
+    await syncPresentation()
   } finally {
     windowModeSwitching = false
   }
+}
+
+async function returnToCompact() {
+  await setWindowMode(compactTarget())
 }
 
 // события из меню трея (tray_menu.go): туннель переключён / открыть окно в нужном режиме
@@ -355,7 +647,7 @@ function focusTunnelFromNotification(id) {
   void nextTick(() => {
     focusTunnelId.value = tunnelId
   })
-  if (windowMode.value === 'simple') void setWindowMode('advanced')
+  if (windowMode.value !== 'advanced') void setWindowMode('advanced')
 }
 
 function subscribeTrayEvents() {
@@ -363,8 +655,11 @@ function subscribeTrayEvents() {
   offRuntimeEvents = [
     EventsOn('tunnels:changed', () => syncStateSilently()),
     EventsOn('window:mode', (mode) => {
-      if (mode === 'simple' && dialogOpen.value) return
+      if ((mode === 'simple' || mode === 'island') && dialogOpen.value) return
       void setWindowMode(mode)
+    }),
+    EventsOn('window:return-compact', () => {
+      void returnToCompact()
     }),
     EventsOn('notification:focus', (id) => focusTunnelFromNotification(id)),
     EventsOn('update:progress', onUpdateProgress),
@@ -2262,6 +2557,11 @@ async function toggleTunnel(tunnel) {
     simplePortSwitchId.value = tunnel.id
     return
   }
+  if (windowMode.value === 'island' || alongsideActive.value) {
+    islandPortSwitchId.value = tunnel.id
+    islandExpanded.value = false
+    return
+  }
 
   const oldName = conflicts.map((item) => item.name || t('app.options.jumper.unknown')).join('», «')
   openActionDialog({
@@ -2300,6 +2600,43 @@ watch(windowMode, () => {
   simplePortSwitchId.value = null
 })
 
+watch(islandOn, async (on) => {
+  if (!geometryReady) return
+  if (on && windowMode.value === 'island') await captureAdvancedBounds()
+  await applyModeGeometry({ restoreAdvanced: !on })
+  await syncPresentation()
+})
+
+watch(islandTarget, (next, prev) => {
+  if (!geometryReady || !next) return
+  const same = prev && prev.w === next.w && prev.h === next.h && prev.r === next.r
+  if (windowMode.value === 'island') {
+    if (same) {
+      liveIsland.value = { ...liveIsland.value, phase: next.phase }
+      return
+    }
+    const token = ++islandAnimToken
+    animateIslandCapsule(liveIsland.value, next, (metrics) => {
+      if (token !== islandAnimToken) return
+      liveIsland.value = { ...metrics, phase: next.phase }
+    })
+    return
+  }
+  if (!alongsideActive.value) return
+  islandMotionMs.value = islandDuration(prev?.phase, next.phase)
+  liveIsland.value = { ...next }
+  const started = performance.now()
+  const follow = () => {
+    void pushIslandShapes()
+    if (performance.now() - started < islandMotionMs.value + 40) requestAnimationFrame(follow)
+  }
+  requestAnimationFrame(follow)
+})
+
+watch(theme, () => {
+  if (windowMode.value === 'island' || alongsideActive.value) void paintIslandBackdrop(theme.value)
+})
+
 function cancelSimplePortSwitch() {
   simplePortSwitchId.value = null
 }
@@ -2308,6 +2645,12 @@ async function confirmSimplePortSwitch(remember) {
   const tunnel = simplePortSwitchPending.value ? simpleTunnel.value : null
   simplePortSwitchId.value = null
   if (tunnel) await confirmPortSwitch(tunnel, remember)
+}
+
+async function confirmIslandPortSwitch() {
+  const tunnel = islandConflict.value?.tunnel
+  islandPortSwitchId.value = null
+  if (tunnel) await confirmPortSwitch(tunnel, false)
 }
 
 function openActionDialog({
@@ -2638,7 +2981,7 @@ async function toggleWindowModeFromShortcut(event) {
   try {
     if (!(await shiftIsHeld(event))) return
     event.preventDefault()
-    await setWindowMode(windowMode.value === 'simple' ? 'advanced' : 'simple')
+    await setWindowMode(windowMode.value === 'advanced' ? compactTarget() : 'advanced')
   } finally {
     modeShortcutLock = false
   }
@@ -2660,6 +3003,16 @@ function onWindowKeydown(event) {
   if (quickSearchOpen.value && matchesKey(event, 'escape')) {
     event.preventDefault()
     void closeQuickSearch()
+    return
+  }
+  if (matchesKey(event, 'escape') && islandExpanded.value) {
+    event.preventDefault()
+    islandExpanded.value = false
+    return
+  }
+  if (matchesKey(event, 'escape') && islandConflict.value) {
+    event.preventDefault()
+    islandPortSwitchId.value = null
     return
   }
   if (isShiftKey(event)) {
@@ -2694,12 +3047,13 @@ function onWindowKeyup(event) {
 function onWindowBlur() {
   shiftDown = false
   modeShortcutFromKeyDown = false
+  if (islandExpanded.value) islandExpanded.value = false
 }
 
 // диалоги не помещаются в компактное окно (подтверждение смены порта простой режим
 // показывает сам, см. simplePortSwitchId — сюда оно не попадает)
 watch(dialogOpen, (open) => {
-  if (open && windowMode.value === 'simple') void setWindowMode('advanced')
+  if (open && windowMode.value !== 'advanced') void setWindowMode('advanced')
 })
 
 watch(dialogOpen, (open) => {
@@ -2858,15 +3212,16 @@ onMounted(async () => {
   await detectCustomTitleBar()
   await detectWindowChrome()
   await loadAppVersion()
+  await loadFeatures()
+  islandShape.value = await detectIslandShape()
   await ensureWindowOnScreen()
-  if (windowMode.value === 'simple') {
-    // окно стартует в размере из main.go — запоминаем его для возврата и сжимаем
-    await enterSimpleWindow()
-  }
+  if (windowMode.value === 'island') await captureAdvancedBounds()
+  await applyModeGeometry({ captureSimple: windowMode.value === 'simple' })
+  geometryReady = true
+  await syncPresentation()
   await syncLanguageFromBackend()
   languageReady.value = true
   await loadStateFromBackend()
-  await loadFeatures()
   await loadOnboarding()
   syncFeatureEffects()
   try {
@@ -2883,6 +3238,7 @@ onMounted(async () => {
   window.addEventListener('keydown', onWindowKeydown, true)
   window.addEventListener('keyup', onWindowKeyup, true)
   window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('pointerdown', onStagePointerDown)
   subscribeTrayEvents()
 })
 
@@ -3041,6 +3397,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKeydown, true)
   window.removeEventListener('keyup', onWindowKeyup, true)
   window.removeEventListener('blur', onWindowBlur)
+  window.removeEventListener('pointerdown', onStagePointerDown)
+  onPanelPointerUp()
   offRuntimeEvents.forEach((off) => off?.())
 })
 
@@ -3064,22 +3422,44 @@ watch(
 
 
 <template>
-  <n-config-provider v-if="languageReady" class="app-root" :theme="naiveTheme" :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
+  <n-config-provider v-if="languageReady" class="app-root" :class="rootClass" :theme="naiveTheme" :theme-overrides="themeOverrides" :locale="naiveLocale" :date-locale="naiveDateLocale">
   <n-global-style />
   <n-dialog-provider>
   <n-message-provider>
   <BackgroundHost />
+  <DynamicIsland
+    v-if="showIsland"
+    :tunnels="tunnels"
+    :theme="theme"
+    :expanded="islandExpanded"
+    :conflict="islandConflict"
+    :eyes="norkaStatus || ''"
+    :profiles-enabled="profilesOn"
+    :active-profile="activeProfile"
+    :get-running-since="getTunnelRunningSince"
+    :fill="windowMode === 'island'"
+    :motion-ms="islandMotionMs"
+    :style="islandAnchorStyle"
+    @expand="islandExpanded = true"
+    @collapse="islandExpanded = false"
+    @toggle="toggleTunnel"
+    @manage="openTunnelsFromSimple"
+    @connect-instead="confirmIslandPortSwitch"
+  />
   <div
+    v-if="windowMode !== 'island'"
     class="app-frame"
-    :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar && !framelessActive }]"
+    :class="[`app-frame--${windowMode}`, { 'app-frame--titlebar': customTitleBar && !framelessActive, 'app-frame--stage': alongsideActive }]"
+    :style="panelAnchorStyle"
   >
   <AppTitleBar
     v-if="customTitleBar && !framelessActive"
     :mode="windowMode"
+    :compact="compactTarget()"
     :theme="theme"
     :status="norkaStatus"
     @minimise="minimiseWindow"
-    @toggle-mode="setWindowMode(windowMode === 'simple' ? 'advanced' : 'simple')"
+    @toggle-mode="setWindowMode(windowMode === 'advanced' ? compactTarget() : 'advanced')"
     @close="closeWindow"
   />
   <FramelessControls
@@ -3124,11 +3504,12 @@ watch(
       :traffic-history-up="trafficHistoryUp"
       :traffic-history-down="trafficHistoryDown"
       :frameless="framelessActive"
+      :compact="compactTarget()"
       :groups="tunnelGroups"
       :tunnels="tunnels"
       @switch-page="switchPage"
       @toggle-collapse="toggleSidebar"
-      @toggle-mode="setWindowMode('simple')"
+      @toggle-mode="setWindowMode(compactTarget())"
       @manage-groups="openTunnelGroupModal()"
       @select-group="switchPage('tunnels')"
     />

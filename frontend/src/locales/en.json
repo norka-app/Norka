@@ -33,7 +33,10 @@
             "minimise": "Minimise",
             "close": "Close",
             "toSimple": "Simple mode",
-            "toAdvanced": "Advanced mode"
+            "toAdvanced": "Advanced mode",
+            "toMinimal": "Minimal",
+            "toFull": "Full",
+            "toIsland": "Dynamic Island"
         },
         "header": {
             "newJumper": "New jump host",
@@ -549,6 +552,20 @@
             "profileStopOthersOn": "Activating a profile stops tunnels outside it",
             "profileStopOthersOff": "Activating a profile leaves other tunnels running"
         },
+        "island": {
+            "region": "Dynamic Island",
+            "expand": "Show tunnels",
+            "collapse": "Collapse",
+            "connecting": "Connecting · {name}",
+            "dropped": "Dropped · {name}",
+            "tunnelsOne": "{count} tunnel",
+            "tunnelsFew": "{count} tunnels",
+            "tunnelsMany": "{count} tunnels",
+            "activeOf": "{active} of {total} active",
+            "willStop": "{name} will be disconnected",
+            "willStopMany": "{names} will be disconnected",
+            "connectInstead": "Connect instead"
+        },
         "profiles": {
             "empty": "No profiles yet. Make a set such as “home” or “prod” — a tunnel can belong to several.",
             "create": "New profile",
@@ -640,6 +657,15 @@
         "windowModeDesc": "Compact window for one tunnel",
         "windowModeAdvanced": "Advanced",
         "windowModeSimple": "Simple",
+        "appView": "App view",
+        "appViewDesc": "Choose how Norka lives on the desktop",
+        "appViewFull": "Full",
+        "appViewFullDesc": "Everything: tunnels, jump hosts, the journal and settings",
+        "appViewMinimal": "Minimal",
+        "appViewMinimalDesc": "A small window above the others. Quick access to tunnels",
+        "appViewIsland": "Dynamic Island",
+        "appViewIslandDesc": "A capsule at the top of the screen. Status stays in sight",
+        "appViewCurrent": "Current",
         "simpleOnTop": "Simple mode always on top",
         "simpleOnTopDesc": "Keep the compact window above other windows",
         "autoRun": "Start at login",
@@ -752,6 +778,8 @@
         "backgroundModeDesc": "The window attaches to norkad, so tunnels keep running after the window closes. Turning it off restores the previous behavior.",
         "framelessWindow": "Frameless window",
         "framelessWindowDesc": "A custom header instead of the system title bar, a translucent sidebar, and the cutout Norka in the header. Window buttons sit on the right on Windows; macOS keeps the system buttons. Applies after a restart.",
+        "dynamicIsland": "Dynamic Island",
+        "dynamicIslandDesc": "A capsule at the top of the screen with tunnel status and toggles. While this is off, Full and Minimal work as before.",
         "framelessRestartHint": "Restart the app to change the window.",
         "framelessRestart": "Restart"
     },

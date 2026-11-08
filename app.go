@@ -52,7 +52,10 @@ type App struct {
 	trayQuit *systray.MenuItem
 	uiLocale string
 
-	allowClose atomic.Bool
+	allowClose     atomic.Bool
+	compactRestore atomic.Bool
+	trayView       atomic.Value
+	islandScale    float64
 
 	trafficMu       sync.Mutex
 	lastTrafficUp   uint64
@@ -89,6 +92,7 @@ var errExportCancelled = errors.New("export cancelled")
 func NewApp() *App {
 	eng := engine.Open()
 	app := &App{engine: eng}
+	app.trayView.Store("advanced")
 	if eng != nil && eng.Ready() == nil {
 		app.aiDebug = aidebug.NewService("", "")
 		app.windowVisible.Store(true)
@@ -351,6 +355,10 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 	}
 	if a.allowClose.Load() {
 		return false
+	}
+	if a.compactRestore.Load() {
+		wailsruntime.EventsEmit(ctx, eventReturnCompact, nil)
+		return true
 	}
 	slog.Info("window close intercepted; hiding to tray")
 	a.hideMainWindow()

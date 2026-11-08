@@ -28,6 +28,7 @@ import { applyFeatureViews, featureEnabled, featureState, setFeatureEnabled, use
 import { isLinuxChrome, windowChrome } from '../../features/window-chrome'
 import FlSettingsTabs from '../frameless/FlSettingsTabs.vue'
 import BackgroundModeSection from './BackgroundModeSection.vue'
+import AppViewPicker from '../settings/AppViewPicker.vue'
 import { hotkeyChord, matchesKey } from '../../utils/keyboard'
 
 const backgroundOn = useFeature('background_mode')
@@ -494,6 +495,11 @@ async function onCollectDiagnostics() {
 <template>
   <FlSettingsTabs v-if="framelessLook" v-model="flSection" />
   <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
+    <n-gi span="2" :class="{ 'fl-sec': framelessLook, 'fl-sec--off': framelessLook && flSection !== 'general' }">
+      <n-card size="small">
+        <AppViewPicker :mode="windowMode" @change="$emit('window-mode-change', $event)" />
+      </n-card>
+    </n-gi>
     <n-gi span="2" :class="{ 'fl-sec': framelessLook, 'fl-sec--off': framelessLook && flSection !== 'features' }">
       <div data-onboarding="features">
       <n-card size="small" :title="framelessLook ? undefined : t('features.title')">
@@ -559,16 +565,6 @@ async function onCollectDiagnostics() {
               <div class="config-desc">{{ t('config.themeDesc') }}</div>
             </div>
             <n-switch :value="theme === 'dark'" @update:value="$emit('theme-change', $event)" />
-          </n-space>
-          <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
-            <div class="settings-label">
-              <div class="config-name">{{ t('config.windowMode') }}</div>
-              <div class="config-desc">{{ t('config.windowModeDesc') }}</div>
-            </div>
-            <n-radio-group :value="windowMode" @update:value="$emit('window-mode-change', $event)">
-              <n-radio-button value="advanced">{{ t('config.windowModeAdvanced') }}</n-radio-button>
-              <n-radio-button value="simple">{{ t('config.windowModeSimple') }}</n-radio-button>
-            </n-radio-group>
           </n-space>
           <n-space class="settings-row" justify="space-between" align="center" :wrap="true">
             <div class="settings-label">

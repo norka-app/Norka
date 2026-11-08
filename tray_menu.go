@@ -26,6 +26,7 @@ const (
 	eventTunnelsChanged = "tunnels:changed"
 	eventWindowMode     = "window:mode"
 	eventWindowPage     = "window:page"
+	eventReturnCompact  = "window:return-compact"
 )
 
 // traySlot — заранее созданный пункт туннеля с подменю. Пункты не пересоздаются:
@@ -53,6 +54,7 @@ type trayMenu struct {
 	retryAll     *systray.MenuItem
 	simple       *systray.MenuItem
 	advanced     *systray.MenuItem
+	island       *systray.MenuItem
 	profiles     *systray.MenuItem
 	profileNone  *systray.MenuItem
 	profileSlots []*trayProfileSlot
@@ -117,10 +119,15 @@ func (a *App) buildTrayMenu(showWindow func()) {
 	}
 
 	systray.AddSeparator()
-	m.simple = systray.AddMenuItem(text.SimpleMode, text.SimpleModeTooltip)
-	m.simple.Click(func() { a.trayShowMode(showWindow, "simple") })
 	m.advanced = systray.AddMenuItem(text.AdvancedMode, text.AdvancedModeTooltip)
 	m.advanced.Click(func() { a.trayShowMode(showWindow, "advanced") })
+	m.simple = systray.AddMenuItem(text.SimpleMode, text.SimpleModeTooltip)
+	m.simple.Click(func() { a.trayShowMode(showWindow, "simple") })
+	m.island = systray.AddMenuItem(text.IslandMode, text.IslandModeTooltip)
+	m.island.Click(func() { a.trayShowMode(showWindow, "island") })
+	if !a.featureOn(features.DynamicIsland) {
+		m.island.Hide()
+	}
 
 	systray.AddSeparator()
 	m.diagnostics = systray.AddMenuItem(text.Diagnostics, text.DiagnosticsTooltip)
@@ -161,9 +168,11 @@ func (a *App) refreshTrayMenu() {
 	var activeProfileID int
 	profilesOn := false
 	diagnosticsOn := false
+	islandOn := false
 	if cfg, cfgErr := a.storage().Load(); cfgErr == nil {
 		profilesOn = cfg.Features.Enabled(features.Profiles)
 		diagnosticsOn = cfg.Features.Enabled(features.Diagnostics)
+		islandOn = cfg.Features.Enabled(features.DynamicIsland)
 		if profilesOn {
 			profiles = cfg.Profiles
 			activeProfileID = cfg.ActiveProfileID
@@ -189,11 +198,16 @@ func (a *App) refreshTrayMenu() {
 		m.iconKey = key
 		setTrayStatusIcon(key)
 	}
-	sig := state.signature() + "§" + profileState.signature() + "§" + fmt.Sprintf("%t%t", profilesOn, diagnosticsOn)
+	view := a.currentTrayView()
+	if view == "island" && !islandOn {
+		view = "advanced"
+	}
+	sig := state.signature() + "§" + profileState.signature() + "§" + fmt.Sprintf("%t%t%t%s", profilesOn, diagnosticsOn, islandOn, view)
 	if sig == m.signature {
 		return
 	}
 	m.signature = sig
+	a.paintTrayViews(m, islandOn, view)
 
 	m.header.SetTitle(state.Header)
 	systray.SetTooltip(state.Tooltip)
@@ -321,6 +335,10 @@ func (a *App) applyTrayStaticLabels(m *trayMenu, text traytext.Strings) {
 		m.advanced.SetTitle(text.AdvancedMode)
 		m.advanced.SetTooltip(text.AdvancedModeTooltip)
 	}
+	if m.island != nil {
+		m.island.SetTitle(text.IslandMode)
+		m.island.SetTooltip(text.IslandModeTooltip)
+	}
 	if m.profiles != nil {
 		m.profiles.SetTitle(text.Profiles)
 		m.profiles.SetTooltip(text.ProfilesTooltip)
@@ -329,6 +347,35 @@ func (a *App) applyTrayStaticLabels(m *trayMenu, text traytext.Strings) {
 		m.profileNone.SetTitle(text.ProfileNone)
 		m.profileNone.SetTooltip(text.ProfileNoneTooltip)
 	}
+}
+
+func (a *App) paintTrayViews(m *trayMenu, islandOn bool, view string) {
+	if m == nil {
+		return
+	}
+	markTray(m.advanced, view == "advanced")
+	markTray(m.simple, view == "simple")
+	if m.island == nil {
+		return
+	}
+	if islandOn {
+		m.island.Show()
+		markTray(m.island, view == "island")
+		return
+	}
+	m.island.Uncheck()
+	m.island.Hide()
+}
+
+func markTray(item *systray.MenuItem, on bool) {
+	if item == nil {
+		return
+	}
+	if on {
+		item.Check()
+		return
+	}
+	item.Uncheck()
 }
 
 func (a *App) paintTrayDiagnostics(m *trayMenu, text traytext.Strings, visible bool) {

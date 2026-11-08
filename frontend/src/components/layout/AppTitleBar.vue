@@ -10,8 +10,10 @@ import { useI18n } from 'vue-i18n'
 import NorkaIcon from '../norka/NorkaIcon.vue'
 
 const props = defineProps({
-  // текущий режим окна: 'advanced' | 'simple'
+  // текущий режим окна: 'advanced' | 'simple' | 'island'
   mode: { type: String, default: 'advanced' },
+  // куда ведёт кнопка из полного окна: 'simple' | 'island'
+  compact: { type: String, default: 'simple' },
   theme: { type: String, default: 'light' },
   // сводный статус туннелей для маленькой иконки
   status: { type: String, default: null }
@@ -19,8 +21,11 @@ const props = defineProps({
 const emit = defineEmits(['minimise', 'toggle-mode', 'close'])
 const { t } = useI18n()
 
-const toSimple = computed(() => props.mode !== 'simple')
-const modeLabel = computed(() => t(toSimple.value ? 'app.titlebar.toSimple' : 'app.titlebar.toAdvanced'))
+const toCompact = computed(() => props.mode === 'advanced')
+const modeLabel = computed(() => {
+  if (!toCompact.value) return t('app.titlebar.toFull')
+  return props.compact === 'island' ? t('app.titlebar.toIsland') : t('app.titlebar.toMinimal')
+})
 
 // Своя подсказка: системный title у WebView2 появляется с задержкой и без темы.
 const TIP_DELAY_MS = 500
@@ -77,7 +82,7 @@ onBeforeUnmount(() => clearTimeout(tipTimer))
         @click="press('toggle-mode')"
       >
         <!-- значок показывает режим, в который переключит кнопка -->
-        <svg v-if="toSimple" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
+        <svg v-if="toCompact" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
           <rect x="0.5" y="3.5" width="13" height="7" rx="1.5" />
           <circle cx="4" cy="7" r="1.5" />
           <path d="M7 6h4.5M7 8h3" />

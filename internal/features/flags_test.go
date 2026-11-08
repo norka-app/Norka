@@ -21,6 +21,9 @@ func TestCatalogDefaults(t *testing.T) {
 	if Default(FramelessWindow) {
 		t.Fatal("frameless window default must be off")
 	}
+	if Default(DynamicIsland) {
+		t.Fatal("dynamic island default must be off")
+	}
 	if Default(ID("language")) {
 		t.Fatal("unknown flag must be off")
 	}

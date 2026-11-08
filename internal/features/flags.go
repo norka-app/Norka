@@ -43,6 +43,10 @@ const (
 	// next start. Linux keeps the native frame and hides the switch.
 	// Default is off: the current window stays as it is.
 	FramelessWindow ID = "frameless_window"
+	// DynamicIsland is the top-of-screen capsule. Off by default: Full and
+	// Minimal keep today's simple/advanced window. The island card and the
+	// tray item stay hidden until the flag is on.
+	DynamicIsland ID = "dynamic_island"
 )
 
 // Flag is one catalog entry. TitleKey and DescriptionKey are vue-i18n paths.
@@ -94,6 +98,7 @@ func All() []Flag {
 		{ID: AutostartHidden, Default: true, TitleKey: "features.autostartHidden", DescriptionKey: "features.autostartHiddenDesc"},
 		{ID: BackgroundMode, Default: false, TitleKey: "features.backgroundMode", DescriptionKey: "features.backgroundModeDesc"},
 		{ID: FramelessWindow, Default: false, TitleKey: "features.framelessWindow", DescriptionKey: "features.framelessWindowDesc"},
+		{ID: DynamicIsland, Default: false, TitleKey: "features.dynamicIsland", DescriptionKey: "features.dynamicIslandDesc"},
 	}
 }
 
@@ -139,6 +144,7 @@ type Flags struct {
 	AutostartHidden   *bool `toml:"autostart_hidden,omitempty" json:"autostartHidden,omitempty"`
 	BackgroundMode    *bool `toml:"background_mode,omitempty" json:"backgroundMode,omitempty"`
 	FramelessWindow   *bool `toml:"frameless_window,omitempty" json:"framelessWindow,omitempty"`
+	DynamicIsland     *bool `toml:"dynamic_island,omitempty" json:"dynamicIsland,omitempty"`
 }
 
 // Enabled reports the effective value: the explicit choice, or the default.
@@ -191,6 +197,8 @@ func (f *Flags) Set(id ID, enabled bool) error {
 		f.BackgroundMode = &value
 	case FramelessWindow:
 		f.FramelessWindow = &value
+	case DynamicIsland:
+		f.DynamicIsland = &value
 	default:
 		return fmt.Errorf("unknown feature %q", id)
 	}
@@ -232,6 +240,7 @@ func (f Flags) Clone() Flags {
 		AutostartHidden:   cloneBool(f.AutostartHidden),
 		BackgroundMode:    cloneBool(f.BackgroundMode),
 		FramelessWindow:   cloneBool(f.FramelessWindow),
+		DynamicIsland:     cloneBool(f.DynamicIsland),
 	}
 }
 
@@ -298,6 +307,8 @@ func (f Flags) ptr(id ID) *bool {
 		return f.BackgroundMode
 	case FramelessWindow:
 		return f.FramelessWindow
+	case DynamicIsland:
+		return f.DynamicIsland
 	default:
 		return nil
 	}
